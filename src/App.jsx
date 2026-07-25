@@ -1492,6 +1492,7 @@ function InventarioView({ inventario, setInventario }) {
             <tr>
               <th className="text-left px-3 py-2">SKU</th>
               <th className="text-left px-3 py-2">Nombre</th>
+              <th className="text-left px-3 py-2">Descripción</th>
               <th className="text-right px-3 py-2">Precio</th>
               <th className="text-right px-3 py-2">Existencias</th>
               <th className="px-3 py-2 print:hidden"></th>
@@ -1502,6 +1503,7 @@ function InventarioView({ inventario, setInventario }) {
               <tr key={a.id} className="border-t">
                 <td className="px-3 py-2 text-slate-500">{a.sku}</td>
                 <td className="px-3 py-2">{a.nombre}</td>
+                <td className="px-3 py-2 text-slate-500 max-w-[260px]">{a.rangoDescripcion || "—"}</td>
                 <td className="px-3 py-2 text-right">${a.precio}</td>
                 <td className="px-3 py-2 text-right">{a.existencias}</td>
                 <td className="px-3 py-2 text-right print:hidden">
@@ -1513,7 +1515,7 @@ function InventarioView({ inventario, setInventario }) {
             ))}
             {lista.length === 0 && (
               <tr>
-                <td colSpan={5} className="text-center text-slate-400 py-6">
+                <td colSpan={6} className="text-center text-slate-400 py-6">
                   Sin artículos en esta categoría todavía.
                 </td>
               </tr>
@@ -1793,6 +1795,15 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes }) {
     setLaboratorio(laboratorio.map((o) => (o.id === id ? { ...o, [campo]: valor } : o)));
   }
 
+  function cancelarOrden(id) {
+    if (!window.confirm("¿Cancelar esta orden de laboratorio? Quedará marcada como cancelada.")) return;
+    setLaboratorio(laboratorio.map((o) => (o.id === id ? { ...o, cancelada: true } : o)));
+  }
+
+  function reactivarOrden(id) {
+    setLaboratorio(laboratorio.map((o) => (o.id === id ? { ...o, cancelada: false } : o)));
+  }
+
   return (
     <div className="p-4">
       <div className="bg-white border rounded-xl p-3 mb-4 space-y-2">
@@ -1840,11 +1851,13 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes }) {
               <th className="text-left px-3 py-2">Envío a lab.</th>
               <th className="text-left px-3 py-2">Prometida</th>
               <th className="text-left px-3 py-2">Recepción</th>
+              <th className="text-left px-3 py-2">Estatus</th>
+              <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody>
             {laboratorio.map((o) => (
-              <tr key={o.id} className="border-t align-top">
+              <tr key={o.id} className={`border-t align-top ${o.cancelada ? "opacity-50" : ""}`}>
                 <td className="px-3 py-2">{o.nombreCliente || pacientes.find((p) => p.id === o.pacienteId)?.nombre || "—"}</td>
                 <td className="px-3 py-2 max-w-[220px] truncate" title={o.receta}>{o.receta || "—"}</td>
                 <td className="px-3 py-2">{o.material || "—"}</td>
@@ -1859,11 +1872,25 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes }) {
                 <td className="px-3 py-2">
                   <input type="date" value={o.fechaRecepcion || ""} onChange={(e) => actualizarFecha(o.id, "fechaRecepcion", e.target.value)} className="border rounded px-1 py-0.5 text-xs" />
                 </td>
+                <td className="px-3 py-2">
+                  {o.cancelada ? (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">Cancelada</span>
+                  ) : (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600">Activa</span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-right">
+                  {o.cancelada ? (
+                    <button onClick={() => reactivarOrden(o.id)} className="text-xs text-sky-600 underline">Reactivar</button>
+                  ) : (
+                    <button onClick={() => cancelarOrden(o.id)} className="text-xs text-red-500 underline">Cancelar</button>
+                  )}
+                </td>
               </tr>
             ))}
             {laboratorio.length === 0 && (
               <tr>
-                <td colSpan={8} className="text-center text-slate-400 py-6">Sin órdenes de laboratorio todavía.</td>
+                <td colSpan={10} className="text-center text-slate-400 py-6">Sin órdenes de laboratorio todavía.</td>
               </tr>
             )}
           </tbody>
