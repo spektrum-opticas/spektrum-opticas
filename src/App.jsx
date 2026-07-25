@@ -98,6 +98,76 @@ function exportarRespaldo(datos) {
   URL.revokeObjectURL(url);
 }
 
+function useSesion() {
+  const [sesion, setSesionState] = useState(() => {
+    try {
+      const raw = localStorage.getItem("spektrum_sesion");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  const setSesion = (s) => {
+    setSesionState(s);
+    try {
+      if (s) localStorage.setItem("spektrum_sesion", JSON.stringify(s));
+      else localStorage.removeItem("spektrum_sesion");
+    } catch {}
+  };
+  return [sesion, setSesion];
+}
+
+function LoginScreen({ usuarios, setUsuarios, onIngresar, config }) {
+  const [nombre, setNombre] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const esPrimerAcceso = usuarios.length === 0;
+
+  function entrar() {
+    setError("");
+    if (!nombre || !password) {
+      setError("Completa usuario y contraseña.");
+      return;
+    }
+    if (esPrimerAcceso) {
+      const admin = { id: uid(), nombre, password, rol: "ADMIN" };
+      setUsuarios([admin]);
+      onIngresar({ nombre: admin.nombre, rol: admin.rol });
+      return;
+    }
+    const encontrado = usuarios.find(
+      (u) => u.nombre.trim().toLowerCase() === nombre.trim().toLowerCase() && u.password === password
+    );
+    if (!encontrado) {
+      setError("Usuario o contraseña incorrectos.");
+      return;
+    }
+    onIngresar({ nombre: encontrado.nombre, rol: encontrado.rol });
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: BEIGE }}>
+      <div className="bg-white border rounded-xl p-6 w-full max-w-sm shadow-lg">
+        {config?.logo && <img src={config.logo} alt="logo" style={{ height: 70 }} className="mx-auto mb-2" />}
+        <h1 className="text-xl font-bold text-slate-800 mb-1 text-center">Spektrum Ópticas</h1>
+        <p className="text-xs text-slate-500 text-center mb-4">
+          {esPrimerAcceso ? "Primer acceso — crea la cuenta de administrador" : "Acceso para personal"}
+        </p>
+        <Field label="Usuario" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+        <Field label="Contraseña" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
+        <button
+          onClick={entrar}
+          className="w-full py-2 rounded-lg text-white text-sm font-medium mt-2"
+          style={{ background: SKY_DARK }}
+        >
+          {esPrimerAcceso ? "Crear cuenta y entrar" : "Entrar"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function GlobalPrintStyles() {
   return (
     <style>{`
@@ -2484,7 +2554,14 @@ export default function App() {
 
   const [seccion, setSeccion] = useState("agenda");
   const [presetPacienteId, setPresetPacienteId] = useState(null);
-  const [vista, setVista] = useState("staff"); // staff | portal
+  const [vista, setVista] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get("portal") === "1" ? "portal" : "staff";
+    } catch {
+      return "staff";
+    }
+  });
+  const [sesion, setSesion] = useSesion();
 
   const todoListo = loadedP && loadedI && loadedA && loadedV && loadedU && loadedC && loadedL && loadedPP;
 
@@ -2538,6 +2615,10 @@ export default function App() {
     );
   }
 
+  if (!sesion) {
+    return <LoginScreen usuarios={usuarios} setUsuarios={setUsuarios} onIngresar={setSesion} config={config} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <GlobalPrintStyles />
@@ -2550,6 +2631,9 @@ export default function App() {
           <Header config={config} />
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <span className="text-xs text-slate-400 hidden sm:inline">
+            {sesion.nombre} · {sesion.rol}
+          </span>
           <button
             onClick={recargarTodo}
             className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600"
@@ -2563,6 +2647,9 @@ export default function App() {
             style={{ background: SKY_DARK }}
           >
             Ver portal de pacientes
+          </button>
+          <button onClick={() => setSesion(null)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600">
+            Cerrar sesión
           </button>
         </div>
       </div>
