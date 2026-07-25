@@ -552,7 +552,7 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS }) {
       </Modal>
 
       <Modal open={!!expediente} onClose={() => setExpediente(null)} title="Expediente del paciente" wide>
-        {paciente && (
+        {paciente ? (
           <ExpedientePaciente
             paciente={paciente}
             pacientes={pacientes}
@@ -568,6 +568,11 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS }) {
               setExpediente(null);
             }}
           />
+        ) : (
+          <p className="text-sm text-slate-400">
+            No se encontró el expediente de este paciente (puede que haya sido eliminado). Cierra esta ventana e
+            inténtalo de nuevo.
+          </p>
         )}
       </Modal>
     </div>
@@ -577,17 +582,25 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS }) {
 function CitaBlock({ cita, onDragStart, onClickNombre, onEliminar, onEstatus, dark }) {
   return (
     <div
-      draggable
-      onDragStart={onDragStart}
       style={{ background: dark ? BEIGE_DARK : "white" }}
-      className="flex-1 flex items-center gap-2 rounded px-2 py-1 text-xs shadow-sm cursor-move"
+      className="flex-1 flex items-center gap-2 rounded px-2 py-1 text-xs shadow-sm"
     >
+      <span draggable onDragStart={onDragStart} title="Arrastrar para mover" className="cursor-move text-slate-400 shrink-0 select-none">
+        ⠿
+      </span>
       <span
         title={ESTATUS_LABEL[cita.estatus]}
         className="w-2.5 h-2.5 rounded-full shrink-0"
         style={{ background: ESTATUS_COLORS[cita.estatus] || "#94a3b8" }}
       />
-      <button onClick={onClickNombre} className="text-sky-700 font-medium hover:underline truncate flex-1 text-left">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClickNombre();
+        }}
+        className="text-sky-700 font-medium hover:underline truncate flex-1 text-left"
+      >
         {cita.nombre}
       </button>
       <select
@@ -862,7 +875,7 @@ function ExpedientePaciente({ paciente, pacientes, setPacientes, onVenta, onGuar
 /* ============================================================
    POS
    ============================================================ */
-function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, presetPacienteId, clearPreset, config }) {
+function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, presetPacienteId, clearPreset, config, laboratorio, setLaboratorio }) {
   const [busquedaCliente, setBusquedaCliente] = useState("");
   const [clienteSel, setClienteSel] = useState(null);
   const [busquedaArt, setBusquedaArt] = useState("");
@@ -929,6 +942,34 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
           p.id === clienteSel.id ? { ...p, compras: [...(p.compras || []), nota] } : p
         )
       );
+    }
+    if (estatus === "venta") {
+      const armazon = carrito.find((it) => it.categoria === "armazones");
+      const material = carrito.find((it) => it.categoria === "lentesGraduados" || it.categoria === "lentesContacto");
+      if (armazon || material) {
+        const p = clienteSel;
+        const receta =
+          p && (p.od || p.os)
+            ? `OD: ${CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${p.od?.[c.toLowerCase()] || "-"}`).join(" · ")} | OS: ${CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${p.os?.[c.toLowerCase()] || "-"}`).join(" · ")}`
+            : "Sin receta capturada en el expediente";
+        setLaboratorio([
+          ...laboratorio,
+          {
+            id: uid(),
+            pacienteId: clienteSel?.id || null,
+            nombreCliente: nota.nombreCliente,
+            folioVenta: folio,
+            receta,
+            material: material?.nombre || "—",
+            armazon: armazon?.nombre || "—",
+            fechaVenta: ahora,
+            fechaEnvio: "",
+            fechaPrometida: p?.fechaPrometido || "",
+            fechaRecepcion: "",
+            origen: "venta",
+          },
+        ]);
+      }
     }
     setPreview(nota);
     setCarrito([]);
@@ -1338,8 +1379,11 @@ function InventarioView({ inventario, setInventario }) {
 /* ============================================================
    PACIENTES (Compilación)
    ============================================================ */
+const CAMPOS_RECETA_PACIENTE = ["Esf", "Cil", "Eje", "DI", "Add", "Obs"];
+
 function PacientesView({ pacientes, setPacientes, agenda, setAgenda }) {
   const [busqueda, setBusqueda] = useState("");
+  const [abierto, setAbierto] = useState(null); // id de paciente con expediente abierto
   const filtrados = busqueda
     ? pacientes.filter((p) => p.nombre.toLowerCase().includes(busqueda.toLowerCase()))
     : pacientes;
@@ -1348,35 +1392,53 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda }) {
     const restantes = pacientes.filter((p) => p.id !== id).map((p, i) => ({ ...p, folio: i + 1 }));
     setPacientes(restantes);
     setAgenda(agenda.filter((c) => c.pacienteId !== id));
+    setAbierto(null);
   }
+
+  const pacienteAbierto = abierto ? pacientes.find((p) => p.id === abierto) : null;
 
   return (
     <div className="p-4">
-      <input
-        value={busqueda}
-        onChange={(e) => setBusqueda(e.target.value)}
-        placeholder="Buscar paciente por nombre..."
-        className="w-full border rounded-lg px-3 py-2 text-sm mb-4"
-      />
-      <div className="bg-white border rounded-xl overflow-hidden">
+      <div className="flex flex-wrap gap-2 items-center mb-4">
+        <input
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar paciente por nombre..."
+          className="flex-1 min-w-[200px] border rounded-lg px-3 py-2 text-sm"
+        />
+        <button
+          onClick={() => imprimirElemento("listado-pacientes-imprimible")}
+          className="px-3 py-2 rounded-lg bg-slate-200 text-sm flex items-center gap-1"
+        >
+          <Printer size={16} /> Imprimir listado de pacientes
+        </button>
+      </div>
+
+      <div id="listado-pacientes-imprimible" className="bg-white border rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead style={{ background: BEIGE }}>
             <tr>
               <th className="text-left px-3 py-2">Folio</th>
               <th className="text-left px-3 py-2">Nombre</th>
               <th className="text-left px-3 py-2">Teléfono</th>
-              <th className="text-right px-3 py-2"># Compras</th>
-              <th className="px-3 py-2"></th>
+              <th className="text-right px-3 py-2">Saldo</th>
+              <th className="text-right px-3 py-2 print:hidden"># Compras</th>
+              <th className="px-3 py-2 print:hidden"></th>
             </tr>
           </thead>
           <tbody>
             {filtrados.map((p) => (
               <tr key={p.id} className="border-t align-top">
                 <td className="px-3 py-2">{p.folio}</td>
-                <td className="px-3 py-2 font-medium">{p.nombre}</td>
+                <td className="px-3 py-2 font-medium">
+                  <button onClick={() => setAbierto(p.id)} className="text-sky-700 hover:underline print:no-underline print:text-slate-800">
+                    {p.nombre}
+                  </button>
+                </td>
                 <td className="px-3 py-2">{p.telefono}</td>
-                <td className="px-3 py-2 text-right">{(p.compras || []).length}</td>
-                <td className="px-3 py-2 text-right">
+                <td className="px-3 py-2 text-right">${Number(p.saldo || 0).toFixed(2)}</td>
+                <td className="px-3 py-2 text-right print:hidden">{(p.compras || []).length}</td>
+                <td className="px-3 py-2 text-right print:hidden">
                   <button onClick={() => eliminarPaciente(p.id)} className="text-red-400 hover:text-red-600">
                     <Trash2 size={16} />
                   </button>
@@ -1385,13 +1447,164 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda }) {
             ))}
             {filtrados.length === 0 && (
               <tr>
-                <td colSpan={5} className="text-center text-slate-400 py-6">
+                <td colSpan={6} className="text-center text-slate-400 py-6">
                   Sin pacientes registrados todavía.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+      </div>
+
+      <Modal open={!!pacienteAbierto} onClose={() => setAbierto(null)} title="Expediente del paciente" wide>
+        {pacienteAbierto && (
+          <ExpedientePacienteCompleto
+            paciente={pacienteAbierto}
+            pacientes={pacientes}
+            setPacientes={setPacientes}
+            onEliminar={() => eliminarPaciente(pacienteAbierto.id)}
+            onCerrar={() => setAbierto(null)}
+          />
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onEliminar, onCerrar }) {
+  const campos = [
+    "nombre", "domicilio", "colonia", "cp", "mail", "telefono",
+    "total", "anticipo", "saldo", "fechaPrometido",
+    "materialReceta", "cantidad", "descripcion", "precioMaterial", "totalProducto",
+  ];
+  const [datos, setDatos] = useState(() => {
+    const base = { ...paciente };
+    campos.forEach((c) => { if (base[c] === undefined) base[c] = ""; });
+    ["od", "os"].forEach((ojo) => {
+      base[ojo] = { ...(paciente[ojo] || {}) };
+      CAMPOS_RECETA_PACIENTE.forEach((c) => {
+        const key = c.toLowerCase();
+        if (base[ojo][key] === undefined) base[ojo][key] = "";
+      });
+    });
+    return base;
+  });
+
+  function campo(nombre, label, tipo = "text") {
+    return (
+      <Field
+        label={label}
+        type={tipo}
+        value={datos[nombre]}
+        onChange={(e) => setDatos({ ...datos, [nombre]: e.target.value })}
+      />
+    );
+  }
+
+  function guardar() {
+    setPacientes(pacientes.map((p) => (p.id === paciente.id ? { ...p, ...datos } : p)));
+  }
+
+  return (
+    <div className="space-y-4" style={{ maxHeight: "65vh", overflowY: "auto" }}>
+      <div>
+        <h3 className="font-semibold text-slate-700 mb-2">Datos personales</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="text-sm text-slate-500 flex items-end pb-2">Folio: <b className="ml-1">{paciente.folio}</b></div>
+          {campo("nombre", "Nombre")}
+          {campo("domicilio", "Domicilio")}
+          {campo("colonia", "Colonia")}
+          {campo("cp", "C.P.")}
+          {campo("mail", "Mail")}
+          {campo("telefono", "Teléfono")}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-semibold text-slate-700 mb-2">Financiero</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {campo("total", "Total", "number")}
+          {campo("anticipo", "Anticipo", "number")}
+          {campo("saldo", "Saldo", "number")}
+          {campo("fechaPrometido", "Fecha prometido", "date")}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-semibold text-slate-700 mb-2">Receta</h3>
+        {["od", "os"].map((ojo) => (
+          <div key={ojo} className="flex items-center gap-2 mb-1">
+            <span className="w-10 font-semibold text-sm">{ojo === "od" ? "O.D." : "O.S."}</span>
+            {CAMPOS_RECETA_PACIENTE.map((c) => (
+              <input
+                key={c}
+                placeholder={c}
+                value={datos[ojo][c.toLowerCase()]}
+                onChange={(e) => setDatos({ ...datos, [ojo]: { ...datos[ojo], [c.toLowerCase()]: e.target.value } })}
+                className="w-16 border rounded px-1 py-1 text-xs text-center"
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <h3 className="font-semibold text-slate-700 mb-2">Producto</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {campo("materialReceta", "Material receta")}
+          {campo("cantidad", "Cantidad", "number")}
+          {campo("descripcion", "Descripción")}
+          {campo("precioMaterial", "Precio material", "number")}
+          {campo("totalProducto", "Total producto", "number")}
+        </div>
+      </div>
+
+      {/* Plantilla imprimible individual (oculta en pantalla) */}
+      <div style={{ position: "absolute", left: -9999, top: 0 }}>
+        <div id={`paciente-imprimible-${paciente.id}`}>
+          <p className="font-bold text-center mb-2">EXPEDIENTE — {datos.nombre} (Folio {paciente.folio})</p>
+          <p className="text-sm">Domicilio: {datos.domicilio}, {datos.colonia}, C.P. {datos.cp}</p>
+          <p className="text-sm">Mail: {datos.mail} — Teléfono: {datos.telefono}</p>
+          <p className="text-sm">Total: ${datos.total} — Anticipo: ${datos.anticipo} — Saldo: ${datos.saldo}</p>
+          <p className="text-sm">Fecha prometido: {datos.fechaPrometido}</p>
+          <p className="font-semibold mt-2">Receta</p>
+          {["od", "os"].map((ojo) => (
+            <p key={ojo} className="text-sm">
+              {ojo === "od" ? "O.D." : "O.S."}: {CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${datos[ojo][c.toLowerCase()]}`).join(" · ")}
+            </p>
+          ))}
+          <p className="font-semibold mt-2">Producto</p>
+          <p className="text-sm">Material receta: {datos.materialReceta} — Cantidad: {datos.cantidad}</p>
+          <p className="text-sm">Descripción: {datos.descripcion}</p>
+          <p className="text-sm">Precio material: ${datos.precioMaterial} — Total producto: ${datos.totalProducto}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 pt-2 border-t">
+        <button onClick={guardar} className="px-3 py-2 rounded-lg bg-emerald-500 text-white text-sm flex items-center gap-1">
+          <Save size={16} /> Guardar
+        </button>
+        <button
+          onClick={() => {
+            guardar();
+            imprimirElemento(`paciente-imprimible-${paciente.id}`);
+          }}
+          className="px-3 py-2 rounded-lg bg-slate-200 text-slate-700 text-sm flex items-center gap-1"
+        >
+          <Printer size={16} /> Imprimir datos del paciente
+        </button>
+        <button
+          onClick={() => {
+            guardar();
+            onCerrar();
+          }}
+          className="px-3 py-2 rounded-lg bg-slate-600 text-white text-sm flex items-center gap-1"
+        >
+          <LogOut size={16} /> Guardar y salir
+        </button>
+        <button onClick={onEliminar} className="px-3 py-2 rounded-lg bg-red-500 text-white text-sm flex items-center gap-1 ml-auto">
+          <Trash2 size={16} /> Eliminar paciente
+        </button>
       </div>
     </div>
   );
@@ -1401,63 +1614,109 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda }) {
    LABORATORIO
    ============================================================ */
 function LaboratorioView({ laboratorio, setLaboratorio, pacientes }) {
-  const [nueva, setNueva] = useState({ pacienteId: "", fechaEnvio: "", fechaPrometida: "", fechaRecepcion: "" });
+  const [nueva, setNueva] = useState({
+    pacienteId: "",
+    receta: "",
+    material: "",
+    armazon: "",
+    fechaEnvio: "",
+    fechaPrometida: "",
+    fechaRecepcion: "",
+  });
 
   function agregar() {
     if (!nueva.pacienteId) return;
-    setLaboratorio([...laboratorio, { ...nueva, id: uid() }]);
-    setNueva({ pacienteId: "", fechaEnvio: "", fechaPrometida: "", fechaRecepcion: "" });
+    const paciente = pacientes.find((p) => p.id === nueva.pacienteId);
+    setLaboratorio([
+      ...laboratorio,
+      {
+        ...nueva,
+        id: uid(),
+        nombreCliente: paciente?.nombre || "",
+        fechaVenta: "",
+        origen: "manual",
+      },
+    ]);
+    setNueva({ pacienteId: "", receta: "", material: "", armazon: "", fechaEnvio: "", fechaPrometida: "", fechaRecepcion: "" });
+  }
+
+  function actualizarFecha(id, campo, valor) {
+    setLaboratorio(laboratorio.map((o) => (o.id === id ? { ...o, [campo]: valor } : o)));
   }
 
   return (
     <div className="p-4">
-      <div className="bg-white border rounded-xl p-3 mb-4 flex flex-wrap gap-2 items-end">
-        <select
-          value={nueva.pacienteId}
-          onChange={(e) => setNueva({ ...nueva, pacienteId: e.target.value })}
-          className="border rounded-lg px-2 py-1.5 text-sm"
-        >
-          <option value="">Paciente...</option>
-          {pacientes.map((p) => (
-            <option key={p.id} value={p.id}>{p.nombre}</option>
-          ))}
-        </select>
-        <div>
-          <label className="text-xs text-slate-500">Envío a laboratorio</label>
-          <input type="date" value={nueva.fechaEnvio} onChange={(e) => setNueva({ ...nueva, fechaEnvio: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm" />
+      <div className="bg-white border rounded-xl p-3 mb-4 space-y-2">
+        <p className="text-xs text-slate-500">
+          Las órdenes de venta con armazón o lentes se agregan solas aquí abajo. Usa este formulario solo para casos
+          especiales que no vinieron de una venta en el POS.
+        </p>
+        <div className="flex flex-wrap gap-2 items-end">
+          <select
+            value={nueva.pacienteId}
+            onChange={(e) => setNueva({ ...nueva, pacienteId: e.target.value })}
+            className="border rounded-lg px-2 py-1.5 text-sm"
+          >
+            <option value="">Paciente...</option>
+            {pacientes.map((p) => (
+              <option key={p.id} value={p.id}>{p.nombre}</option>
+            ))}
+          </select>
+          <input placeholder="Receta" value={nueva.receta} onChange={(e) => setNueva({ ...nueva, receta: e.target.value })} className="border rounded-lg px-2 py-1.5 text-sm w-40" />
+          <input placeholder="Material" value={nueva.material} onChange={(e) => setNueva({ ...nueva, material: e.target.value })} className="border rounded-lg px-2 py-1.5 text-sm w-32" />
+          <input placeholder="Armazón" value={nueva.armazon} onChange={(e) => setNueva({ ...nueva, armazon: e.target.value })} className="border rounded-lg px-2 py-1.5 text-sm w-32" />
+          <div>
+            <label className="text-xs text-slate-500">Envío a laboratorio</label>
+            <input type="date" value={nueva.fechaEnvio} onChange={(e) => setNueva({ ...nueva, fechaEnvio: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Prometida al cliente</label>
+            <input type="date" value={nueva.fechaPrometida} onChange={(e) => setNueva({ ...nueva, fechaPrometida: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm" />
+          </div>
+          <button onClick={agregar} disabled={!nueva.pacienteId} className="px-3 py-1.5 rounded-lg text-white text-sm disabled:opacity-40" style={{ background: SKY_DARK }}>
+            Agregar orden manualmente
+          </button>
         </div>
-        <div>
-          <label className="text-xs text-slate-500">Prometida al cliente</label>
-          <input type="date" value={nueva.fechaPrometida} onChange={(e) => setNueva({ ...nueva, fechaPrometida: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm" />
-        </div>
-        <div>
-          <label className="text-xs text-slate-500">Recepción de laboratorio</label>
-          <input type="date" value={nueva.fechaRecepcion} onChange={(e) => setNueva({ ...nueva, fechaRecepcion: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm" />
-        </div>
-        <button onClick={agregar} className="px-3 py-1.5 rounded-lg text-white text-sm" style={{ background: SKY_DARK }}>
-          Agregar orden
-        </button>
       </div>
 
-      <div className="bg-white border rounded-xl overflow-hidden">
+      <div className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">
           <thead style={{ background: BEIGE }}>
             <tr>
               <th className="text-left px-3 py-2">Paciente</th>
-              <th className="text-left px-3 py-2">Envío</th>
+              <th className="text-left px-3 py-2">Receta</th>
+              <th className="text-left px-3 py-2">Material</th>
+              <th className="text-left px-3 py-2">Armazón</th>
+              <th className="text-left px-3 py-2">Fecha venta</th>
+              <th className="text-left px-3 py-2">Envío a lab.</th>
               <th className="text-left px-3 py-2">Prometida</th>
               <th className="text-left px-3 py-2">Recepción</th>
             </tr>
           </thead>
           <tbody>
             {laboratorio.map((o) => (
-              <tr key={o.id} className="border-t">
-                <td className="px-3 py-2">{pacientes.find((p) => p.id === o.pacienteId)?.nombre || "—"}</td>
-                <td className="px-3 py-2">{o.fechaEnvio}</td>
-                <td className="px-3 py-2">{o.fechaPrometida}</td>
-                <td className="px-3 py-2">{o.fechaRecepcion || "Pendiente"}</td>
+              <tr key={o.id} className="border-t align-top">
+                <td className="px-3 py-2">{o.nombreCliente || pacientes.find((p) => p.id === o.pacienteId)?.nombre || "—"}</td>
+                <td className="px-3 py-2 max-w-[220px] truncate" title={o.receta}>{o.receta || "—"}</td>
+                <td className="px-3 py-2">{o.material || "—"}</td>
+                <td className="px-3 py-2">{o.armazon || "—"}</td>
+                <td className="px-3 py-2">{o.fechaVenta ? new Date(o.fechaVenta).toLocaleDateString("es-MX") : "—"}</td>
+                <td className="px-3 py-2">
+                  <input type="date" value={o.fechaEnvio || ""} onChange={(e) => actualizarFecha(o.id, "fechaEnvio", e.target.value)} className="border rounded px-1 py-0.5 text-xs" />
+                </td>
+                <td className="px-3 py-2">
+                  <input type="date" value={o.fechaPrometida || ""} onChange={(e) => actualizarFecha(o.id, "fechaPrometida", e.target.value)} className="border rounded px-1 py-0.5 text-xs" />
+                </td>
+                <td className="px-3 py-2">
+                  <input type="date" value={o.fechaRecepcion || ""} onChange={(e) => actualizarFecha(o.id, "fechaRecepcion", e.target.value)} className="border rounded px-1 py-0.5 text-xs" />
+                </td>
               </tr>
             ))}
+            {laboratorio.length === 0 && (
+              <tr>
+                <td colSpan={8} className="text-center text-slate-400 py-6">Sin órdenes de laboratorio todavía.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -1508,9 +1767,9 @@ function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes,
 
 function TotalBox({ titulo, monto, color, subtitulo }) {
   return (
-    <div className="bg-white border rounded-xl p-4">
+    <div className="bg-white border rounded-xl p-4 shrink-0" style={{ minWidth: 170 }}>
       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{titulo}</p>
-      <p className="text-3xl font-bold mt-1" style={{ color }}>
+      <p className="text-2xl font-bold mt-1 whitespace-nowrap" style={{ color }}>
         ${monto.toFixed(2)}
       </p>
       {subtitulo && <p className="text-xs text-slate-400 mt-1">{subtitulo}</p>}
@@ -1585,7 +1844,15 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-slate-800 mb-2">Corte Diario</h2>
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+        <h2 className="text-xl font-bold text-slate-800">Corte Diario</h2>
+        <button
+          onClick={() => imprimirElemento("corte-imprimible")}
+          className="px-3 py-1.5 rounded-lg bg-slate-200 text-sm flex items-center gap-1"
+        >
+          <Printer size={16} /> Imprimir corte
+        </button>
+      </div>
       <div className="flex items-center gap-2 mb-5 bg-white border rounded-xl px-3 py-2 w-fit">
         <button onClick={() => cambiarDia(-1)} className="p-1.5 rounded-lg hover:bg-sky-100">
           <ChevronLeft size={18} />
@@ -1601,16 +1868,18 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-        <TotalBox titulo="Vendido del día" monto={totalVendido} color="#2563eb" subtitulo={`${ventasDelDia.length} nota(s)`} />
-        <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#0891b2" subtitulo={`${anticipos.length} pago(s)`} />
-        <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
-        <TotalBox titulo="Total cobrado hoy" monto={totalCobradoHoy} color="#047857" subtitulo="Anticipos + liquidaciones + ventas de contado" />
-        <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
-        <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelDia.length} pago(s)`} />
-      </div>
+      <div id="corte-imprimible">
+        <p className="hidden print:block font-bold mb-3">Corte Diario — {fecha}</p>
+        <div className="flex gap-3 mb-6 overflow-x-auto pb-1">
+          <TotalBox titulo="Vendido del día" monto={totalVendido} color="#2563eb" subtitulo={`${ventasDelDia.length} nota(s)`} />
+          <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#0891b2" subtitulo={`${anticipos.length} pago(s)`} />
+          <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
+          <TotalBox titulo="Total cobrado hoy" monto={totalCobradoHoy} color="#047857" subtitulo="Anticipos + liquidaciones + contado" />
+          <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
+          <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelDia.length} pago(s)`} />
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white border rounded-xl p-3">
           <h4 className="font-semibold text-sm mb-2">Desglose — Vendido del día</h4>
           <table className="w-full text-xs">
@@ -1705,6 +1974,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
             </tbody>
           </table>
         </div>
+      </div>
       </div>
 
       <Modal open={!!cobrando} onClose={() => setCobrando(null)} title="Cobrar saldo pendiente">
@@ -2677,6 +2947,8 @@ export default function App() {
             presetPacienteId={presetPacienteId}
             clearPreset={() => setPresetPacienteId(null)}
             config={config}
+            laboratorio={laboratorio}
+            setLaboratorio={setLaboratorio}
           />
         )}
         {seccion === "inventario" && <InventarioView inventario={inventario} setInventario={setInventario} />}
