@@ -1172,6 +1172,46 @@ const CATEGORIAS_INV = [
   { key: "accesorios", label: "Accesorios" },
 ];
 
+const RANGOS_RX = {
+  "Rango 1": "Desde ESF +/-0.00 hasta +/-3.00, CIL -0.25 hasta -2.00 D",
+  "Rango 2": "Desde ESF +/-3.25 hasta +/-6.00, CIL -2.25 hasta -4.00 D",
+  "Rango 3": "Desde ESF +/-6.25 hasta +/-25.00, CIL -0.25 hasta -4.25 hasta 7.00 D",
+};
+const RANGOS_POR_MATERIAL = {
+  CR39: ["Rango 1"],
+  Policarbonato: ["Rango 1", "Rango 2"],
+  "Hi Index": ["Rango 2", "Rango 3"],
+};
+
+const LENTES_CONTACTO_DATA = {
+  Mensual: [
+    { marca: "Biofinity (CooperVision)", cosmetico: false },
+    { marca: "Air Optix (Alcon)", cosmetico: false },
+    { marca: "Acuvue Vita (Johnson & Johnson)", cosmetico: false },
+    { marca: "Ultra (Bausch + Lomb)", cosmetico: false },
+    { marca: "SofLens Esférico (Bausch + Lomb)", cosmetico: false },
+    { marca: "PureVision 2 (Bausch + Lomb)", cosmetico: false },
+    { marca: "Biomedics (CooperVision)", cosmetico: false },
+    { marca: "Hidrosoft Monthly (Maxvue / Max Hydrosoft)", cosmetico: false },
+    { marca: "SofLens StarColors II (Bausch + Lomb)", cosmetico: true },
+    { marca: "Air Optix Colors (Alcon)", cosmetico: true },
+    { marca: "Lunare Tricolor (Bausch + Lomb)", cosmetico: true },
+    { marca: "FreshLook ColorBlends (Alcon)", cosmetico: true },
+  ],
+  Anual: [
+    { marca: "Optima 38 (Bausch + Lomb)", cosmetico: false },
+    { marca: "Contalux", cosmetico: false },
+    { marca: "Hidrosoft UV Soft Esférico (Hidrosoft de México)", cosmetico: false },
+    { marca: "Hidrosoft UV Soft Tórico (Hidrosoft de México)", cosmetico: false },
+    { marca: "Lenticon One Year / GM Advance (Laboratorios Grin)", cosmetico: false },
+    { marca: "Lenticon Ex Torica (Laboratorios Grin)", cosmetico: false },
+    { marca: "Lenticon Pupila Negra (Laboratorios Grin)", cosmetico: false },
+    { marca: "Meetone", cosmetico: true },
+    { marca: "Freshgo", cosmetico: true },
+    { marca: "Mill Creek", cosmetico: true },
+  ],
+};
+
 function InventarioView({ inventario, setInventario }) {
   const [cat, setCat] = useState("armazones");
   const [nuevo, setNuevo] = useState({
@@ -1181,14 +1221,25 @@ function InventarioView({ inventario, setInventario }) {
     tipo: "",
     material: "",
     tratamiento: "",
+    rango: "",
     tipoLinea: "",
     categoriaArmazon: "",
+    tipoReemplazo: "",
+    marcaContacto: "",
+    cosmetico: false,
+    marcaSolar: "",
+    modeloSolar: "",
+    colorSolar: "",
   });
 
   const lista = inventario[cat] || [];
-  const conCaracteristicas = cat === "lentesGraduados" || cat === "lentesContacto";
   const esArmazon = cat === "armazones";
-  const LINEAS_ARMAZON = ["Línea económica", "Línea estándar", "Línea premium"];
+  const esGraduado = cat === "lentesGraduados";
+  const esContacto = cat === "lentesContacto";
+  const esSolar = cat === "lentesSolares";
+  const esAccesorio = cat === "accesorios";
+
+  const LINEAS_ARMAZON = ["Armazón Línea Económica", "Armazón Línea Estándar", "Armazón Línea Premium"];
   const CATEGORIAS_ARMAZON = {
     Dama: ["Dama - Metal", "Dama - Pasta", "Dama - Combinado"],
     Caballero: ["Caballero - Metal", "Caballero - Pasta", "Caballero - Combinado"],
@@ -1196,22 +1247,47 @@ function InventarioView({ inventario, setInventario }) {
     Junior: ["Junior - Metal", "Junior - Pasta", "Junior - Combinado"],
   };
 
+  const rangosDisponibles = nuevo.material ? RANGOS_POR_MATERIAL[nuevo.material] || [] : [];
+  const marcasDisponibles = nuevo.tipoReemplazo ? LENTES_CONTACTO_DATA[nuevo.tipoReemplazo] || [] : [];
+
   function siguienteSKU() {
     const prefijo = cat.slice(0, 3).toUpperCase();
     const n = lista.length + 1;
     return `${prefijo}-${n.toString().padStart(4, "0")}`;
   }
 
+  function limpiarNuevo() {
+    setNuevo({
+      nombre: "", precio: "", existencias: "", tipo: "", material: "", tratamiento: "", rango: "",
+      tipoLinea: "", categoriaArmazon: "", tipoReemplazo: "", marcaContacto: "", cosmetico: false,
+      marcaSolar: "", modeloSolar: "", colorSolar: "",
+    });
+  }
+
   function agregar() {
+    let nombreFinal = nuevo.nombre;
+    let extra = {};
     if (esArmazon) {
       if (!nuevo.tipoLinea || !nuevo.categoriaArmazon) return;
+      nombreFinal = `${nuevo.tipoLinea} · ${nuevo.categoriaArmazon}`;
+    } else if (esGraduado) {
+      if (!nuevo.material || !nuevo.tipo || !nuevo.tratamiento || !nuevo.rango) return;
+      nombreFinal = `${nuevo.material} · ${nuevo.tipo} · ${nuevo.tratamiento} · ${nuevo.rango}`;
+      extra = { rangoDescripcion: RANGOS_RX[nuevo.rango] };
+    } else if (esContacto) {
+      if (!nuevo.tipoReemplazo || !nuevo.marcaContacto) return;
+      const info = marcasDisponibles.find((m) => m.marca === nuevo.marcaContacto);
+      nombreFinal = nuevo.marcaContacto;
+      extra = { cosmetico: !!info?.cosmetico };
+    } else if (esSolar) {
+      if (!nuevo.marcaSolar || !nuevo.modeloSolar || !nuevo.colorSolar) return;
+      nombreFinal = `${nuevo.marcaSolar} · ${nuevo.modeloSolar} · ${nuevo.colorSolar}`;
     } else if (!nuevo.nombre) {
       return;
     }
-    const nombreFinal = esArmazon ? `${nuevo.tipoLinea} · ${nuevo.categoriaArmazon}` : nuevo.nombre;
-    const articulo = { ...nuevo, nombre: nombreFinal, sku: siguienteSKU(), id: uid() };
+    const articulo = { ...nuevo, ...extra, nombre: nombreFinal, sku: siguienteSKU(), id: uid() };
     setInventario({ ...inventario, [cat]: [...lista, articulo] });
-    setNuevo({ nombre: "", precio: "", existencias: "", tipo: "", material: "", tratamiento: "", tipoLinea: "", categoriaArmazon: "" });
+    limpiarNuevo();
   }
 
   function eliminar(id) {
@@ -1224,7 +1300,7 @@ function InventarioView({ inventario, setInventario }) {
         {CATEGORIAS_INV.map((c) => (
           <button
             key={c.key}
-            onClick={() => setCat(c.key)}
+            onClick={() => { setCat(c.key); limpiarNuevo(); }}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
               cat === c.key ? "text-white" : "bg-white border text-slate-600"
             }`}
@@ -1236,7 +1312,7 @@ function InventarioView({ inventario, setInventario }) {
       </div>
 
       <div className="bg-white border rounded-xl p-3 mb-4 flex flex-wrap gap-2 items-end">
-        {esArmazon ? (
+        {esArmazon && (
           <>
             <div>
               <label className="text-xs text-slate-500">Línea</label>
@@ -1269,9 +1345,112 @@ function InventarioView({ inventario, setInventario }) {
               </select>
             </div>
           </>
-        ) : (
+        )}
+
+        {esGraduado && (
+          <>
+            <div>
+              <label className="text-xs text-slate-500">Material</label>
+              <select
+                value={nuevo.material}
+                onChange={(e) => setNuevo({ ...nuevo, material: e.target.value, rango: "" })}
+                className="block border rounded-lg px-2 py-1.5 text-sm"
+              >
+                <option value="">—</option>
+                <option>CR39</option>
+                <option>Policarbonato</option>
+                <option>Hi Index</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Tipo</label>
+              <select value={nuevo.tipo} onChange={(e) => setNuevo({ ...nuevo, tipo: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm">
+                <option value="">—</option>
+                <option>Monofocal</option>
+                <option>Bifocal</option>
+                <option>Progresivo</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Tratamiento</label>
+              <select value={nuevo.tratamiento} onChange={(e) => setNuevo({ ...nuevo, tratamiento: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm">
+                <option value="">—</option>
+                <option>Antireflejante</option>
+                <option>Antiblue</option>
+                <option>Fotocromático</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Rangos de Rx</label>
+              <select
+                value={nuevo.rango}
+                onChange={(e) => setNuevo({ ...nuevo, rango: e.target.value })}
+                disabled={!nuevo.material}
+                className="block border rounded-lg px-2 py-1.5 text-sm disabled:bg-slate-100 disabled:opacity-60"
+                title={!nuevo.material ? "Elige primero el material" : ""}
+              >
+                <option value="">{nuevo.material ? "—" : "Elige material primero"}</option>
+                {rangosDisponibles.map((r) => (
+                  <option key={r} value={r}>{r} — {RANGOS_RX[r]}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+
+        {esContacto && (
+          <>
+            <div>
+              <label className="text-xs text-slate-500">Tipo de reemplazo</label>
+              <select
+                value={nuevo.tipoReemplazo}
+                onChange={(e) => setNuevo({ ...nuevo, tipoReemplazo: e.target.value, marcaContacto: "" })}
+                className="block border rounded-lg px-2 py-1.5 text-sm"
+              >
+                <option value="">—</option>
+                <option>Mensual</option>
+                <option>Anual</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Marca</label>
+              <select
+                value={nuevo.marcaContacto}
+                onChange={(e) => setNuevo({ ...nuevo, marcaContacto: e.target.value })}
+                disabled={!nuevo.tipoReemplazo}
+                className="block border rounded-lg px-2 py-1.5 text-sm w-64 disabled:bg-slate-100 disabled:opacity-60"
+              >
+                <option value="">{nuevo.tipoReemplazo ? "—" : "Elige tipo de reemplazo primero"}</option>
+                {marcasDisponibles.map((m) => (
+                  <option key={m.marca} value={m.marca}>
+                    {m.marca}{m.cosmetico ? " (Cosmético)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+
+        {esSolar && (
+          <>
+            <div>
+              <label className="text-xs text-slate-500">Marca</label>
+              <input value={nuevo.marcaSolar} onChange={(e) => setNuevo({ ...nuevo, marcaSolar: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Modelo</label>
+              <input value={nuevo.modeloSolar} onChange={(e) => setNuevo({ ...nuevo, modeloSolar: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Color</label>
+              <input value={nuevo.colorSolar} onChange={(e) => setNuevo({ ...nuevo, colorSolar: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+          </>
+        )}
+
+        {esAccesorio && (
           <div>
-            <label className="text-xs text-slate-500">Nombre</label>
+            <label className="text-xs text-slate-500">Producto</label>
             <input
               value={nuevo.nombre}
               onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })}
@@ -1279,6 +1458,7 @@ function InventarioView({ inventario, setInventario }) {
             />
           </div>
         )}
+
         <div>
           <label className="text-xs text-slate-500">Precio (MXN)</label>
           <input
@@ -1297,37 +1477,6 @@ function InventarioView({ inventario, setInventario }) {
             className="block border rounded-lg px-2 py-1.5 text-sm w-24"
           />
         </div>
-        {conCaracteristicas && (
-          <>
-            <div>
-              <label className="text-xs text-slate-500">Tipo</label>
-              <select value={nuevo.tipo} onChange={(e) => setNuevo({ ...nuevo, tipo: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm">
-                <option value="">—</option>
-                <option>Monofocal</option>
-                <option>Bifocal</option>
-                <option>Progresivo</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-slate-500">Material</label>
-              <select value={nuevo.material} onChange={(e) => setNuevo({ ...nuevo, material: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm">
-                <option value="">—</option>
-                <option>CR39</option>
-                <option>Policarbonato</option>
-                <option>Hi Index</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-slate-500">Tratamiento</label>
-              <select value={nuevo.tratamiento} onChange={(e) => setNuevo({ ...nuevo, tratamiento: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm">
-                <option value="">—</option>
-                <option>Antireflejante</option>
-                <option>Antiblue</option>
-                <option>Fotocromático</option>
-              </select>
-            </div>
-          </>
-        )}
         <button onClick={agregar} className="px-3 py-1.5 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
           <Plus size={16} /> Agregar
         </button>
@@ -2636,16 +2785,28 @@ function PortalComprar({ pacientes, setPacientes, ventas, setVentas, inventario,
   const [filtroTipo, setFiltroTipo] = useState("");
   const [filtroMaterial, setFiltroMaterial] = useState("");
   const [filtroTratamiento, setFiltroTratamiento] = useState("");
+  const [filtroReemplazo, setFiltroReemplazo] = useState("");
+  const [filtroCosmetico, setFiltroCosmetico] = useState("");
   const [carrito, setCarrito] = useState([]);
   const [receta, setReceta] = useState(null); // {nombreArchivo, dataUrl}
   const fileRef = useRef(null);
 
-  const lista = (inventario[cat] || []).filter(
-    (a) =>
-      (!filtroTipo || a.tipo === filtroTipo) &&
-      (!filtroMaterial || a.material === filtroMaterial) &&
-      (!filtroTratamiento || a.tratamiento === filtroTratamiento)
-  );
+  const lista = (inventario[cat] || []).filter((a) => {
+    if (cat === "lentesGraduados") {
+      return (
+        (!filtroTipo || a.tipo === filtroTipo) &&
+        (!filtroMaterial || a.material === filtroMaterial) &&
+        (!filtroTratamiento || a.tratamiento === filtroTratamiento)
+      );
+    }
+    if (cat === "lentesContacto") {
+      return (
+        (!filtroReemplazo || a.tipoReemplazo === filtroReemplazo) &&
+        (!filtroCosmetico || (filtroCosmetico === "si" ? a.cosmetico : !a.cosmetico))
+      );
+    }
+    return true;
+  });
 
   const requiereReceta = cat === "lentesGraduados" || cat === "lentesContacto";
   const total = carrito.reduce((s, c) => s + Number(c.precio || 0), 0);
@@ -2698,7 +2859,11 @@ function PortalComprar({ pacientes, setPacientes, ventas, setVentas, inventario,
         {CATEGORIAS_INV.map((c) => (
           <button
             key={c.key}
-            onClick={() => { setCat(c.key); setFiltroTipo(""); setFiltroMaterial(""); setFiltroTratamiento(""); }}
+            onClick={() => {
+              setCat(c.key);
+              setFiltroTipo(""); setFiltroMaterial(""); setFiltroTratamiento("");
+              setFiltroReemplazo(""); setFiltroCosmetico("");
+            }}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium ${cat === c.key ? "text-white" : "bg-slate-100"}`}
             style={cat === c.key ? { background: SKY_DARK } : {}}
           >
@@ -2707,7 +2872,7 @@ function PortalComprar({ pacientes, setPacientes, ventas, setVentas, inventario,
         ))}
       </div>
 
-      {(cat === "lentesGraduados" || cat === "lentesContacto") && (
+      {cat === "lentesGraduados" && (
         <div className="flex gap-2 mb-3 flex-wrap">
           <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)} className="border rounded-lg px-2 py-1.5 text-xs">
             <option value="">Tipo (todos)</option>
@@ -2720,6 +2885,20 @@ function PortalComprar({ pacientes, setPacientes, ventas, setVentas, inventario,
           <select value={filtroTratamiento} onChange={(e) => setFiltroTratamiento(e.target.value)} className="border rounded-lg px-2 py-1.5 text-xs">
             <option value="">Tratamiento (todos)</option>
             <option>Antireflejante</option><option>Antiblue</option><option>Fotocromático</option>
+          </select>
+        </div>
+      )}
+
+      {cat === "lentesContacto" && (
+        <div className="flex gap-2 mb-3 flex-wrap">
+          <select value={filtroReemplazo} onChange={(e) => setFiltroReemplazo(e.target.value)} className="border rounded-lg px-2 py-1.5 text-xs">
+            <option value="">Tipo de reemplazo (todos)</option>
+            <option>Mensual</option><option>Anual</option>
+          </select>
+          <select value={filtroCosmetico} onChange={(e) => setFiltroCosmetico(e.target.value)} className="border rounded-lg px-2 py-1.5 text-xs">
+            <option value="">Uso cosmético (todos)</option>
+            <option value="si">Cosmético</option>
+            <option value="no">No cosmético</option>
           </select>
         </div>
       )}
