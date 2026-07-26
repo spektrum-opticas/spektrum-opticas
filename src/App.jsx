@@ -948,6 +948,8 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
   const [carrito, setCarrito] = useState([]);
   const [vendedor, setVendedor] = useState("");
   const [optometrista, setOptometrista] = useState("");
+  const [descuentoTipo, setDescuentoTipo] = useState("porcentaje");
+  const [descuentoValor, setDescuentoValor] = useState(0);
   const [formaPago, setFormaPago] = useState("efectivo");
   const [abono, setAbono] = useState(0);
   const [preview, setPreview] = useState(null);
@@ -979,7 +981,12 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
   function quitarArticulo(uidLinea) {
     setCarrito(carrito.filter((c) => c.uidLinea !== uidLinea));
   }
-  const total = carrito.reduce((s, c) => s + Number(c.precio || 0) * c.cantidad, 0);
+  const subtotal = carrito.reduce((s, c) => s + Number(c.precio || 0) * c.cantidad, 0);
+  const montoDescuento =
+    descuentoTipo === "porcentaje"
+      ? subtotal * (Number(descuentoValor || 0) / 100)
+      : Math.min(Number(descuentoValor || 0), subtotal);
+  const total = Math.max(0, subtotal - montoDescuento);
   const saldo = total - Number(abono || 0);
 
   function generarNota(estatus) {
@@ -998,6 +1005,10 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
       pacienteId: clienteSel?.id || null,
       nombreCliente: clienteSel?.nombre || busquedaCliente,
       items: carrito,
+      subtotal,
+      descuentoTipo,
+      descuentoValor: Number(descuentoValor || 0),
+      montoDescuento,
       total,
       abono: montoAbono,
       saldo,
@@ -1056,6 +1067,8 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
     setPreview(nota);
     setCarrito([]);
     setAbono(0);
+    setDescuentoTipo("porcentaje");
+    setDescuentoValor(0);
     setModoFechaPasada(false);
     setFechaVentaManual(fechaISO(new Date()));
   }
@@ -1199,7 +1212,28 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
               </div>
             ))}
           </div>
-          <div className="flex justify-between font-semibold mt-2 text-sm">
+
+          <div className="flex items-center gap-2 mt-2 bg-slate-50 rounded-lg p-2">
+            <label className="text-xs text-slate-500">Descuento</label>
+            <select value={descuentoTipo} onChange={(e) => setDescuentoTipo(e.target.value)} className="border rounded px-1 py-1 text-xs">
+              <option value="porcentaje">%</option>
+              <option value="monto">$ MXN</option>
+            </select>
+            <input
+              type="number"
+              value={descuentoValor}
+              onChange={(e) => setDescuentoValor(e.target.value)}
+              min="0"
+              className="w-20 border rounded px-2 py-1 text-xs"
+            />
+            {montoDescuento > 0 && <span className="text-xs text-emerald-600">-${montoDescuento.toFixed(2)}</span>}
+          </div>
+
+          <div className="flex justify-between text-sm text-slate-500 mt-2">
+            <span>Subtotal</span>
+            <span>${subtotal.toFixed(2)} MXN</span>
+          </div>
+          <div className="flex justify-between font-semibold mt-1 text-sm">
             <span>Total</span>
             <span>${total.toFixed(2)} MXN</span>
           </div>
@@ -1255,6 +1289,14 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                   ))}
                 </tbody>
               </table>
+              {preview.montoDescuento > 0 && (
+                <>
+                  <p className="text-right text-sm mt-2">Subtotal: ${preview.subtotal.toFixed(2)} MXN</p>
+                  <p className="text-right text-sm text-emerald-600">
+                    Descuento ({preview.descuentoTipo === "porcentaje" ? `${preview.descuentoValor}%` : "monto fijo"}): -${preview.montoDescuento.toFixed(2)} MXN
+                  </p>
+                </>
+              )}
               <p className="text-right font-bold mt-2">Total: ${preview.total.toFixed(2)} MXN</p>
               <p className="text-right text-sm">Abono: ${preview.abono.toFixed(2)} — Saldo: ${preview.saldo.toFixed(2)}</p>
             </div>
