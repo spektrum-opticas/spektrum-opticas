@@ -1052,9 +1052,6 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
         const hoyISO = fechaISO(new Date());
         const visitaHoy = historial.find((v) => v.origen === "agenda" && v.fecha && v.fecha.slice(0, 10) === hoyISO && (v.od || v.os));
         const visitaReceta = visitaHoy || historial.find((v) => v.od || v.os);
-        const receta = visitaReceta
-          ? `OD: ${CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${visitaReceta.od?.[c.toLowerCase()] || "-"}`).join(" · ")} | OS: ${CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${visitaReceta.os?.[c.toLowerCase()] || "-"}`).join(" · ")}`
-          : "Sin receta capturada en el expediente";
         const materialFinal = material?.nombre || visitaReceta?.materialReceta || "—";
         const fechaEnvioAuto = new Date(new Date(ahora).getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
         setLaboratorio([
@@ -1064,7 +1061,9 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
             pacienteId: clienteSel?.id || null,
             nombreCliente: nota.nombreCliente,
             folioVenta: folio,
-            receta,
+            od: visitaReceta?.od || null,
+            os: visitaReceta?.os || null,
+            descripcion: visitaReceta?.descripcion || "",
             material: materialFinal,
             armazon: armazon?.nombre || "—",
             fechaVenta: ahora,
@@ -1734,6 +1733,12 @@ function InventarioView({ inventario, setInventario }) {
    ============================================================ */
 const CAMPOS_RECETA_PACIENTE = ["Esf", "Cil", "Eje", "DI", "Add", "Obs"];
 
+function lineaOjo(ojo, etiqueta) {
+  const o = ojo || {};
+  const di = o.di ? `${o.di} mm` : "-";
+  return `${etiqueta}: Esf ${o.esf || "-"} · Cil ${o.cil || "-"} · Eje ${o.eje || "-"} · DI ${di} · Add ${o.add || "-"} · Obs ${o.obs || "-"}`;
+}
+
 function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas, config }) {
   const [busqueda, setBusqueda] = useState("");
   const [abierto, setAbierto] = useState(null); // id de paciente con expediente abierto
@@ -2187,9 +2192,12 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
    LABORATORIO
    ============================================================ */
 function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, config }) {
+  const [fechaImprimir, setFechaImprimir] = useState(fechaISO(new Date()));
   const [nueva, setNueva] = useState({
     pacienteId: "",
-    receta: "",
+    od: null,
+    os: null,
+    descripcion: "",
     material: "",
     armazon: "",
     fechaEnvio: "",
@@ -2203,13 +2211,12 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
     const paciente = pacientes.find((p) => p.id === pacienteId);
     const historial = ordenarVisitasDesc(paciente?.compras || []);
     const visitaReceta = historial.find((v) => v.od || v.os);
-    const recetaAuto = visitaReceta
-      ? `OD: ${CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${visitaReceta.od?.[c.toLowerCase()] || "-"}`).join(" · ")} | OS: ${CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${visitaReceta.os?.[c.toLowerCase()] || "-"}`).join(" · ")}`
-      : "";
     setNueva({
       ...nueva,
       pacienteId,
-      receta: recetaAuto,
+      od: visitaReceta?.od || null,
+      os: visitaReceta?.os || null,
+      descripcion: visitaReceta?.descripcion || "",
       material: visitaReceta?.materialReceta || "",
       fechaPrometida: visitaReceta?.fechaPrometido || "",
     });
@@ -2228,7 +2235,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
         origen: "manual",
       },
     ]);
-    setNueva({ pacienteId: "", receta: "", material: "", armazon: "", fechaEnvio: "", fechaPrometida: "", fechaRecepcion: "" });
+    setNueva({ pacienteId: "", od: null, os: null, descripcion: "", material: "", armazon: "", fechaEnvio: "", fechaPrometida: "", fechaRecepcion: "" });
   }
 
   function actualizarFecha(id, campo, valor) {
@@ -2280,7 +2287,16 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
               <option key={p.id} value={p.id}>{p.nombre}</option>
             ))}
           </select>
-          <input placeholder="Receta (autocompletada, editable)" value={nueva.receta} onChange={(e) => setNueva({ ...nueva, receta: e.target.value })} className="border rounded-lg px-2 py-1.5 text-sm w-56" />
+          <div className="text-xs text-slate-500 bg-slate-50 rounded-lg px-2 py-1.5 w-64">
+            {nueva.od || nueva.os ? (
+              <>
+                <p>{lineaOjo(nueva.od, "O.D.")}</p>
+                <p>{lineaOjo(nueva.os, "O.S.")}</p>
+              </>
+            ) : (
+              "Receta: se autocompleta al elegir paciente"
+            )}
+          </div>
           <div>
             <label className="text-xs text-slate-500">Material</label>
             <select value={nueva.material} onChange={(e) => setNueva({ ...nueva, material: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm w-32">
@@ -2324,6 +2340,39 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
         </div>
       </div>
 
+      <div className="flex justify-end items-center gap-2 mb-2">
+        <label className="text-xs text-slate-500">Órdenes del día:</label>
+        <input type="date" value={fechaImprimir} onChange={(e) => setFechaImprimir(e.target.value)} className="border rounded-lg px-2 py-1.5 text-sm" />
+        <button
+          onClick={() => imprimirElemento("todas-ordenes-lab")}
+          disabled={
+            laboratorio.filter(
+              (o) =>
+                !o.cancelada &&
+                !o.fechaRecepcion &&
+                ((o.fechaVenta && o.fechaVenta.slice(0, 10) === fechaImprimir) || (!o.fechaVenta && o.fechaEnvio === fechaImprimir))
+            ).length === 0
+          }
+          className="px-3 py-2 rounded-lg text-white text-sm flex items-center gap-1 disabled:opacity-40"
+          style={{ background: SKY_DARK }}
+        >
+          <Printer size={16} /> Imprimir órdenes del día (
+          {
+            laboratorio.filter(
+              (o) =>
+                !o.cancelada &&
+                !o.fechaRecepcion &&
+                ((o.fechaVenta && o.fechaVenta.slice(0, 10) === fechaImprimir) || (!o.fechaVenta && o.fechaEnvio === fechaImprimir))
+            ).length
+          }
+          )
+        </button>
+      </div>
+      <p className="text-xs text-slate-400 text-right mb-2">
+        Solo se cuentan como activas las órdenes que aún no han sido recibidas del laboratorio — una vez recibidas,
+        se apagan de este conteo porque ya están en la óptica listas para entregar.
+      </p>
+
       <div className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">
           <thead style={{ background: BEIGE }}>
@@ -2344,7 +2393,9 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
             {laboratorio.map((o) => (
               <tr key={o.id} className={`border-t align-top ${o.cancelada ? "opacity-50" : ""}`}>
                 <td className="px-3 py-2">{o.nombreCliente || pacientes.find((p) => p.id === o.pacienteId)?.nombre || "—"}</td>
-                <td className="px-3 py-2 max-w-[220px] truncate" title={o.receta}>{o.receta || "—"}</td>
+                <td className="px-3 py-2 max-w-[220px] truncate" title={`${lineaOjo(o.od, "O.D.")} | ${lineaOjo(o.os, "O.S.")}`}>
+                  {o.od || o.os ? `${lineaOjo(o.od, "O.D.")} | ${lineaOjo(o.os, "O.S.")}` : "—"}
+                </td>
                 <td className="px-3 py-2">{o.material || "—"}</td>
                 <td className="px-3 py-2">{o.armazon || "—"}</td>
                 <td className="px-3 py-2">{o.fechaVenta ? new Date(o.fechaVenta).toLocaleDateString("es-MX") : "—"}</td>
@@ -2366,6 +2417,8 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
                 <td className="px-3 py-2">
                   {o.cancelada ? (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">Cancelada</span>
+                  ) : o.fechaRecepcion ? (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">Recibida — lista para entregar</span>
                   ) : (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600">Activa</span>
                   )}
@@ -2392,6 +2445,53 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
 
       {/* Plantillas imprimibles de orden de laboratorio (ocultas en pantalla) */}
       <div className="plantilla-oculta" style={{ position: "absolute", left: -9999, top: 0 }}>
+        <div id="todas-ordenes-lab">
+          {laboratorio
+            .filter(
+              (o) =>
+                !o.cancelada &&
+                !o.fechaRecepcion &&
+                ((o.fechaVenta && o.fechaVenta.slice(0, 10) === fechaImprimir) || (!o.fechaVenta && o.fechaEnvio === fechaImprimir))
+            )
+            .map((o) => {
+            const paciente = pacientes.find((p) => p.id === o.pacienteId);
+            return (
+              <div key={`todas-${o.id}`} style={{ pageBreakAfter: "always" }}>
+                <div className="flex items-center gap-3 mb-4" style={{ borderBottom: "2px solid #5EB6E8", paddingBottom: 10 }}>
+                  {config?.logo && <img src={config.logo} style={{ height: 70 }} alt="logo" />}
+                  <div>
+                    <p className="font-bold text-lg">Spektrum Ópticas</p>
+                    <p className="text-xs">{config?.direccion}</p>
+                    <p className="text-xs">Tel: {config?.telefono}</p>
+                  </div>
+                </div>
+                <p className="font-bold text-center mb-3" style={{ fontSize: 16 }}>ORDEN DE LABORATORIO</p>
+                <table style={{ width: "100%", fontSize: 13, marginBottom: 12 }}>
+                  <tbody>
+                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Paciente:</td><td>{o.nombreCliente || paciente?.nombre || "—"}</td></tr>
+                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Folio de venta:</td><td>{o.folioVenta || "—"}</td></tr>
+                  </tbody>
+                </table>
+                <div style={{ border: "1px solid #ccc", borderRadius: 6, padding: "8px 10px", marginBottom: 12 }}>
+                  <p className="font-semibold" style={{ marginBottom: 4 }}>Receta</p>
+                  <p style={{ fontSize: 13 }}>{lineaOjo(o.od, "O.D.")}</p>
+                  <p style={{ fontSize: 13 }}>{lineaOjo(o.os, "O.S.")}</p>
+                  <p style={{ fontSize: 13, marginTop: 4 }}>Material: {o.material || "-"}</p>
+                  <p style={{ fontSize: 13 }}>Descripción: {o.descripcion || "-"}</p>
+                </div>
+                <table style={{ width: "100%", fontSize: 13, marginBottom: 12, borderCollapse: "collapse" }}>
+                  <tbody>
+                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Armazón:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.armazon || "—"}</td></tr>
+                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha de envío a laboratorio:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaEnvio || "—"}</td></tr>
+                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha prometida:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaPrometida || "—"}</td></tr>
+                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha de recibido del laboratorio:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaRecepcion || "Pendiente"}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
+        </div>
+
         {laboratorio.map((o) => {
           const paciente = pacientes.find((p) => p.id === o.pacienteId);
           return (
@@ -2411,27 +2511,21 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
                   <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Folio de venta:</td><td>{o.folioVenta || "—"}</td></tr>
                 </tbody>
               </table>
-              <p className="font-semibold" style={{ marginBottom: 4 }}>Receta completa</p>
-              <p style={{ fontSize: 13, marginBottom: 12, whiteSpace: "pre-wrap" }}>{o.receta || "Sin receta capturada"}</p>
+              <div style={{ border: "1px solid #ccc", borderRadius: 6, padding: "8px 10px", marginBottom: 12 }}>
+                <p className="font-semibold" style={{ marginBottom: 4 }}>Receta</p>
+                <p style={{ fontSize: 13 }}>{lineaOjo(o.od, "O.D.")}</p>
+                <p style={{ fontSize: 13 }}>{lineaOjo(o.os, "O.S.")}</p>
+                <p style={{ fontSize: 13, marginTop: 4 }}>Material: {o.material || "-"}</p>
+                <p style={{ fontSize: 13 }}>Descripción: {o.descripcion || "-"}</p>
+              </div>
               <table style={{ width: "100%", fontSize: 13, marginBottom: 12, borderCollapse: "collapse" }}>
                 <tbody>
                   <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Armazón:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.armazon || "—"}</td></tr>
-                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Material:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.material || "—"}</td></tr>
                   <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha de envío a laboratorio:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaEnvio || "—"}</td></tr>
                   <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha prometida:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaPrometida || "—"}</td></tr>
                   <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha de recibido del laboratorio:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaRecepcion || "Pendiente"}</td></tr>
                 </tbody>
               </table>
-              <div style={{ marginTop: 40, display: "flex", justifyContent: "space-between" }}>
-                <div style={{ textAlign: "center", width: "45%" }}>
-                  <div style={{ borderTop: "1px solid #333", marginTop: 30 }} />
-                  <p className="text-xs">Firma laboratorio</p>
-                </div>
-                <div style={{ textAlign: "center", width: "45%" }}>
-                  <div style={{ borderTop: "1px solid #333", marginTop: 30 }} />
-                  <p className="text-xs">Firma recepción óptica</p>
-                </div>
-              </div>
             </div>
           );
         })}
@@ -2596,7 +2690,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
 
       <div id="corte-imprimible">
         <p className="hidden print:block font-bold mb-3">Corte Diario — {fecha}</p>
-        <div className="flex gap-3 mb-6 overflow-x-auto pb-1">
+        <div className="flex gap-3 mb-6 overflow-x-auto pb-1 print:hidden">
           <TotalBox titulo="Vendido del día" monto={totalVendido} color="#2563eb" subtitulo={`${ventasDelDia.length} nota(s)`} />
           <TotalBox titulo="Total de tickets del día" monto={totalTicketsDia} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioDia.toFixed(2)}`} esConteo />
           <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#0891b2" subtitulo={`${anticipos.length} pago(s)`} />
@@ -2605,6 +2699,22 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
           <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
           <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelDia.length} pago(s)`} />
           <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado hoy − pago a proveedores" />
+        </div>
+
+        <div className="hidden print:grid" style={{ gridTemplateColumns: "1fr 1fr", columnGap: 24, rowGap: 2, fontSize: 12, marginBottom: 16 }}>
+          <div>
+            <p><b>Vendido del día:</b> ${totalVendido.toFixed(2)}</p>
+            <p><b>Total de tickets del día:</b> {totalTicketsDia}</p>
+            <p><b>Ticket promedio:</b> ${ticketPromedioDia.toFixed(2)}</p>
+            <p><b>Anticipos cobrados:</b> ${totalAnticipos.toFixed(2)}</p>
+          </div>
+          <div>
+            <p><b>Saldos cobrados al entregar:</b> ${totalLiquidaciones.toFixed(2)}</p>
+            <p><b>Total cobrado hoy:</b> ${totalCobradoHoy.toFixed(2)}</p>
+            <p><b>Saldo pendiente:</b> ${totalSaldoPendiente.toFixed(2)}</p>
+            <p><b>Pago a proveedores:</b> ${totalProveedores.toFixed(2)}</p>
+            <p><b>Debe haber en caja:</b> ${debeHaberCaja.toFixed(2)}</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2838,7 +2948,7 @@ function CorteMensual({ ventas, pagosProveedores }) {
 
       <div id="corte-mes-imprimible">
         <p className="hidden print:block font-bold mb-3">Corte del mes — {mes}</p>
-        <div className="flex gap-3 mb-6 overflow-x-auto pb-1">
+        <div className="flex gap-3 mb-6 overflow-x-auto pb-1 print:hidden">
           <TotalBox titulo="Vendido del mes" monto={totalVendido} color="#2563eb" subtitulo={`${ventasDelMes.length} nota(s)`} />
           <TotalBox titulo="Total de tickets del mes" monto={totalTicketsMes} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioMes.toFixed(2)}`} esConteo />
           <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#0891b2" subtitulo={`${anticipos.length} pago(s)`} />
@@ -2847,6 +2957,22 @@ function CorteMensual({ ventas, pagosProveedores }) {
           <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
           <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelMes.length} pago(s)`} />
           <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado del mes − pago a proveedores" />
+        </div>
+
+        <div className="hidden print:grid" style={{ gridTemplateColumns: "1fr 1fr", columnGap: 24, rowGap: 2, fontSize: 12, marginBottom: 16 }}>
+          <div>
+            <p><b>Vendido del mes:</b> ${totalVendido.toFixed(2)}</p>
+            <p><b>Total de tickets del mes:</b> {totalTicketsMes}</p>
+            <p><b>Ticket promedio:</b> ${ticketPromedioMes.toFixed(2)}</p>
+            <p><b>Anticipos cobrados:</b> ${totalAnticipos.toFixed(2)}</p>
+          </div>
+          <div>
+            <p><b>Saldos cobrados al entregar:</b> ${totalLiquidaciones.toFixed(2)}</p>
+            <p><b>Total cobrado en el mes:</b> ${totalCobradoMes.toFixed(2)}</p>
+            <p><b>Saldo pendiente:</b> ${totalSaldoPendiente.toFixed(2)}</p>
+            <p><b>Pago a proveedores:</b> ${totalProveedores.toFixed(2)}</p>
+            <p><b>Debe haber en caja:</b> ${debeHaberCaja.toFixed(2)}</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
