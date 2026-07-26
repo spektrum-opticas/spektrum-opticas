@@ -175,6 +175,7 @@ function GlobalPrintStyles() {
       @media print {
         body * { visibility: hidden !important; }
         .print-only, .print-only * { visibility: visible !important; }
+        .plantilla-oculta { position: static !important; left: 0 !important; top: 0 !important; }
         .print-only {
           position: absolute !important;
           left: 0 !important;
@@ -705,6 +706,21 @@ function ExpedientePaciente({ paciente, pacientes, setPacientes, onVenta, onGuar
 
   function guardar() {
     const actualizado = { ...datos, anamnesisA, anamnesisB, receta, avSin, avAnt, avNueva, lenteRec };
+    const visita = {
+      id: uid(),
+      fecha: new Date().toISOString(),
+      od: {
+        esf: receta.OD.ESF, cil: receta.OD.CIL, eje: receta.OD.EJE,
+        di: receta.OD.DNP, add: receta.OD.ADD, obs: [receta.OD.ACO, receta.OD.PRISMA, receta.OD.BASE].filter(Boolean).join(" "),
+      },
+      os: {
+        esf: receta.OI.ESF, cil: receta.OI.CIL, eje: receta.OI.EJE,
+        di: receta.OI.DNP, add: receta.OI.ADD, obs: [receta.OI.ACO, receta.OI.PRISMA, receta.OI.BASE].filter(Boolean).join(" "),
+      },
+      descripcion: lenteRec,
+      origen: "agenda",
+    };
+    actualizado.compras = [...(datos.compras || []), visita];
     setPacientes(pacientes.map((p) => (p.id === paciente.id ? actualizado : p)));
   }
 
@@ -784,7 +800,7 @@ function ExpedientePaciente({ paciente, pacientes, setPacientes, onVenta, onGuar
       <Field label="Lente recomendado" value={lenteRec} onChange={(e) => setLenteRec(e.target.value)} />
 
       {/* Plantillas imprimibles (ocultas en pantalla, visibles solo al imprimir) */}
-      <div style={{ position: "absolute", left: -9999, top: 0 }}>
+      <div className="plantilla-oculta" style={{ position: "absolute", left: -9999, top: 0 }}>
         <div id="receta-imprimible">
           <p className="font-bold text-center mb-2">RECETA — {datos.nombre}</p>
           <p className="text-xs text-center mb-3">{new Date().toLocaleDateString("es-MX")}</p>
@@ -1534,7 +1550,7 @@ function InventarioView({ inventario, setInventario }) {
    ============================================================ */
 const CAMPOS_RECETA_PACIENTE = ["Esf", "Cil", "Eje", "DI", "Add", "Obs"];
 
-function PacientesView({ pacientes, setPacientes, agenda, setAgenda }) {
+function PacientesView({ pacientes, setPacientes, agenda, setAgenda, config }) {
   const [busqueda, setBusqueda] = useState("");
   const [abierto, setAbierto] = useState(null); // id de paciente con expediente abierto
   const filtrados = busqueda
@@ -1617,6 +1633,7 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda }) {
             setPacientes={setPacientes}
             onEliminar={() => eliminarPaciente(pacienteAbierto.id)}
             onCerrar={() => setAbierto(null)}
+            config={config}
           />
         )}
       </Modal>
@@ -1624,24 +1641,90 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda }) {
   );
 }
 
-function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onEliminar, onCerrar }) {
-  const campos = [
-    "nombre", "domicilio", "colonia", "cp", "mail", "telefono",
-    "total", "anticipo", "saldo", "fechaPrometido",
-    "materialReceta", "cantidad", "descripcion", "precioMaterial", "totalProducto",
-  ];
+function fechaVisita(v) {
+  if (!v.fecha) return "Sin fecha";
+  const d = new Date(v.fecha);
+  return isNaN(d) ? v.fecha : d.toLocaleDateString("es-MX");
+}
+
+function ordenarVisitasDesc(compras) {
+  return [...(compras || [])].sort((a, b) => {
+    const fa = a.fecha ? new Date(a.fecha).getTime() : 0;
+    const fb = b.fecha ? new Date(b.fecha).getTime() : 0;
+    return fb - fa;
+  });
+}
+
+function ResumenVisita({ v }) {
+  return (
+    <div className="border rounded-lg p-3 text-sm">
+      <p className="text-xs text-slate-400 mb-1">
+        {fechaVisita(v)} {v.origen ? `· origen: ${v.origen}` : ""}
+      </p>
+      {v.items && (
+        <div className="mb-1">
+          <p className="font-medium">Venta (POS) — Folio #{v.folio}</p>
+          {v.items.map((it, i) => (
+            <p key={i} className="text-xs text-slate-600">{it.nombre} — ${it.precio}</p>
+          ))}
+        </div>
+      )}
+      {(v.od || v.os) && (
+        <div className="mb-1">
+          <p className="font-medium">Receta</p>
+          {v.od && (
+            <p className="text-xs text-slate-600">
+              O.D.: {CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${v.od[c.toLowerCase()] || "-"}`).join(" · ")}
+            </p>
+          )}
+          {v.os && (
+            <p className="text-xs text-slate-600">
+              O.S.: {CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${v.os[c.toLowerCase()] || "-"}`).join(" · ")}
+            </p>
+          )}
+        </div>
+      )}
+      {(v.materialReceta || v.descripcion || v.cantidad || v.precioMaterial || v.totalProducto) && (
+        <div className="text-xs text-slate-600 mb-1">
+          {v.materialReceta && <p>Material: {v.materialReceta}</p>}
+          {v.descripcion && <p>Descripción: {v.descripcion}</p>}
+          {v.cantidad && <p>Cantidad: {v.cantidad}</p>}
+          {v.precioMaterial && <p>Precio material: ${v.precioMaterial}</p>}
+          {v.totalProducto && <p>Total producto: ${v.totalProducto}</p>}
+        </div>
+      )}
+      {(v.total !== undefined && v.total !== "" && !v.items) && (
+        <p className="text-xs text-slate-600">
+          Total: ${v.total} · Anticipo: ${v.anticipo || 0} · Saldo: ${v.saldo || 0}
+          {v.fechaPrometido && ` · Prometido: ${v.fechaPrometido}`}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onEliminar, onCerrar, config }) {
+  const camposPersonales = ["nombre", "domicilio", "colonia", "cp", "mail", "telefono"];
   const [datos, setDatos] = useState(() => {
     const base = { ...paciente };
-    campos.forEach((c) => { if (base[c] === undefined) base[c] = ""; });
-    ["od", "os"].forEach((ojo) => {
-      base[ojo] = { ...(paciente[ojo] || {}) };
-      CAMPOS_RECETA_PACIENTE.forEach((c) => {
-        const key = c.toLowerCase();
-        if (base[ojo][key] === undefined) base[ojo][key] = "";
-      });
-    });
+    camposPersonales.forEach((c) => { if (base[c] === undefined) base[c] = ""; });
+    if (!Array.isArray(base.compras)) base.compras = [];
     return base;
   });
+  const [agregandoVisita, setAgregandoVisita] = useState(false);
+  const [nuevaVisita, setNuevaVisita] = useState({
+    fecha: fechaISO(new Date()), total: "", anticipo: "", saldo: "", fechaPrometido: "",
+    od: { esf: "", cil: "", eje: "", di: "", add: "", obs: "" },
+    os: { esf: "", cil: "", eje: "", di: "", add: "", obs: "" },
+    materialReceta: "", cantidad: "", descripcion: "", precioMaterial: "", totalProducto: "",
+  });
+  const [imprimiendo, setImprimiendo] = useState(false);
+  const [incluirPersonales, setIncluirPersonales] = useState(true);
+  const [incluirCompra, setIncluirCompra] = useState(true);
+  const [incluirReceta, setIncluirReceta] = useState(true);
+  const [visitasSel, setVisitasSel] = useState({});
+
+  const visitasOrdenadas = ordenarVisitasDesc(datos.compras);
 
   function campo(nombre, label, tipo = "text") {
     return (
@@ -1657,6 +1740,35 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
   function guardar() {
     setPacientes(pacientes.map((p) => (p.id === paciente.id ? { ...p, ...datos } : p)));
   }
+
+  function agregarVisitaManual() {
+    const visita = { ...nuevaVisita, id: uid(), fecha: new Date(nuevaVisita.fecha).toISOString(), origen: "manual" };
+    const actualizado = { ...datos, compras: [...(datos.compras || []), visita] };
+    setDatos(actualizado);
+    setPacientes(pacientes.map((p) => (p.id === paciente.id ? { ...p, ...actualizado } : p)));
+    setAgregandoVisita(false);
+    setNuevaVisita({
+      fecha: fechaISO(new Date()), total: "", anticipo: "", saldo: "", fechaPrometido: "",
+      od: { esf: "", cil: "", eje: "", di: "", add: "", obs: "" },
+      os: { esf: "", cil: "", eje: "", di: "", add: "", obs: "" },
+      materialReceta: "", cantidad: "", descripcion: "", precioMaterial: "", totalProducto: "",
+    });
+  }
+
+  function abrirSelectorImpresion() {
+    const sel = {};
+    visitasOrdenadas.forEach((v) => { sel[v.id || v.folio] = true; });
+    setVisitasSel(sel);
+    setImprimiendo(true);
+  }
+
+  function imprimirConSeleccion() {
+    guardar();
+    setImprimiendo(false);
+    setTimeout(() => imprimirElemento(`paciente-imprimible-${paciente.id}`), 60);
+  }
+
+  const visitasAImprimir = visitasOrdenadas.filter((v) => visitasSel[v.id || v.folio]);
 
   return (
     <div className="space-y-4" style={{ maxHeight: "65vh", overflowY: "auto" }}>
@@ -1674,62 +1786,75 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
       </div>
 
       <div>
-        <h3 className="font-semibold text-slate-700 mb-2">Financiero</h3>
-        <div className="grid grid-cols-2 gap-3">
-          {campo("total", "Total", "number")}
-          {campo("anticipo", "Anticipo", "number")}
-          {campo("saldo", "Saldo", "number")}
-          {campo("fechaPrometido", "Fecha prometido", "date")}
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold text-slate-700">
+            Historial de visitas / compras — <span className="text-sky-700">Número de compras: {visitasOrdenadas.length}</span>
+          </h3>
+          <button onClick={() => setAgregandoVisita(true)} className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600 flex items-center gap-1">
+            <Plus size={14} /> Agregar visita manualmente
+          </button>
         </div>
-      </div>
-
-      <div>
-        <h3 className="font-semibold text-slate-700 mb-2">Receta</h3>
-        {["od", "os"].map((ojo) => (
-          <div key={ojo} className="flex items-center gap-2 mb-1">
-            <span className="w-10 font-semibold text-sm">{ojo === "od" ? "O.D." : "O.S."}</span>
-            {CAMPOS_RECETA_PACIENTE.map((c) => (
-              <input
-                key={c}
-                placeholder={c}
-                value={datos[ojo][c.toLowerCase()]}
-                onChange={(e) => setDatos({ ...datos, [ojo]: { ...datos[ojo], [c.toLowerCase()]: e.target.value } })}
-                className="w-16 border rounded px-1 py-1 text-xs text-center"
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-
-      <div>
-        <h3 className="font-semibold text-slate-700 mb-2">Producto</h3>
-        <div className="grid grid-cols-2 gap-3">
-          {campo("materialReceta", "Material receta")}
-          {campo("cantidad", "Cantidad", "number")}
-          {campo("descripcion", "Descripción")}
-          {campo("precioMaterial", "Precio material", "number")}
-          {campo("totalProducto", "Total producto", "number")}
+        <div className="space-y-2">
+          {visitasOrdenadas.map((v) => (
+            <ResumenVisita key={v.id || v.folio} v={v} />
+          ))}
+          {visitasOrdenadas.length === 0 && <p className="text-xs text-slate-400">Sin visitas o compras registradas todavía.</p>}
         </div>
       </div>
 
       {/* Plantilla imprimible individual (oculta en pantalla) */}
-      <div style={{ position: "absolute", left: -9999, top: 0 }}>
+      <div className="plantilla-oculta" style={{ position: "absolute", left: -9999, top: 0 }}>
         <div id={`paciente-imprimible-${paciente.id}`}>
-          <p className="font-bold text-center mb-2">EXPEDIENTE — {datos.nombre} (Folio {paciente.folio})</p>
-          <p className="text-sm">Domicilio: {datos.domicilio}, {datos.colonia}, C.P. {datos.cp}</p>
-          <p className="text-sm">Mail: {datos.mail} — Teléfono: {datos.telefono}</p>
-          <p className="text-sm">Total: ${datos.total} — Anticipo: ${datos.anticipo} — Saldo: ${datos.saldo}</p>
-          <p className="text-sm">Fecha prometido: {datos.fechaPrometido}</p>
-          <p className="font-semibold mt-2">Receta</p>
-          {["od", "os"].map((ojo) => (
-            <p key={ojo} className="text-sm">
-              {ojo === "od" ? "O.D." : "O.S."}: {CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${datos[ojo][c.toLowerCase()]}`).join(" · ")}
-            </p>
+          <div className="flex items-center gap-3 mb-3">
+            {config?.logo && <img src={config.logo} style={{ height: 60 }} alt="logo" />}
+            <div>
+              <p className="font-bold">Spektrum Ópticas</p>
+              <p className="text-xs">{config?.direccion}</p>
+              <p className="text-xs">Tel: {config?.telefono}</p>
+            </div>
+          </div>
+          <p className="font-bold mb-2">EXPEDIENTE — {datos.nombre} (Folio {paciente.folio})</p>
+          {incluirPersonales && (
+            <>
+              <p className="text-sm">Domicilio: {datos.domicilio}, {datos.colonia}, C.P. {datos.cp}</p>
+              <p className="text-sm">Mail: {datos.mail} — Teléfono: {datos.telefono}</p>
+            </>
+          )}
+          <p className="text-sm mt-1">Número de compras: {visitasOrdenadas.length}</p>
+          {visitasAImprimir.map((v) => (
+            <div key={v.id || v.folio} style={{ marginTop: 10, borderTop: "1px solid #ccc", paddingTop: 6 }}>
+              <p className="text-sm font-semibold">{fechaVisita(v)}</p>
+              {incluirCompra && (
+                <>
+                  {v.items && (
+                    <>
+                      <p className="text-xs">Venta — Folio #{v.folio}</p>
+                      {v.items.map((it, i) => (
+                        <p key={i} className="text-xs">{it.nombre} — ${it.precio}</p>
+                      ))}
+                    </>
+                  )}
+                  {v.materialReceta && <p className="text-xs">Material: {v.materialReceta}</p>}
+                  {v.descripcion && <p className="text-xs">Descripción: {v.descripcion}</p>}
+                  {v.cantidad && <p className="text-xs">Cantidad: {v.cantidad}</p>}
+                  {(v.total !== undefined && v.total !== "") && (
+                    <p className="text-xs">Total: ${v.total} — Anticipo: ${v.anticipo || 0} — Saldo: ${v.saldo || 0}</p>
+                  )}
+                  {v.fechaPrometido && <p className="text-xs">Fecha prometido: {v.fechaPrometido}</p>}
+                </>
+              )}
+              {incluirReceta && (v.od || v.os) && (
+                <>
+                  {v.od && (
+                    <p className="text-xs">O.D.: {CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${v.od[c.toLowerCase()] || "-"}`).join(" · ")}</p>
+                  )}
+                  {v.os && (
+                    <p className="text-xs">O.S.: {CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${v.os[c.toLowerCase()] || "-"}`).join(" · ")}</p>
+                  )}
+                </>
+              )}
+            </div>
           ))}
-          <p className="font-semibold mt-2">Producto</p>
-          <p className="text-sm">Material receta: {datos.materialReceta} — Cantidad: {datos.cantidad}</p>
-          <p className="text-sm">Descripción: {datos.descripcion}</p>
-          <p className="text-sm">Precio material: ${datos.precioMaterial} — Total producto: ${datos.totalProducto}</p>
         </div>
       </div>
 
@@ -1737,14 +1862,8 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
         <button onClick={guardar} className="px-3 py-2 rounded-lg bg-emerald-500 text-white text-sm flex items-center gap-1">
           <Save size={16} /> Guardar
         </button>
-        <button
-          onClick={() => {
-            guardar();
-            imprimirElemento(`paciente-imprimible-${paciente.id}`);
-          }}
-          className="px-3 py-2 rounded-lg bg-slate-200 text-slate-700 text-sm flex items-center gap-1"
-        >
-          <Printer size={16} /> Imprimir datos del paciente
+        <button onClick={abrirSelectorImpresion} className="px-3 py-2 rounded-lg bg-slate-200 text-slate-700 text-sm flex items-center gap-1">
+          <Printer size={16} /> Imprimir
         </button>
         <button
           onClick={() => {
@@ -1759,6 +1878,72 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
           <Trash2 size={16} /> Eliminar paciente
         </button>
       </div>
+
+      <Modal open={agregandoVisita} onClose={() => setAgregandoVisita(false)} title="Agregar visita manualmente">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Fecha" type="date" value={nuevaVisita.fecha} onChange={(e) => setNuevaVisita({ ...nuevaVisita, fecha: e.target.value })} />
+          <Field label="Fecha prometido" type="date" value={nuevaVisita.fechaPrometido} onChange={(e) => setNuevaVisita({ ...nuevaVisita, fechaPrometido: e.target.value })} />
+          <Field label="Total" type="number" value={nuevaVisita.total} onChange={(e) => setNuevaVisita({ ...nuevaVisita, total: e.target.value })} />
+          <Field label="Anticipo" type="number" value={nuevaVisita.anticipo} onChange={(e) => setNuevaVisita({ ...nuevaVisita, anticipo: e.target.value })} />
+          <Field label="Saldo" type="number" value={nuevaVisita.saldo} onChange={(e) => setNuevaVisita({ ...nuevaVisita, saldo: e.target.value })} />
+          <Field label="Material receta" value={nuevaVisita.materialReceta} onChange={(e) => setNuevaVisita({ ...nuevaVisita, materialReceta: e.target.value })} />
+          <Field label="Cantidad" type="number" value={nuevaVisita.cantidad} onChange={(e) => setNuevaVisita({ ...nuevaVisita, cantidad: e.target.value })} />
+          <Field label="Descripción" value={nuevaVisita.descripcion} onChange={(e) => setNuevaVisita({ ...nuevaVisita, descripcion: e.target.value })} />
+          <Field label="Precio material" type="number" value={nuevaVisita.precioMaterial} onChange={(e) => setNuevaVisita({ ...nuevaVisita, precioMaterial: e.target.value })} />
+          <Field label="Total producto" type="number" value={nuevaVisita.totalProducto} onChange={(e) => setNuevaVisita({ ...nuevaVisita, totalProducto: e.target.value })} />
+        </div>
+        {["od", "os"].map((ojo) => (
+          <div key={ojo} className="flex items-center gap-2 mb-2">
+            <span className="w-10 font-semibold text-sm">{ojo === "od" ? "O.D." : "O.S."}</span>
+            {CAMPOS_RECETA_PACIENTE.map((c) => (
+              <input
+                key={c}
+                placeholder={c}
+                value={nuevaVisita[ojo][c.toLowerCase()]}
+                onChange={(e) => setNuevaVisita({ ...nuevaVisita, [ojo]: { ...nuevaVisita[ojo], [c.toLowerCase()]: e.target.value } })}
+                className="w-16 border rounded px-1 py-1 text-xs text-center"
+              />
+            ))}
+          </div>
+        ))}
+        <button onClick={agregarVisitaManual} className="w-full py-2 rounded-lg text-white text-sm font-medium mt-2" style={{ background: SKY_DARK }}>
+          Guardar visita
+        </button>
+      </Modal>
+
+      <Modal open={imprimiendo} onClose={() => setImprimiendo(false)} title="Elige qué imprimir">
+        <div className="space-y-2 mb-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={incluirPersonales} onChange={(e) => setIncluirPersonales(e.target.checked)} /> Datos personales
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={incluirCompra} onChange={(e) => setIncluirCompra(e.target.checked)} /> Datos de compra
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={incluirReceta} onChange={(e) => setIncluirReceta(e.target.checked)} /> Receta
+          </label>
+        </div>
+        {visitasOrdenadas.length > 1 && (
+          <div className="mb-3">
+            <p className="text-xs font-medium text-slate-500 uppercase mb-1">Visitas a incluir</p>
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {visitasOrdenadas.map((v) => (
+                <label key={v.id || v.folio} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={!!visitasSel[v.id || v.folio]}
+                    onChange={(e) => setVisitasSel({ ...visitasSel, [v.id || v.folio]: e.target.checked })}
+                  />
+                  {fechaVisita(v)}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+        <button onClick={imprimirConSeleccion} className="w-full py-2 rounded-lg text-white text-sm font-medium" style={{ background: SKY_DARK }}>
+          Imprimir ahora
+        </button>
+      </Modal>
     </div>
   );
 }
@@ -2702,29 +2887,71 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario }) {
 
   function aplicarImportacion(filas) {
     if (categoria === "Pacientes") {
-      const nuevos = filas.map((f, i) => ({
-        id: uid(),
-        folio: pacientes.length + i + 1,
-        nombre: f.nombre || f.name || "Sin nombre",
-        telefono: f.telefono || f.phone || "",
-        email: f.email || "",
-        direccion: f.direccion || "",
-        ciudad: f.ciudad || "",
-        compras: [],
-      }));
-      setPacientes([...pacientes, ...nuevos]);
-      setResultado({ tipo: "Pacientes", cantidad: nuevos.length });
+      let lista = [...pacientes];
+      filas.forEach((f) => {
+        const nombre = f["nombre"] || f["name"] || "Sin nombre";
+        const claveNombre = nombre.trim().toLowerCase();
+        const visita = {
+          id: uid(),
+          fecha: f["fecha"] ? new Date(f["fecha"]).toISOString() || f["fecha"] : "",
+          total: f["total"] || "",
+          anticipo: f["anticipo"] || "",
+          saldo: f["saldo"] || "",
+          fechaPrometido: f["fecha prometido"] || f["fechaprometido"] || "",
+          od: {
+            esf: f["od_esf"] || "", cil: f["od_cil"] || "", eje: f["od_eje"] || "",
+            di: f["od_di"] || "", add: f["od_add"] || "", obs: f["od_obs"] || "",
+          },
+          os: {
+            esf: f["os_esf"] || "", cil: f["os_cil"] || "", eje: f["os_eje"] || "",
+            di: f["os_di"] || "", add: f["os_add"] || "", obs: f["os_obs"] || "",
+          },
+          materialReceta: f["material_receta"] || "",
+          cantidad: f["cantidad"] || "",
+          descripcion: f["descripcion"] || "",
+          precioMaterial: f["precio material"] || f["precio_material"] || "",
+          totalProducto: f["total producto"] || f["total_producto"] || "",
+          origen: "importado",
+        };
+        const idx = lista.findIndex((p) => p.nombre.trim().toLowerCase() === claveNombre);
+        if (idx === -1) {
+          lista.push({
+            id: uid(),
+            folio: lista.length + 1,
+            nombre,
+            domicilio: f["domicilio"] || "",
+            colonia: f["colonia"] || "",
+            cp: f["c.p."] || f["cp"] || "",
+            mail: f["mail"] || f["email"] || "",
+            telefono: f["telefono"] || f["phone"] || "",
+            compras: [visita],
+          });
+        } else {
+          const p = lista[idx];
+          lista[idx] = {
+            ...p,
+            domicilio: p.domicilio || f["domicilio"] || "",
+            colonia: p.colonia || f["colonia"] || "",
+            cp: p.cp || f["c.p."] || f["cp"] || "",
+            mail: p.mail || f["mail"] || f["email"] || "",
+            telefono: p.telefono || f["telefono"] || f["phone"] || "",
+            compras: [...(p.compras || []), visita],
+          };
+        }
+      });
+      setPacientes(lista);
+      setResultado({ tipo: "Pacientes", cantidad: filas.length });
     } else {
       const key = { Armazones: "armazones", "Lentes graduados": "lentesGraduados", "Lentes de contacto": "lentesContacto", "Lentes solares": "lentesSolares" }[categoria];
-      const lista = inventario[key] || [];
+      const listaInv = inventario[key] || [];
       const nuevos = filas.map((f, i) => ({
         id: uid(),
         nombre: f.nombre || f.name || "Sin nombre",
         precio: f.precio || f.price || "0",
         existencias: f.existencias || f.stock || "0",
-        sku: `${key.slice(0, 3).toUpperCase()}-${(lista.length + i + 1).toString().padStart(4, "0")}`,
+        sku: `${key.slice(0, 3).toUpperCase()}-${(listaInv.length + i + 1).toString().padStart(4, "0")}`,
       }));
-      setInventario({ ...inventario, [key]: [...lista, ...nuevos] });
+      setInventario({ ...inventario, [key]: [...listaInv, ...nuevos] });
       setResultado({ tipo: categoria, cantidad: nuevos.length });
     }
   }
@@ -3648,7 +3875,7 @@ export default function App() {
         )}
         {seccion === "inventario" && <InventarioView inventario={inventario} setInventario={setInventario} />}
         {seccion === "pacientes" && (
-          <PacientesView pacientes={pacientes} setPacientes={setPacientes} agenda={agenda} setAgenda={setAgenda} />
+          <PacientesView pacientes={pacientes} setPacientes={setPacientes} agenda={agenda} setAgenda={setAgenda} config={config} />
         )}
         {seccion === "laboratorio" && (
           <LaboratorioView laboratorio={laboratorio} setLaboratorio={setLaboratorio} pacientes={pacientes} />
