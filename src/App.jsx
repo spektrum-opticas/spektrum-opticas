@@ -1550,9 +1550,10 @@ function InventarioView({ inventario, setInventario }) {
    ============================================================ */
 const CAMPOS_RECETA_PACIENTE = ["Esf", "Cil", "Eje", "DI", "Add", "Obs"];
 
-function PacientesView({ pacientes, setPacientes, agenda, setAgenda, config }) {
+function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas, config }) {
   const [busqueda, setBusqueda] = useState("");
   const [abierto, setAbierto] = useState(null); // id de paciente con expediente abierto
+  const [mensajeUnificar, setMensajeUnificar] = useState("");
   const filtrados = busqueda
     ? pacientes.filter((p) => p.nombre.toLowerCase().includes(busqueda.toLowerCase()))
     : pacientes;
@@ -1564,17 +1565,66 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, config }) {
     setAbierto(null);
   }
 
+  function unificarDuplicados() {
+    const grupos = new Map();
+    pacientes.forEach((p) => {
+      const clave = (p.nombre || "").trim().toLowerCase();
+      if (!grupos.has(clave)) grupos.set(clave, []);
+      grupos.get(clave).push(p);
+    });
+
+    const duplicados = [...grupos.values()].filter((g) => g.length > 1).length;
+    if (duplicados === 0) {
+      setMensajeUnificar("No se encontraron pacientes duplicados.");
+      return;
+    }
+    if (!window.confirm(`Se encontraron ${duplicados} nombre(s) con expedientes repetidos. Se van a unificar en uno solo por nombre, combinando sus datos y su historial de compras. ¿Continuar?`)) {
+      return;
+    }
+
+    const mapaIdViejoANuevo = {};
+    const unificados = [];
+    grupos.forEach((grupo) => {
+      const base = { ...grupo[0] };
+      let compras = [...(base.compras || [])];
+      mapaIdViejoANuevo[base.id] = base.id;
+      for (let i = 1; i < grupo.length; i++) {
+        const p = grupo[i];
+        ["domicilio", "colonia", "cp", "mail", "telefono", "direccion", "ciudad", "municipio", "edad", "email"].forEach((campo) => {
+          if (!base[campo] && p[campo]) base[campo] = p[campo];
+        });
+        compras = [...compras, ...(p.compras || [])];
+        mapaIdViejoANuevo[p.id] = base.id;
+      }
+      base.compras = compras;
+      unificados.push(base);
+    });
+
+    unificados.sort((a, b) => (a.folio || 0) - (b.folio || 0));
+    const renumerados = unificados.map((p, i) => ({ ...p, folio: i + 1 }));
+
+    setPacientes(renumerados);
+    setAgenda(agenda.map((c) => (mapaIdViejoANuevo[c.pacienteId] ? { ...c, pacienteId: mapaIdViejoANuevo[c.pacienteId] } : c)));
+    if (ventas && setVentas) {
+      setVentas(ventas.map((v) => (mapaIdViejoANuevo[v.pacienteId] ? { ...v, pacienteId: mapaIdViejoANuevo[v.pacienteId] } : v)));
+    }
+    setMensajeUnificar(`Se unificaron ${duplicados} nombre(s) duplicado(s). Ahora hay ${renumerados.length} pacientes.`);
+  }
+
   const pacienteAbierto = abierto ? pacientes.find((p) => p.id === abierto) : null;
 
   return (
     <div className="p-4">
-      <div className="flex flex-wrap gap-2 items-center mb-4">
+      <div className="flex flex-wrap gap-2 items-center mb-2">
         <input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar paciente por nombre..."
           className="flex-1 min-w-[200px] border rounded-lg px-3 py-2 text-sm"
         />
+        <button onClick={unificarDuplicados} className="px-3 py-2 rounded-lg bg-amber-100 text-amber-700 text-sm font-medium">
+          Unificar pacientes duplicados
+        </button>
         <button
           onClick={() => imprimirElemento("listado-pacientes-imprimible")}
           className="px-3 py-2 rounded-lg bg-slate-200 text-sm flex items-center gap-1"
@@ -1582,6 +1632,7 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, config }) {
           <Printer size={16} /> Imprimir listado de pacientes
         </button>
       </div>
+      {mensajeUnificar && <p className="text-xs text-emerald-700 mb-2">{mensajeUnificar}</p>}
 
       <div id="listado-pacientes-imprimible" className="bg-white border rounded-xl overflow-hidden">
         <table className="w-full text-sm">
@@ -3875,7 +3926,7 @@ export default function App() {
         )}
         {seccion === "inventario" && <InventarioView inventario={inventario} setInventario={setInventario} />}
         {seccion === "pacientes" && (
-          <PacientesView pacientes={pacientes} setPacientes={setPacientes} agenda={agenda} setAgenda={setAgenda} config={config} />
+          <PacientesView pacientes={pacientes} setPacientes={setPacientes} agenda={agenda} setAgenda={setAgenda} ventas={ventas} setVentas={setVentas} config={config} />
         )}
         {seccion === "laboratorio" && (
           <LaboratorioView laboratorio={laboratorio} setLaboratorio={setLaboratorio} pacientes={pacientes} />
