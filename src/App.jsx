@@ -86,6 +86,54 @@ function imprimirElemento(id) {
   setTimeout(() => window.print(), 50);
 }
 
+const NOMBRE_OPTICA = "Spektrum Ópticas";
+
+function mensajeAgradecimiento(nombre) {
+  return {
+    email: {
+      asunto: `¡Gracias por confiar tu visión en nosotros, ${nombre}! 🤓`,
+      cuerpo:
+        `Hola, ${nombre}:\n\n` +
+        `Queremos agradecerte sinceramente por elegirnos para el cuidado de tus ojos y por tu reciente compra de lentes. Nos entusiasma mucho ayudarte a ver el mundo con total claridad.\n\n` +
+        `Nuestro equipo ya está trabajando en tu orden con los más altos estándares de calidad. En un próximo mensaje te avisaremos en cuanto tus lentes estén listos para entrega.\n\n` +
+        `Si tienes alguna duda con tu pedido, responde a este correo o escríbenos por WhatsApp.\n\n` +
+        `Atentamente,\nEl equipo de ${NOMBRE_OPTICA}`,
+    },
+    whatsapp:
+      `¡Hola, ${nombre}! 👋 Gracias por tu compra en ${NOMBRE_OPTICA}. Nos hace muy felices cuidar de tu salud visual y saber que pronto estrenarás lentes. 🤓 ` +
+      `Nuestro laboratorio ya está trabajando en ellos. Te avisaremos por aquí mismo en cuanto estén listos. ¡Que tengas un excelente día! ✨`,
+  };
+}
+
+function mensajeListos(nombre, direccion, horario) {
+  return {
+    email: {
+      asunto: `¡Buenas noticias, ${nombre}! Tus lentes ya están listos 🥳`,
+      cuerpo:
+        `Hola, ${nombre}:\n\n` +
+        `Te informamos que tus nuevos lentes han pasado todas nuestras pruebas de calidad y ¡ya están listos para ti!\n\n` +
+        `Puedes pasar por ellos a nuestra sucursal en el siguiente horario:\n📍 Dirección: ${direccion || "—"}\n⏰ Horario: ${horario || "nuestro horario de atención"}\n\n` +
+        `Nota: Recuerda que al entregártelos realizaremos un ajuste personalizado para que te queden perfectos y cómodos.\n\n` +
+        `¡Te esperamos pronto!\nEl equipo de ${NOMBRE_OPTICA}`,
+    },
+    whatsapp:
+      `¡Hola, ${nombre}! 🎉 ¡Buenas noticias! Tus lentes ya están listos en ${NOMBRE_OPTICA}. ` +
+      `Puedes pasar por ellos a nuestra sucursal ubicada en ${direccion || "nuestra dirección"} de ${horario || "nuestro horario de atención"}. ` +
+      `Te sugerimos traer unos minutos disponibles para ajustarlos perfectamente a tu rostro. ¡Te esperamos! 🤓✨`,
+  };
+}
+
+function abrirWhatsApp(telefono, mensaje) {
+  const numero = (telefono || "").replace(/\D/g, "");
+  const url = `https://wa.me/${numero ? "52" + numero : ""}?text=${encodeURIComponent(mensaje)}`;
+  window.open(url, "_blank");
+}
+
+function abrirEmail(destinatario, asunto, cuerpo) {
+  const url = `mailto:${destinatario || ""}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+  window.open(url, "_blank");
+}
+
 function exportarRespaldo(datos) {
   const blob = new Blob([JSON.stringify(datos, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -966,10 +1014,15 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
       const material = carrito.find((it) => it.categoria === "lentesGraduados" || it.categoria === "lentesContacto");
       if (armazon || material) {
         const p = clienteSel;
-        const receta =
-          p && (p.od || p.os)
-            ? `OD: ${CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${p.od?.[c.toLowerCase()] || "-"}`).join(" · ")} | OS: ${CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${p.os?.[c.toLowerCase()] || "-"}`).join(" · ")}`
-            : "Sin receta capturada en el expediente";
+        const historial = ordenarVisitasDesc(p?.compras || []);
+        const hoyISO = fechaISO(new Date());
+        const visitaHoy = historial.find((v) => v.origen === "agenda" && v.fecha && v.fecha.slice(0, 10) === hoyISO && (v.od || v.os));
+        const visitaReceta = visitaHoy || historial.find((v) => v.od || v.os);
+        const receta = visitaReceta
+          ? `OD: ${CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${visitaReceta.od?.[c.toLowerCase()] || "-"}`).join(" · ")} | OS: ${CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${visitaReceta.os?.[c.toLowerCase()] || "-"}`).join(" · ")}`
+          : "Sin receta capturada en el expediente";
+        const materialFinal = material?.nombre || visitaReceta?.materialReceta || "—";
+        const fechaEnvioAuto = new Date(new Date(ahora).getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
         setLaboratorio([
           ...laboratorio,
           {
@@ -978,16 +1031,21 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
             nombreCliente: nota.nombreCliente,
             folioVenta: folio,
             receta,
-            material: material?.nombre || "—",
+            material: materialFinal,
             armazon: armazon?.nombre || "—",
             fechaVenta: ahora,
-            fechaEnvio: "",
-            fechaPrometida: p?.fechaPrometido || "",
+            fechaEnvio: fechaEnvioAuto,
+            fechaPrometida: visitaReceta?.fechaPrometido || p?.fechaPrometido || "",
             fechaRecepcion: "",
             origen: "venta",
           },
         ]);
       }
+      // Mensaje de agradecimiento automático (WhatsApp y/o correo, lo que esté disponible)
+      const nombreParaMensaje = clienteSel?.nombre || nota.nombreCliente;
+      const msj = mensajeAgradecimiento(nombreParaMensaje);
+      if (clienteSel?.telefono) abrirWhatsApp(clienteSel.telefono, msj.whatsapp);
+      if (clienteSel?.mail) abrirEmail(clienteSel.mail, msj.email.asunto, msj.email.cuerpo);
     }
     setPreview(nota);
     setCarrito([]);
@@ -1165,12 +1223,44 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
               <p className="text-right font-bold mt-2">Total: ${preview.total.toFixed(2)} MXN</p>
               <p className="text-right text-sm">Abono: ${preview.abono.toFixed(2)} — Saldo: ${preview.saldo.toFixed(2)}</p>
             </div>
+            {preview.estatus === "venta" && (
+              <p className="text-xs text-slate-400 mt-2">
+                El mensaje de agradecimiento se intentó abrir automáticamente por WhatsApp y/o correo. Si tu navegador
+                bloqueó la ventana, usa los botones de abajo. Imprimir la nota es opcional.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2 mt-3">
+              {preview.estatus === "venta" && preview.pacienteId && (() => {
+                const p = pacientes.find((x) => x.id === preview.pacienteId);
+                const msj = mensajeAgradecimiento(preview.nombreCliente);
+                return (
+                  <>
+                    {p?.telefono && (
+                      <button
+                        onClick={() => abrirWhatsApp(p.telefono, msj.whatsapp)}
+                        className="flex-1 py-2 rounded-lg bg-emerald-500 text-white text-sm"
+                      >
+                        Reenviar por WhatsApp
+                      </button>
+                    )}
+                    {p?.mail && (
+                      <button
+                        onClick={() => abrirEmail(p.mail, msj.email.asunto, msj.email.cuerpo)}
+                        className="flex-1 py-2 rounded-lg bg-slate-600 text-white text-sm"
+                      >
+                        Reenviar por correo
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
             <button
               onClick={() => imprimirElemento("nota-imprimible")}
-              className="mt-4 w-full py-2 rounded-lg text-white text-sm flex items-center justify-center gap-2"
+              className="mt-2 w-full py-2 rounded-lg text-white text-sm flex items-center justify-center gap-2"
               style={{ background: SKY_DARK }}
             >
-              <Printer size={16} /> Imprimir {preview.estatus === "presupuesto" ? "presupuesto" : "nota de venta"}
+              <Printer size={16} /> Imprimir {preview.estatus === "presupuesto" ? "presupuesto" : "nota de venta"} (opcional)
             </button>
           </div>
         )}
@@ -2002,7 +2092,7 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
 /* ============================================================
    LABORATORIO
    ============================================================ */
-function LaboratorioView({ laboratorio, setLaboratorio, pacientes }) {
+function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, config }) {
   const [nueva, setNueva] = useState({
     pacienteId: "",
     receta: "",
@@ -2012,6 +2102,24 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes }) {
     fechaPrometida: "",
     fechaRecepcion: "",
   });
+
+  const armazonesInventario = inventario?.armazones || [];
+
+  function seleccionarPaciente(pacienteId) {
+    const paciente = pacientes.find((p) => p.id === pacienteId);
+    const historial = ordenarVisitasDesc(paciente?.compras || []);
+    const visitaReceta = historial.find((v) => v.od || v.os);
+    const recetaAuto = visitaReceta
+      ? `OD: ${CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${visitaReceta.od?.[c.toLowerCase()] || "-"}`).join(" · ")} | OS: ${CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${visitaReceta.os?.[c.toLowerCase()] || "-"}`).join(" · ")}`
+      : "";
+    setNueva({
+      ...nueva,
+      pacienteId,
+      receta: recetaAuto,
+      material: visitaReceta?.materialReceta || "",
+      fechaPrometida: visitaReceta?.fechaPrometido || "",
+    });
+  }
 
   function agregar() {
     if (!nueva.pacienteId) return;
@@ -2047,17 +2155,30 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes }) {
     setLaboratorio(laboratorio.filter((o) => o.id !== id));
   }
 
+  function marcarRecibido(o) {
+    const hoy = fechaISO(new Date());
+    setLaboratorio(laboratorio.map((x) => (x.id === o.id ? { ...x, fechaRecepcion: hoy } : x)));
+    const paciente = pacientes.find((p) => p.id === o.pacienteId);
+    const nombre = o.nombreCliente || paciente?.nombre || "cliente";
+    const msj = mensajeListos(nombre, config?.direccion, config?.horario);
+    if (paciente?.telefono) abrirWhatsApp(paciente.telefono, msj.whatsapp);
+    if (paciente?.mail) abrirEmail(paciente.mail, msj.email.asunto, msj.email.cuerpo);
+    if (!paciente?.telefono && !paciente?.mail) {
+      alert("Se marcó como recibido, pero este paciente no tiene teléfono ni correo guardado para avisarle.");
+    }
+  }
+
   return (
     <div className="p-4">
       <div className="bg-white border rounded-xl p-3 mb-4 space-y-2">
         <p className="text-xs text-slate-500">
-          Las órdenes de venta con armazón o lentes se agregan solas aquí abajo. Usa este formulario solo para casos
-          especiales que no vinieron de una venta en el POS.
+          Las órdenes de venta con armazón o lentes se agregan solas aquí abajo, con la receta del día de consulta (si
+          la hubo) o la más reciente de su expediente. Usa este formulario solo para casos especiales.
         </p>
         <div className="flex flex-wrap gap-2 items-end">
           <select
             value={nueva.pacienteId}
-            onChange={(e) => setNueva({ ...nueva, pacienteId: e.target.value })}
+            onChange={(e) => seleccionarPaciente(e.target.value)}
             className="border rounded-lg px-2 py-1.5 text-sm"
           >
             <option value="">Paciente...</option>
@@ -2065,9 +2186,36 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes }) {
               <option key={p.id} value={p.id}>{p.nombre}</option>
             ))}
           </select>
-          <input placeholder="Receta" value={nueva.receta} onChange={(e) => setNueva({ ...nueva, receta: e.target.value })} className="border rounded-lg px-2 py-1.5 text-sm w-40" />
-          <input placeholder="Material" value={nueva.material} onChange={(e) => setNueva({ ...nueva, material: e.target.value })} className="border rounded-lg px-2 py-1.5 text-sm w-32" />
-          <input placeholder="Armazón" value={nueva.armazon} onChange={(e) => setNueva({ ...nueva, armazon: e.target.value })} className="border rounded-lg px-2 py-1.5 text-sm w-32" />
+          <input placeholder="Receta (autocompletada, editable)" value={nueva.receta} onChange={(e) => setNueva({ ...nueva, receta: e.target.value })} className="border rounded-lg px-2 py-1.5 text-sm w-56" />
+          <div>
+            <label className="text-xs text-slate-500">Material</label>
+            <select value={nueva.material} onChange={(e) => setNueva({ ...nueva, material: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm w-32">
+              <option value="">—</option>
+              <option>CR39</option>
+              <option>Policarbonato</option>
+              <option>Hi Index</option>
+              {nueva.material && !["CR39", "Policarbonato", "Hi Index"].includes(nueva.material) && (
+                <option value={nueva.material}>{nueva.material}</option>
+              )}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Armazón</label>
+            <div className="flex gap-1">
+              <input placeholder="Escribe o elige →" value={nueva.armazon} onChange={(e) => setNueva({ ...nueva, armazon: e.target.value })} className="border rounded-lg px-2 py-1.5 text-sm w-32" />
+              <select
+                value=""
+                onChange={(e) => e.target.value && setNueva({ ...nueva, armazon: e.target.value })}
+                className="border rounded-lg text-sm px-1"
+                title="Elegir del inventario"
+              >
+                <option value="">▾</option>
+                {armazonesInventario.map((a) => (
+                  <option key={a.id} value={a.nombre}>{a.nombre}</option>
+                ))}
+              </select>
+            </div>
+          </div>
           <div>
             <label className="text-xs text-slate-500">Envío a laboratorio</label>
             <input type="date" value={nueva.fechaEnvio} onChange={(e) => setNueva({ ...nueva, fechaEnvio: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm" />
@@ -2093,7 +2241,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes }) {
               <th className="text-left px-3 py-2">Fecha venta</th>
               <th className="text-left px-3 py-2">Envío a lab.</th>
               <th className="text-left px-3 py-2">Prometida</th>
-              <th className="text-left px-3 py-2">Recepción</th>
+              <th className="text-left px-3 py-2">Recibido del laboratorio</th>
               <th className="text-left px-3 py-2">Estatus</th>
               <th className="px-3 py-2"></th>
             </tr>
@@ -2113,7 +2261,13 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes }) {
                   <input type="date" value={o.fechaPrometida || ""} onChange={(e) => actualizarFecha(o.id, "fechaPrometida", e.target.value)} className="border rounded px-1 py-0.5 text-xs" />
                 </td>
                 <td className="px-3 py-2">
-                  <input type="date" value={o.fechaRecepcion || ""} onChange={(e) => actualizarFecha(o.id, "fechaRecepcion", e.target.value)} className="border rounded px-1 py-0.5 text-xs" />
+                  {o.fechaRecepcion ? (
+                    <span className="text-xs text-emerald-700">{o.fechaRecepcion}</span>
+                  ) : (
+                    <button onClick={() => marcarRecibido(o)} className="text-xs px-2 py-1 rounded bg-emerald-500 text-white">
+                      Marcar como recibido y avisar
+                    </button>
+                  )}
                 </td>
                 <td className="px-3 py-2">
                   {o.cancelada ? (
@@ -3929,7 +4083,7 @@ export default function App() {
           <PacientesView pacientes={pacientes} setPacientes={setPacientes} agenda={agenda} setAgenda={setAgenda} ventas={ventas} setVentas={setVentas} config={config} />
         )}
         {seccion === "laboratorio" && (
-          <LaboratorioView laboratorio={laboratorio} setLaboratorio={setLaboratorio} pacientes={pacientes} />
+          <LaboratorioView laboratorio={laboratorio} setLaboratorio={setLaboratorio} pacientes={pacientes} inventario={inventario} config={config} />
         )}
         {seccion === "reportes" && (
           <ReportesView
