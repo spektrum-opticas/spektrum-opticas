@@ -31,6 +31,7 @@ const STORAGE_KEYS = {
   laboratorio: "laboratorio",
   reportes: "reportes",
   pagosProveedores: "pagos_proveedores",
+  dashboard: "dashboard",
 };
 
 async function supaGet(tabla) {
@@ -268,6 +269,7 @@ function Ribbon({ current, onSelect }) {
     { id: "reportes", label: "Reportes", icon: "report" },
     { id: "usuarios", label: "Usuarios", icon: "usercog" },
     { id: "importar", label: "Importar datos", icon: "upload" },
+    { id: "dashboard", label: "Dashboard", icon: "report" },
     { id: "config", label: "Configuración", icon: "settings" },
   ];
   return (
@@ -1804,6 +1806,11 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes }) {
     setLaboratorio(laboratorio.map((o) => (o.id === id ? { ...o, cancelada: false } : o)));
   }
 
+  function eliminarOrden(id) {
+    if (!window.confirm("¿Eliminar esta orden por completo? No se podrá recuperar.")) return;
+    setLaboratorio(laboratorio.filter((o) => o.id !== id));
+  }
+
   return (
     <div className="p-4">
       <div className="bg-white border rounded-xl p-3 mb-4 space-y-2">
@@ -1885,6 +1892,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes }) {
                   ) : (
                     <button onClick={() => cancelarOrden(o.id)} className="text-xs text-red-500 underline">Cancelar</button>
                   )}
+                  <button onClick={() => eliminarOrden(o.id)} className="text-xs text-red-700 underline ml-2">Eliminar</button>
                 </td>
               </tr>
             ))}
@@ -1909,12 +1917,15 @@ function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes,
 
   return (
     <div className="p-4">
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 flex-wrap">
         <button onClick={() => setModo("corte")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${modo === "corte" ? "text-white" : "bg-white border"}`} style={modo === "corte" ? { background: SKY_DARK } : {}}>
           El corte diario
         </button>
         <button onClick={() => setModo("cancel")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${modo === "cancel" ? "text-white" : "bg-white border"}`} style={modo === "cancel" ? { background: SKY_DARK } : {}}>
           Cancelaciones y/o devoluciones
+        </button>
+        <button onClick={() => setModo("mes")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${modo === "mes" ? "text-white" : "bg-white border"}`} style={modo === "mes" ? { background: SKY_DARK } : {}}>
+          Corte del mes
         </button>
       </div>
 
@@ -1926,6 +1937,8 @@ function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes,
           pagosProveedores={pagosProveedores}
           setPagosProveedores={setPagosProveedores}
         />
+      ) : modo === "mes" ? (
+        <CorteMensual ventas={ventas} pagosProveedores={pagosProveedores} />
       ) : (
         <CancelacionesTab
           ventas={ventas}
@@ -1941,12 +1954,12 @@ function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes,
   );
 }
 
-function TotalBox({ titulo, monto, color, subtitulo }) {
+function TotalBox({ titulo, monto, color, subtitulo, esConteo }) {
   return (
     <div className="bg-white border rounded-xl p-4 shrink-0" style={{ minWidth: 170 }}>
       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{titulo}</p>
       <p className="text-2xl font-bold mt-1 whitespace-nowrap" style={{ color }}>
-        ${monto.toFixed(2)}
+        {esConteo ? monto : `$${monto.toFixed(2)}`}
       </p>
       {subtitulo && <p className="text-xs text-slate-400 mt-1">{subtitulo}</p>}
     </div>
@@ -1982,6 +1995,9 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
   // Saldo pendiente global (a la fecha de hoy, acumulado de todas las notas activas)
   const notasConSaldo = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && v.saldo > 0);
   const totalSaldoPendiente = notasConSaldo.reduce((s, v) => s + v.saldo, 0);
+
+  const totalTicketsDia = ventasDelDia.length;
+  const ticketPromedioDia = totalTicketsDia > 0 ? totalVendido / totalTicketsDia : 0;
 
   const pagosProvDelDia = pagosProveedores.filter((p) => esDelDia(p.fecha));
   const totalProveedores = pagosProvDelDia.reduce((s, p) => s + Number(p.monto || 0), 0);
@@ -2048,6 +2064,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
         <p className="hidden print:block font-bold mb-3">Corte Diario — {fecha}</p>
         <div className="flex gap-3 mb-6 overflow-x-auto pb-1">
           <TotalBox titulo="Vendido del día" monto={totalVendido} color="#2563eb" subtitulo={`${ventasDelDia.length} nota(s)`} />
+          <TotalBox titulo="Total de tickets del día" monto={totalTicketsDia} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioDia.toFixed(2)}`} esConteo />
           <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#0891b2" subtitulo={`${anticipos.length} pago(s)`} />
           <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
           <TotalBox titulo="Total cobrado hoy" monto={totalCobradoHoy} color="#047857" subtitulo="Anticipos + liquidaciones + contado" />
@@ -2059,12 +2076,21 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
         <div className="bg-white border rounded-xl p-3">
           <h4 className="font-semibold text-sm mb-2">Desglose — Vendido del día</h4>
           <table className="w-full text-xs">
+            <thead>
+              <tr className="text-slate-400"><th className="text-left font-normal py-1">No. de ticket</th><th className="text-right font-normal py-1">Importe vendido</th></tr>
+            </thead>
             <tbody>
               {ventasDelDia.map((v) => (
-                <tr key={v.folio} className="border-t"><td className="py-1">#{v.folio} {v.nombreCliente}</td><td className="text-right py-1">${v.total.toFixed(2)}</td></tr>
+                <tr key={v.folio} className="border-t"><td className="py-1">#{v.folio} — {v.nombreCliente}</td><td className="text-right py-1">${v.total.toFixed(2)}</td></tr>
               ))}
               {ventasDelDia.length === 0 && <tr><td className="text-slate-400 py-2">Sin ventas este día.</td></tr>}
             </tbody>
+            {ventasDelDia.length > 0 && (
+              <tfoot>
+                <tr className="border-t font-semibold"><td className="py-1">Total de tickets: {totalTicketsDia}</td><td className="text-right py-1">${totalVendido.toFixed(2)}</td></tr>
+                <tr><td className="py-1 text-slate-500">Ticket promedio</td><td className="text-right py-1 text-slate-500">${ticketPromedioDia.toFixed(2)}</td></tr>
+              </tfoot>
+            )}
           </table>
         </div>
 
@@ -2170,6 +2196,186 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
           </button>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+function mesISO(d) {
+  return d.toISOString().slice(0, 7); // AAAA-MM
+}
+
+function CorteMensual({ ventas, pagosProveedores }) {
+  const [mes, setMes] = useState(mesISO(new Date()));
+
+  const esDelMes = (isoFecha) => isoFecha.slice(0, 7) === mes;
+
+  const ventasDelMes = ventas.filter((v) => v.estatus === "venta" && esDelMes(v.fecha));
+  const totalVendido = ventasDelMes.reduce((s, v) => s + v.total, 0);
+  const totalTicketsMes = ventasDelMes.length;
+  const ticketPromedioMes = totalTicketsMes > 0 ? totalVendido / totalTicketsMes : 0;
+
+  const todosPagos = ventas.flatMap((v) => (v.pagos || []).map((p) => ({ ...p, folio: v.folio, cliente: v.nombreCliente })));
+  const pagosDelMes = todosPagos.filter((p) => esDelMes(p.fecha));
+  const anticipos = pagosDelMes.filter((p) => p.tipo === "anticipo");
+  const liquidaciones = pagosDelMes.filter((p) => p.tipo === "liquidacion");
+  const ventasCompletas = pagosDelMes.filter((p) => p.tipo === "venta_completa");
+  const totalAnticipos = anticipos.reduce((s, p) => s + p.monto, 0);
+  const totalLiquidaciones = liquidaciones.reduce((s, p) => s + p.monto, 0);
+  const totalCobradoMes = totalAnticipos + totalLiquidaciones + ventasCompletas.reduce((s, p) => s + p.monto, 0);
+
+  const notasConSaldo = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && v.saldo > 0);
+  const totalSaldoPendiente = notasConSaldo.reduce((s, v) => s + v.saldo, 0);
+
+  const pagosProvDelMes = pagosProveedores.filter((p) => esDelMes(p.fecha));
+  const totalProveedores = pagosProvDelMes.reduce((s, p) => s + Number(p.monto || 0), 0);
+
+  function cambiarMes(delta) {
+    const [y, m] = mes.split("-").map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    setMes(mesISO(d));
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+        <h2 className="text-xl font-bold text-slate-800">Corte del mes</h2>
+        <button onClick={() => imprimirElemento("corte-mes-imprimible")} className="px-3 py-1.5 rounded-lg bg-slate-200 text-sm flex items-center gap-1">
+          <Printer size={16} /> Imprimir corte del mes
+        </button>
+      </div>
+      <div className="flex items-center gap-2 mb-5 bg-white border rounded-xl px-3 py-2 w-fit">
+        <button onClick={() => cambiarMes(-1)} className="p-1.5 rounded-lg hover:bg-sky-100">
+          <ChevronLeft size={18} />
+        </button>
+        <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="border-none text-sm font-medium focus:outline-none" />
+        <button onClick={() => cambiarMes(1)} className="p-1.5 rounded-lg hover:bg-sky-100">
+          <ChevronRight size={18} />
+        </button>
+        {mes !== mesISO(new Date()) && (
+          <button onClick={() => setMes(mesISO(new Date()))} className="text-xs text-sky-600 underline ml-1">
+            Mes actual
+          </button>
+        )}
+      </div>
+
+      <div id="corte-mes-imprimible">
+        <p className="hidden print:block font-bold mb-3">Corte del mes — {mes}</p>
+        <div className="flex gap-3 mb-6 overflow-x-auto pb-1">
+          <TotalBox titulo="Vendido del mes" monto={totalVendido} color="#2563eb" subtitulo={`${ventasDelMes.length} nota(s)`} />
+          <TotalBox titulo="Total de tickets del mes" monto={totalTicketsMes} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioMes.toFixed(2)}`} esConteo />
+          <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#0891b2" subtitulo={`${anticipos.length} pago(s)`} />
+          <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
+          <TotalBox titulo="Total cobrado en el mes" monto={totalCobradoMes} color="#047857" subtitulo="Anticipos + liquidaciones + contado" />
+          <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
+          <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelMes.length} pago(s)`} />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white border rounded-xl p-3">
+            <h4 className="font-semibold text-sm mb-2">Desglose — Vendido del mes</h4>
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-slate-400"><th className="text-left font-normal py-1">No. de ticket</th><th className="text-right font-normal py-1">Importe vendido</th></tr>
+              </thead>
+              <tbody>
+                {ventasDelMes.map((v) => (
+                  <tr key={v.folio} className="border-t"><td className="py-1">#{v.folio} — {v.nombreCliente}</td><td className="text-right py-1">${v.total.toFixed(2)}</td></tr>
+                ))}
+                {ventasDelMes.length === 0 && <tr><td className="text-slate-400 py-2">Sin ventas este mes.</td></tr>}
+              </tbody>
+              {ventasDelMes.length > 0 && (
+                <tfoot>
+                  <tr className="border-t font-semibold"><td className="py-1">Total de tickets: {totalTicketsMes}</td><td className="text-right py-1">${totalVendido.toFixed(2)}</td></tr>
+                  <tr><td className="py-1 text-slate-500">Ticket promedio</td><td className="text-right py-1 text-slate-500">${ticketPromedioMes.toFixed(2)}</td></tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+
+          <div className="bg-white border rounded-xl p-3">
+            <h4 className="font-semibold text-sm mb-2">Desglose — Anticipos cobrados</h4>
+            <table className="w-full text-xs">
+              <tbody>
+                {anticipos.map((p, i) => (
+                  <tr key={i} className="border-t"><td className="py-1">#{p.folio} {p.cliente} ({p.formaPago})</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
+                ))}
+                {anticipos.length === 0 && <tr><td className="text-slate-400 py-2">Sin anticipos este mes.</td></tr>}
+              </tbody>
+              {anticipos.length > 0 && (
+                <tfoot>
+                  <tr className="border-t font-semibold"><td className="py-1">Total de tickets: {anticipos.length}</td><td className="text-right py-1">${totalAnticipos.toFixed(2)}</td></tr>
+                  <tr><td className="py-1 text-slate-500">Ticket promedio</td><td className="text-right py-1 text-slate-500">${(anticipos.length ? totalAnticipos / anticipos.length : 0).toFixed(2)}</td></tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+
+          <div className="bg-white border rounded-xl p-3">
+            <h4 className="font-semibold text-sm mb-2">Desglose — Saldos cobrados al entregar</h4>
+            <table className="w-full text-xs">
+              <tbody>
+                {liquidaciones.map((p, i) => (
+                  <tr key={i} className="border-t"><td className="py-1">#{p.folio} {p.cliente} ({p.formaPago})</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
+                ))}
+                {liquidaciones.length === 0 && <tr><td className="text-slate-400 py-2">Sin liquidaciones este mes.</td></tr>}
+              </tbody>
+              {liquidaciones.length > 0 && (
+                <tfoot>
+                  <tr className="border-t font-semibold"><td className="py-1">Total de tickets: {liquidaciones.length}</td><td className="text-right py-1">${totalLiquidaciones.toFixed(2)}</td></tr>
+                  <tr><td className="py-1 text-slate-500">Ticket promedio</td><td className="text-right py-1 text-slate-500">${(liquidaciones.length ? totalLiquidaciones / liquidaciones.length : 0).toFixed(2)}</td></tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+
+          <div className="bg-white border rounded-xl p-3">
+            <h4 className="font-semibold text-sm mb-2">Desglose — Total cobrado en el mes</h4>
+            <table className="w-full text-xs">
+              <tbody>
+                {[...anticipos, ...liquidaciones, ...ventasCompletas].map((p, i) => (
+                  <tr key={i} className="border-t"><td className="py-1">#{p.folio} {p.cliente} — {p.tipo.replace("_", " ")}</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
+                ))}
+                {pagosDelMes.length === 0 && <tr><td className="text-slate-400 py-2">Sin cobros este mes.</td></tr>}
+              </tbody>
+              {pagosDelMes.length > 0 && (
+                <tfoot>
+                  <tr className="border-t font-semibold"><td className="py-1">Total de tickets: {pagosDelMes.length}</td><td className="text-right py-1">${totalCobradoMes.toFixed(2)}</td></tr>
+                  <tr><td className="py-1 text-slate-500">Ticket promedio</td><td className="text-right py-1 text-slate-500">${(pagosDelMes.length ? totalCobradoMes / pagosDelMes.length : 0).toFixed(2)}</td></tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+
+          <div className="bg-white border rounded-xl p-3">
+            <h4 className="font-semibold text-sm mb-2">Desglose — Saldo pendiente</h4>
+            <table className="w-full text-xs">
+              <tbody>
+                {notasConSaldo.map((v) => (
+                  <tr key={v.folio} className="border-t"><td className="py-1">#{v.folio} {v.nombreCliente}</td><td className="text-right py-1">${v.saldo.toFixed(2)}</td></tr>
+                ))}
+                {notasConSaldo.length === 0 && <tr><td className="text-slate-400 py-2">Sin saldos pendientes.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="bg-white border rounded-xl p-3">
+            <h4 className="font-semibold text-sm mb-2">Desglose — Pago a proveedores</h4>
+            <table className="w-full text-xs">
+              <tbody>
+                {pagosProvDelMes.map((p) => (
+                  <tr key={p.id} className="border-t"><td className="py-1">{p.proveedor} — {p.concepto}</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
+                ))}
+                {pagosProvDelMes.length === 0 && <tr><td className="text-slate-400 py-2">Sin pagos a proveedores este mes.</td></tr>}
+              </tbody>
+              {pagosProvDelMes.length > 0 && (
+                <tfoot>
+                  <tr className="border-t font-semibold"><td className="py-1">Total de pagos: {pagosProvDelMes.length}</td><td className="text-right py-1">${totalProveedores.toFixed(2)}</td></tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -3001,6 +3207,283 @@ function PortalComprar({ pacientes, setPacientes, ventas, setVentas, inventario,
 /* ============================================================
    APP
    ============================================================ */
+/* ============================================================
+   DASHBOARD DE CONTROL E INTELIGENCIA
+   ============================================================ */
+function aplicarModificadorMeta(comisionBase, pctMeta) {
+  let factor;
+  if (pctMeta <= 79) factor = 0.5;
+  else if (pctMeta <= 90) factor = 0.75;
+  else if (pctMeta <= 99) factor = 0.9;
+  else {
+    const capado = Math.min(pctMeta, 105);
+    factor = 1 + Math.max(0, capado - 100) * 0.01;
+  }
+  return comisionBase * factor;
+}
+
+function barraTexto(pct) {
+  const bloques = Math.max(0, Math.min(10, Math.round(pct / 10)));
+  return `[${"█".repeat(bloques)}${"░".repeat(10 - bloques)}] ${pct.toFixed(0)}%`;
+}
+
+function calcOptometrista(o, pctMeta) {
+  const citasAtendidas = Number(o.citasAtendidas) || 0;
+  const citasConCompra = Number(o.citasConCompra) || 0;
+  const comprasCanceladas = Number(o.comprasCanceladas) || 0;
+  const retrabajos = Number(o.retrabajos) || 0;
+  const monto = Number(o.montoExamenesVenta) || 0;
+  const efectividad = citasAtendidas > 0 ? ((citasConCompra - comprasCanceladas - retrabajos) / citasAtendidas) * 100 : 0;
+  const retrabajoPct = citasAtendidas > 0 ? (retrabajos / citasAtendidas) * 100 : 0;
+  const comisionBase = monto * 0.03;
+  let comisionAjustada = aplicarModificadorMeta(comisionBase, pctMeta);
+  const penalizado = retrabajoPct > 10;
+  if (penalizado) comisionAjustada *= 0.9;
+  return { efectividad, comisionBase, comisionAjustada, retrabajoPct, penalizado };
+}
+
+function calcVendedor(v, pctMeta) {
+  const pacientesAsignados = Number(v.pacientesAsignados) || 0;
+  const ventasHechas = Number(v.ventasHechas) || 0;
+  const monto = Number(v.montoVentas) || 0;
+  const efectividad = pacientesAsignados > 0 ? (ventasHechas / pacientesAsignados) * 100 : 0;
+  const comisionBase = monto * 0.025;
+  const comisionAjustada = aplicarModificadorMeta(comisionBase, pctMeta);
+  return { efectividad, comisionBase, comisionAjustada };
+}
+
+function DashboardView({ dashboard, setDashboard }) {
+  const { optometristas, vendedores, metaMensual } = dashboard;
+  const [nuevoOptoNombre, setNuevoOptoNombre] = useState("");
+  const [nuevoVendNombre, setNuevoVendNombre] = useState("");
+  const [asignando, setAsignando] = useState(false);
+  const [vendedorAsignado, setVendedorAsignado] = useState("");
+
+  const meta = Number(metaMensual.meta) || 0;
+  const alcanzado = Number(metaMensual.alcanzado) || 0;
+  const pctMeta = meta > 0 ? (alcanzado / meta) * 100 : 0;
+
+  function actualizarMeta(campo, valor) {
+    setDashboard({ ...dashboard, metaMensual: { ...metaMensual, [campo]: valor } });
+  }
+
+  function agregarOptometrista() {
+    if (!nuevoOptoNombre.trim()) return;
+    setDashboard({
+      ...dashboard,
+      optometristas: [
+        ...optometristas,
+        {
+          id: uid(), nombre: nuevoOptoNombre, citasAtendidas: "", citasConCompra: "", citasSinCompra: "",
+          comprasCanceladas: "", retrabajos: "", montoExamenesVenta: "",
+        },
+      ],
+    });
+    setNuevoOptoNombre("");
+  }
+
+  function actualizarOptometrista(id, campo, valor) {
+    setDashboard({
+      ...dashboard,
+      optometristas: optometristas.map((o) => (o.id === id ? { ...o, [campo]: valor } : o)),
+    });
+  }
+
+  function eliminarOptometrista(id) {
+    setDashboard({ ...dashboard, optometristas: optometristas.filter((o) => o.id !== id) });
+  }
+
+  function agregarVendedor() {
+    if (!nuevoVendNombre.trim()) return;
+    setDashboard({
+      ...dashboard,
+      vendedores: [
+        ...vendedores,
+        { id: uid(), nombre: nuevoVendNombre, pacientesAsignados: "", posiblesVentas: "", ventasHechas: "", montoVentas: "" },
+      ],
+    });
+    setNuevoVendNombre("");
+  }
+
+  function actualizarVendedor(id, campo, valor) {
+    setDashboard({
+      ...dashboard,
+      vendedores: vendedores.map((v) => (v.id === id ? { ...v, [campo]: valor } : v)),
+    });
+  }
+
+  function eliminarVendedor(id) {
+    setDashboard({ ...dashboard, vendedores: vendedores.filter((v) => v.id !== id) });
+  }
+
+  function confirmarAsignacion() {
+    if (!vendedorAsignado) return;
+    setDashboard({
+      ...dashboard,
+      vendedores: vendedores.map((v) =>
+        v.id === vendedorAsignado ? { ...v, pacientesAsignados: (Number(v.pacientesAsignados) || 0) + 1 } : v
+      ),
+    });
+    setAsignando(false);
+    setVendedorAsignado("");
+  }
+
+  const inputCelda = "w-20 border rounded px-1 py-1 text-xs text-center";
+
+  return (
+    <div className="p-4 space-y-6">
+      <div className="bg-white border rounded-xl p-4">
+        <h3 className="font-semibold text-slate-700 mb-3">Meta mensual de la óptica</h3>
+        <div className="flex flex-wrap gap-3 items-end mb-3">
+          <div>
+            <label className="text-xs text-slate-500">Meta ($ MXN)</label>
+            <input type="number" value={metaMensual.meta} onChange={(e) => actualizarMeta("meta", e.target.value)} className="block border rounded-lg px-2 py-1.5 text-sm w-32" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Alcanzado ($ MXN)</label>
+            <input type="number" value={metaMensual.alcanzado} onChange={(e) => actualizarMeta("alcanzado", e.target.value)} className="block border rounded-lg px-2 py-1.5 text-sm w-32" />
+          </div>
+          <div className="text-2xl font-bold" style={{ color: SKY_DARK }}>{pctMeta.toFixed(1)}%</div>
+        </div>
+        <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden mb-2">
+          <div className="h-4 rounded-full transition-all" style={{ width: `${Math.min(100, pctMeta)}%`, background: SKY_DARK }} />
+        </div>
+        <p className="font-mono text-xs text-slate-500">{barraTexto(pctMeta)}</p>
+        <p className="text-xs text-slate-400 mt-2">
+          ≤79%: 50% de comisión · 80-90%: 75% · 91-99%: 90% · 100-105%: 100% + hasta 5% de bono adicional
+        </p>
+      </div>
+
+      <div className="bg-white border rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-slate-700">Optometristas</h3>
+          <div className="flex gap-2">
+            <input value={nuevoOptoNombre} onChange={(e) => setNuevoOptoNombre(e.target.value)} placeholder="Nombre del optometrista" className="border rounded-lg px-2 py-1.5 text-sm" />
+            <button onClick={agregarOptometrista} className="px-3 py-1.5 rounded-lg text-white text-sm" style={{ background: SKY_DARK }}>+ Agregar</button>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead style={{ background: BEIGE }}>
+              <tr>
+                <th className="text-left px-2 py-2">Nombre</th>
+                <th className="px-2 py-2">Citas atendidas</th>
+                <th className="px-2 py-2">Citas con compra</th>
+                <th className="px-2 py-2">Citas sin compra</th>
+                <th className="px-2 py-2">Compras canceladas</th>
+                <th className="px-2 py-2">Retrabajos</th>
+                <th className="px-2 py-2">Monto exámenes con venta</th>
+                <th className="px-2 py-2">% Efectividad</th>
+                <th className="px-2 py-2">Comisión base</th>
+                <th className="px-2 py-2">Comisión ajustada</th>
+                <th className="px-2 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {optometristas.map((o) => {
+                const r = calcOptometrista(o, pctMeta);
+                return (
+                  <tr key={o.id} className="border-t">
+                    <td className="px-2 py-2 font-medium">{o.nombre}</td>
+                    <td className="px-2 py-2"><input type="number" value={o.citasAtendidas} onChange={(e) => actualizarOptometrista(o.id, "citasAtendidas", e.target.value)} className={inputCelda} /></td>
+                    <td className="px-2 py-2"><input type="number" value={o.citasConCompra} onChange={(e) => actualizarOptometrista(o.id, "citasConCompra", e.target.value)} className={inputCelda} /></td>
+                    <td className="px-2 py-2"><input type="number" value={o.citasSinCompra} onChange={(e) => actualizarOptometrista(o.id, "citasSinCompra", e.target.value)} className={inputCelda} /></td>
+                    <td className="px-2 py-2"><input type="number" value={o.comprasCanceladas} onChange={(e) => actualizarOptometrista(o.id, "comprasCanceladas", e.target.value)} className={inputCelda} /></td>
+                    <td className="px-2 py-2">
+                      <input type="number" value={o.retrabajos} onChange={(e) => actualizarOptometrista(o.id, "retrabajos", e.target.value)} className={inputCelda} />
+                      {r.penalizado && <p className="text-[10px] text-red-500 mt-0.5">Supera 10% — penalizado</p>}
+                    </td>
+                    <td className="px-2 py-2"><input type="number" value={o.montoExamenesVenta} onChange={(e) => actualizarOptometrista(o.id, "montoExamenesVenta", e.target.value)} className={inputCelda} /></td>
+                    <td className="px-2 py-2 text-center font-semibold">{r.efectividad.toFixed(1)}%</td>
+                    <td className="px-2 py-2 text-center">${r.comisionBase.toFixed(2)}</td>
+                    <td className="px-2 py-2 text-center font-semibold" style={{ color: SKY_DARK }}>${r.comisionAjustada.toFixed(2)}</td>
+                    <td className="px-2 py-2 text-right">
+                      <button onClick={() => eliminarOptometrista(o.id)} className="text-red-400 hover:text-red-600">
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {optometristas.length === 0 && (
+                <tr><td colSpan={11} className="text-center text-slate-400 py-4">Sin optometristas registrados.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="bg-white border rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h3 className="font-semibold text-slate-700">Vendedores</h3>
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => setAsignando(true)} className="px-3 py-1.5 rounded-lg bg-slate-700 text-white text-sm">
+              [Asignar a Vendedor Autorizado]
+            </button>
+            <input value={nuevoVendNombre} onChange={(e) => setNuevoVendNombre(e.target.value)} placeholder="Nombre del vendedor" className="border rounded-lg px-2 py-1.5 text-sm" />
+            <button onClick={agregarVendedor} className="px-3 py-1.5 rounded-lg text-white text-sm" style={{ background: SKY_DARK }}>+ Agregar</button>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead style={{ background: BEIGE }}>
+              <tr>
+                <th className="text-left px-2 py-2">Nombre</th>
+                <th className="px-2 py-2">Pacientes asignados</th>
+                <th className="px-2 py-2">Posibles ventas</th>
+                <th className="px-2 py-2">Ventas hechas</th>
+                <th className="px-2 py-2">Monto ventas</th>
+                <th className="px-2 py-2">% Efectividad</th>
+                <th className="px-2 py-2">Comisión ajustada</th>
+                <th className="px-2 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {vendedores.map((v) => {
+                const r = calcVendedor(v, pctMeta);
+                return (
+                  <tr key={v.id} className="border-t">
+                    <td className="px-2 py-2 font-medium">{v.nombre}</td>
+                    <td className="px-2 py-2"><input type="number" value={v.pacientesAsignados} onChange={(e) => actualizarVendedor(v.id, "pacientesAsignados", e.target.value)} className={inputCelda} /></td>
+                    <td className="px-2 py-2"><input type="number" value={v.posiblesVentas} onChange={(e) => actualizarVendedor(v.id, "posiblesVentas", e.target.value)} className={inputCelda} /></td>
+                    <td className="px-2 py-2"><input type="number" value={v.ventasHechas} onChange={(e) => actualizarVendedor(v.id, "ventasHechas", e.target.value)} className={inputCelda} /></td>
+                    <td className="px-2 py-2"><input type="number" value={v.montoVentas} onChange={(e) => actualizarVendedor(v.id, "montoVentas", e.target.value)} className={inputCelda} /></td>
+                    <td className="px-2 py-2 text-center font-semibold">{r.efectividad.toFixed(1)}%</td>
+                    <td className="px-2 py-2 text-center font-semibold" style={{ color: SKY_DARK }}>${r.comisionAjustada.toFixed(2)}</td>
+                    <td className="px-2 py-2 text-right">
+                      <button onClick={() => eliminarVendedor(v.id)} className="text-red-400 hover:text-red-600">
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {vendedores.length === 0 && (
+                <tr><td colSpan={8} className="text-center text-slate-400 py-4">Sin vendedores registrados.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <Modal open={asignando} onClose={() => setAsignando(false)} title="Asignar paciente a vendedor autorizado">
+        <label className="block mb-3">
+          <span className="text-xs font-medium text-slate-500 uppercase">Vendedor</span>
+          <select value={vendedorAsignado} onChange={(e) => setVendedorAsignado(e.target.value)} className="mt-1 w-full border rounded-lg px-2 py-2 text-sm">
+            <option value="">Elige un vendedor...</option>
+            {vendedores.map((v) => (
+              <option key={v.id} value={v.id}>{v.nombre}</option>
+            ))}
+          </select>
+        </label>
+        <button onClick={confirmarAsignacion} disabled={!vendedorAsignado} className="w-full py-2 rounded-lg text-white text-sm font-medium disabled:opacity-40" style={{ background: SKY_DARK }}>
+          Confirmar asignación
+        </button>
+      </Modal>
+    </div>
+  );
+}
+
 export default function App() {
   const [pacientes, setPacientes, loadedP, statusP, errorP, retryP, cargarP] = useStoredState(STORAGE_KEYS.pacientes, []);
   const [inventario, setInventario, loadedI, statusI, errorI, retryI, cargarI] = useStoredState(STORAGE_KEYS.inventario, emptyInventario());
@@ -3010,9 +3493,14 @@ export default function App() {
   const [config, setConfig, loadedC, statusC, errorC, retryC, cargarC] = useStoredState(STORAGE_KEYS.config, emptyConfig());
   const [laboratorio, setLaboratorio, loadedL, statusL, errorL, retryL, cargarL] = useStoredState(STORAGE_KEYS.laboratorio, []);
   const [pagosProveedores, setPagosProveedores, loadedPP, statusPP, errorPP, retryPP, cargarPP] = useStoredState(STORAGE_KEYS.pagosProveedores, []);
+  const [dashboard, setDashboard, loadedD, statusD, errorD, retryD, cargarD] = useStoredState(STORAGE_KEYS.dashboard, {
+    optometristas: [],
+    vendedores: [],
+    metaMensual: { meta: "", alcanzado: "" },
+  });
 
   function recargarTodo() {
-    cargarP(); cargarI(); cargarA(); cargarV(); cargarU(); cargarC(); cargarL(); cargarPP();
+    cargarP(); cargarI(); cargarA(); cargarV(); cargarU(); cargarC(); cargarL(); cargarPP(); cargarD();
   }
 
   const secciones = [
@@ -3024,6 +3512,7 @@ export default function App() {
     { nombre: "Configuración", status: statusC, error: errorC, retry: retryC },
     { nombre: "Laboratorio", status: statusL, error: errorL, retry: retryL },
     { nombre: "Pagos a proveedores", status: statusPP, error: errorPP, retry: retryPP },
+    { nombre: "Dashboard", status: statusD, error: errorD, retry: retryD },
   ];
   const seccionesConError = secciones.filter((s) => s.status === "error");
   const guardandoAlgo = secciones.some((s) => s.status === "saving");
@@ -3039,7 +3528,7 @@ export default function App() {
   });
   const [sesion, setSesion] = useSesion();
 
-  const todoListo = loadedP && loadedI && loadedA && loadedV && loadedU && loadedC && loadedL && loadedPP;
+  const todoListo = loadedP && loadedI && loadedA && loadedV && loadedU && loadedC && loadedL && loadedPP && loadedD;
 
   if (!todoListo) {
     return (
@@ -3063,7 +3552,7 @@ export default function App() {
       </button>
       <button
         onClick={() =>
-          exportarRespaldo({ pacientes, inventario, agenda, ventas, usuarios, config, laboratorio, pagosProveedores })
+          exportarRespaldo({ pacientes, inventario, agenda, ventas, usuarios, config, laboratorio, pagosProveedores, dashboard })
         }
         className="px-2 py-1 rounded bg-white border border-red-300 text-red-700 text-xs"
       >
@@ -3180,11 +3669,12 @@ export default function App() {
         {seccion === "importar" && (
           <ImportarView pacientes={pacientes} setPacientes={setPacientes} inventario={inventario} setInventario={setInventario} />
         )}
+        {seccion === "dashboard" && <DashboardView dashboard={dashboard} setDashboard={setDashboard} />}
         {seccion === "config" && (
           <ConfigView
             config={config}
             setConfig={setConfig}
-            respaldoCompleto={{ pacientes, inventario, agenda, ventas, usuarios, config, laboratorio, pagosProveedores }}
+            respaldoCompleto={{ pacientes, inventario, agenda, ventas, usuarios, config, laboratorio, pagosProveedores, dashboard }}
             restaurarRespaldo={(datos) => {
               if (datos.pacientes) setPacientes(datos.pacientes);
               if (datos.inventario) setInventario(datos.inventario);
@@ -3194,6 +3684,7 @@ export default function App() {
               if (datos.config) setConfig(datos.config);
               if (datos.laboratorio) setLaboratorio(datos.laboratorio);
               if (datos.pagosProveedores) setPagosProveedores(datos.pagosProveedores);
+              if (datos.dashboard) setDashboard(datos.dashboard);
             }}
           />
         )}
