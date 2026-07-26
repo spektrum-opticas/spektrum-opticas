@@ -222,6 +222,11 @@ function GlobalPrintStyles() {
   return (
     <style>{`
       @media print {
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
         body * { visibility: hidden !important; }
         .print-only, .print-only * { visibility: visible !important; }
         .plantilla-oculta { position: static !important; left: 0 !important; top: 0 !important; }
