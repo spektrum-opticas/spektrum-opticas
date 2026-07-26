@@ -244,6 +244,19 @@ function GlobalPrintStyles() {
           width: 100% !important;
           table-layout: auto !important;
         }
+        .dashboard-print-compact table {
+          font-size: 8px !important;
+        }
+        .dashboard-print-compact th,
+        .dashboard-print-compact td {
+          padding: 2px 3px !important;
+        }
+        .dashboard-print-compact input {
+          border: none !important;
+          font-size: 8px !important;
+          padding: 0 !important;
+          width: auto !important;
+        }
         @page {
           size: auto;
           margin: 12mm;
@@ -4243,8 +4256,16 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
         <label className="text-xs font-medium text-slate-500 uppercase">Mes de análisis</label>
         <input type="month" value={mesAnalisis} onChange={(e) => setMesAnalisis(e.target.value)} className="border rounded-lg px-2 py-1.5 text-sm" />
         {datosMes.origen === "manual" && <span className="text-xs text-amber-600">Usando datos cargados manualmente (sin ventas reales en el sistema para este mes)</span>}
+        <button
+          onClick={() => imprimirElemento("dashboard-mensual-imprimible")}
+          className="ml-auto px-3 py-1.5 rounded-lg bg-slate-200 text-sm flex items-center gap-1"
+        >
+          <Printer size={16} /> Imprimir dashboard mensual
+        </button>
       </div>
 
+      <div id="dashboard-mensual-imprimible" className="dashboard-print-compact space-y-6">
+      <p className="hidden print:block font-bold mb-1">Dashboard mensual — {mesAnalisis}</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white border rounded-xl p-4">
           <h3 className="font-semibold text-slate-700 mb-3">Meta mensual de la óptica</h3>
@@ -4415,6 +4436,7 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
           </table>
         </div>
       </div>
+      </div>
 
       <Modal open={asignando} onClose={() => setAsignando(false)} title="Asignar paciente a vendedor autorizado">
         <label className="block mb-3">
@@ -4461,8 +4483,16 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, ca
         <button onClick={() => setAnio(anio - 1)} className="p-1.5 rounded-lg hover:bg-sky-100"><ChevronLeft size={16} /></button>
         <span className="font-semibold text-lg">{anio}</span>
         <button onClick={() => setAnio(anio + 1)} className="p-1.5 rounded-lg hover:bg-sky-100"><ChevronRight size={16} /></button>
+        <button
+          onClick={() => imprimirElemento("dashboard-anual-imprimible")}
+          className="ml-auto px-3 py-1.5 rounded-lg bg-slate-200 text-sm flex items-center gap-1"
+        >
+          <Printer size={16} /> Imprimir dashboard anual
+        </button>
       </div>
 
+      <div id="dashboard-anual-imprimible" className="dashboard-print-compact space-y-4">
+      <p className="hidden print:block font-bold mb-1">Dashboard anual — {anio}</p>
       <div className="flex gap-3 overflow-x-auto pb-1">
         <TotalBox titulo="Meta anual" monto={totalAnioMeta} color="#2563eb" />
         <TotalBox titulo="Vendido anual" monto={totalAnioVendido} color="#0f766e" subtitulo={`${pctAnio.toFixed(1)}% de la meta`} />
@@ -4515,6 +4545,7 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, ca
             })}
           </tbody>
         </table>
+      </div>
       </div>
 
       <div className="bg-white border rounded-xl p-4">
