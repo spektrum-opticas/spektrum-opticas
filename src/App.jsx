@@ -32,6 +32,7 @@ const STORAGE_KEYS = {
   reportes: "reportes",
   pagosProveedores: "pagos_proveedores",
   dashboard: "dashboard",
+  proveedores: "proveedores",
 };
 
 async function supaGet(tabla) {
@@ -316,9 +317,9 @@ function Ribbon({ current, onSelect }) {
     { id: "pacientes", label: "Pacientes", icon: "users" },
     { id: "laboratorio", label: "Laboratorio", icon: "lab" },
     { id: "reportes", label: "Reportes", icon: "report" },
-    { id: "usuarios", label: "Usuarios", icon: "usercog" },
     { id: "importar", label: "Importar datos", icon: "upload" },
     { id: "dashboard", label: "Dashboard", icon: "report" },
+    { id: "administracion", label: "Administración", icon: "usercog" },
     { id: "config", label: "Configuración", icon: "settings" },
   ];
   return (
@@ -2378,7 +2379,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
 /* ============================================================
    REPORTES
    ============================================================ */
-function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes, laboratorio, pagosProveedores, setPagosProveedores }) {
+function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes, laboratorio, pagosProveedores, setPagosProveedores, proveedores }) {
   const [modo, setModo] = useState("corte");
   const canceladas = ventas.filter((v) => v.estatus === "cancelada" || v.estatus === "devolucion");
 
@@ -2403,9 +2404,10 @@ function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes,
           pacientes={pacientes}
           pagosProveedores={pagosProveedores}
           setPagosProveedores={setPagosProveedores}
+          proveedores={proveedores}
         />
       ) : modo === "mes" ? (
-        <CorteMensual ventas={ventas} pagosProveedores={pagosProveedores} />
+        <CorteMensual ventas={ventas} pagosProveedores={pagosProveedores} proveedores={proveedores} />
       ) : (
         <CancelacionesTab
           ventas={ventas}
@@ -2433,7 +2435,7 @@ function TotalBox({ titulo, monto, color, subtitulo, esConteo }) {
   );
 }
 
-function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosProveedores }) {
+function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosProveedores, proveedores }) {
   const [fecha, setFecha] = useState(fechaISO(new Date()));
   const [cobrando, setCobrando] = useState(null); // folio de nota a cobrar saldo
   const [montoCobro, setMontoCobro] = useState("");
@@ -2468,6 +2470,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
 
   const pagosProvDelDia = pagosProveedores.filter((p) => esDelDia(p.fecha));
   const totalProveedores = pagosProvDelDia.reduce((s, p) => s + Number(p.monto || 0), 0);
+  const debeHaberCaja = totalCobradoHoy - totalProveedores;
 
   function cambiarDia(delta) {
     const d = new Date(fecha);
@@ -2537,6 +2540,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
           <TotalBox titulo="Total cobrado hoy" monto={totalCobradoHoy} color="#047857" subtitulo="Anticipos + liquidaciones + contado" />
           <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
           <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelDia.length} pago(s)`} />
+          <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado hoy − pago a proveedores" />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2628,11 +2632,25 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
           </div>
           {mostrarProveedor && (
             <div className="flex flex-wrap gap-1 mb-2 bg-slate-50 p-2 rounded-lg">
-              <input placeholder="Proveedor" value={nuevoProveedor.proveedor} onChange={(e) => setNuevoProveedor({ ...nuevoProveedor, proveedor: e.target.value })} className="border rounded px-2 py-1 text-xs flex-1" />
+              <select
+                value={nuevoProveedor.proveedor}
+                onChange={(e) => setNuevoProveedor({ ...nuevoProveedor, proveedor: e.target.value })}
+                className="border rounded px-2 py-1 text-xs flex-1"
+              >
+                <option value="">Elige un proveedor...</option>
+                {proveedores.map((p) => (
+                  <option key={p.id} value={p.nombre}>{p.nombre}</option>
+                ))}
+              </select>
               <input placeholder="Concepto" value={nuevoProveedor.concepto} onChange={(e) => setNuevoProveedor({ ...nuevoProveedor, concepto: e.target.value })} className="border rounded px-2 py-1 text-xs flex-1" />
               <input placeholder="Monto" type="number" value={nuevoProveedor.monto} onChange={(e) => setNuevoProveedor({ ...nuevoProveedor, monto: e.target.value })} className="border rounded px-2 py-1 text-xs w-20" />
               <button onClick={registrarPagoProveedor} className="px-2 py-1 rounded text-white text-xs" style={{ background: SKY_DARK }}>Guardar</button>
             </div>
+          )}
+          {proveedores.length === 0 && mostrarProveedor && (
+            <p className="text-[10px] text-amber-600 mb-2">
+              Aún no tienes proveedores dados de alta. Ve a Administración → Proveedores para agregarlos.
+            </p>
           )}
           <table className="w-full text-xs">
             <tbody>
@@ -2676,23 +2694,27 @@ function diasEnMes(mesStr) {
   return new Date(y, m, 0).getDate();
 }
 
-function datosDelMes(mes, ventas, dashboard) {
+function datosDelMes(mes, ventas, dashboard, pagosProveedores) {
   const ventasDelMes = ventas.filter((v) => v.estatus === "venta" && v.fecha && v.fecha.slice(0, 7) === mes);
   const vendidoReal = ventasDelMes.reduce((s, v) => s + v.total, 0);
   const todosPagos = ventas.flatMap((v) => (v.pagos || []));
   const cobradoReal = todosPagos
     .filter((p) => p.fecha && p.fecha.slice(0, 7) === mes)
     .reduce((s, p) => s + p.monto, 0);
+  const gastosReal = (pagosProveedores || [])
+    .filter((p) => p.fecha && p.fecha.slice(0, 7) === mes)
+    .reduce((s, p) => s + Number(p.monto || 0), 0);
   const hayDatosReales = ventasDelMes.length > 0;
   const manual = (dashboard.historialManual || []).find((h) => h.mes === mes);
   const meta = Number((dashboard.metasPorMes || {})[mes]) || Number(manual?.meta) || 0;
   if (hayDatosReales) {
-    return { vendido: vendidoReal, cobrado: cobradoReal, meta, origen: "real", tickets: ventasDelMes.length };
+    return { vendido: vendidoReal, cobrado: cobradoReal, gastos: gastosReal, caja: cobradoReal - gastosReal, meta, origen: "real", tickets: ventasDelMes.length };
   }
   if (manual) {
-    return { vendido: Number(manual.vendido) || 0, cobrado: Number(manual.cobrado) || 0, meta, origen: "manual", tickets: 0 };
+    const cobradoManual = Number(manual.cobrado) || 0;
+    return { vendido: Number(manual.vendido) || 0, cobrado: cobradoManual, gastos: gastosReal, caja: cobradoManual - gastosReal, meta, origen: "manual", tickets: 0 };
   }
-  return { vendido: 0, cobrado: 0, meta, origen: "sin_datos", tickets: 0 };
+  return { vendido: 0, cobrado: 0, gastos: gastosReal, caja: -gastosReal, meta, origen: "sin_datos", tickets: 0 };
 }
 
 function CorteMensual({ ventas, pagosProveedores }) {
@@ -2719,6 +2741,7 @@ function CorteMensual({ ventas, pagosProveedores }) {
 
   const pagosProvDelMes = pagosProveedores.filter((p) => esDelMes(p.fecha));
   const totalProveedores = pagosProvDelMes.reduce((s, p) => s + Number(p.monto || 0), 0);
+  const debeHaberCaja = totalCobradoMes - totalProveedores;
 
   function cambiarMes(delta) {
     const [y, m] = mes.split("-").map(Number);
@@ -2759,6 +2782,7 @@ function CorteMensual({ ventas, pagosProveedores }) {
           <TotalBox titulo="Total cobrado en el mes" monto={totalCobradoMes} color="#047857" subtitulo="Anticipos + liquidaciones + contado" />
           <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
           <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelMes.length} pago(s)`} />
+          <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado del mes − pago a proveedores" />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3112,6 +3136,86 @@ function UsuariosView({ usuarios, setUsuarios }) {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ADMINISTRACIÓN (Usuarios + Proveedores)
+   ============================================================ */
+function ProveedoresView({ proveedores, setProveedores }) {
+  const [nuevo, setNuevo] = useState({ nombre: "", contacto: "", telefono: "", notas: "" });
+
+  function agregar() {
+    if (!nuevo.nombre.trim()) return;
+    setProveedores([...proveedores, { ...nuevo, id: uid() }]);
+    setNuevo({ nombre: "", contacto: "", telefono: "", notas: "" });
+  }
+  function eliminar(id) {
+    setProveedores(proveedores.filter((p) => p.id !== id));
+  }
+
+  return (
+    <div className="p-4">
+      <div className="bg-white border rounded-xl p-3 mb-4 flex flex-wrap gap-2 items-end">
+        <Field label="Nombre del proveedor" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} />
+        <Field label="Contacto" value={nuevo.contacto} onChange={(e) => setNuevo({ ...nuevo, contacto: e.target.value })} />
+        <Field label="Teléfono" value={nuevo.telefono} onChange={(e) => setNuevo({ ...nuevo, telefono: e.target.value })} />
+        <Field label="Notas" value={nuevo.notas} onChange={(e) => setNuevo({ ...nuevo, notas: e.target.value })} />
+        <button onClick={agregar} className="px-3 py-2 rounded-lg text-white text-sm h-fit" style={{ background: SKY_DARK }}>
+          Agregar proveedor
+        </button>
+      </div>
+      <div className="bg-white border rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead style={{ background: BEIGE }}>
+            <tr>
+              <th className="text-left px-3 py-2">Nombre</th>
+              <th className="text-left px-3 py-2">Contacto</th>
+              <th className="text-left px-3 py-2">Teléfono</th>
+              <th className="text-left px-3 py-2">Notas</th>
+              <th className="px-3 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {proveedores.map((p) => (
+              <tr key={p.id} className="border-t">
+                <td className="px-3 py-2 font-medium">{p.nombre}</td>
+                <td className="px-3 py-2">{p.contacto}</td>
+                <td className="px-3 py-2">{p.telefono}</td>
+                <td className="px-3 py-2 text-slate-500">{p.notas}</td>
+                <td className="px-3 py-2 text-right">
+                  <button onClick={() => eliminar(p.id)} className="text-red-400"><Trash2 size={16} /></button>
+                </td>
+              </tr>
+            ))}
+            {proveedores.length === 0 && (
+              <tr><td colSpan={5} className="text-center text-slate-400 py-6">Sin proveedores dados de alta todavía.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function AdministracionView({ usuarios, setUsuarios, proveedores, setProveedores }) {
+  const [tab, setTab] = useState("usuarios");
+  return (
+    <div>
+      <div className="flex gap-2 p-4 pb-0">
+        <button onClick={() => setTab("usuarios")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${tab === "usuarios" ? "text-white" : "bg-white border"}`} style={tab === "usuarios" ? { background: SKY_DARK } : {}}>
+          Usuarios
+        </button>
+        <button onClick={() => setTab("proveedores")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${tab === "proveedores" ? "text-white" : "bg-white border"}`} style={tab === "proveedores" ? { background: SKY_DARK } : {}}>
+          Proveedores
+        </button>
+      </div>
+      {tab === "usuarios" ? (
+        <UsuariosView usuarios={usuarios} setUsuarios={setUsuarios} />
+      ) : (
+        <ProveedoresView proveedores={proveedores} setProveedores={setProveedores} />
+      )}
     </div>
   );
 }
@@ -3785,7 +3889,7 @@ function calcVendedor(v, pctMeta, montoAuto, ventasHechasAuto) {
   return { efectividad, comisionBase, comisionAjustada, ventasHechas };
 }
 
-function DashboardView({ dashboard, setDashboard, ventas }) {
+function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
   const { optometristas, vendedores } = dashboard;
   const metasPorMes = dashboard.metasPorMes || {};
   const historialManual = dashboard.historialManual || [];
@@ -3798,7 +3902,7 @@ function DashboardView({ dashboard, setDashboard, ventas }) {
   const [anioAnalisis, setAnioAnalisis] = useState(new Date().getFullYear());
   const [cargaManual, setCargaManual] = useState({ mes: mesISO(new Date()), vendido: "", cobrado: "", meta: "" });
 
-  const datosMes = datosDelMes(mesAnalisis, ventas, dashboard);
+  const datosMes = datosDelMes(mesAnalisis, ventas, dashboard, pagosProveedores);
   const meta = datosMes.meta;
   const alcanzado = datosMes.vendido; // siempre automático: vendido real del mes
   const pctMeta = meta > 0 ? (alcanzado / meta) * 100 : 0;
@@ -3925,6 +4029,7 @@ function DashboardView({ dashboard, setDashboard, ventas }) {
           setAnio={setAnioAnalisis}
           ventas={ventas}
           dashboard={dashboard}
+          pagosProveedores={pagosProveedores}
           cargaManual={cargaManual}
           setCargaManual={setCargaManual}
           guardarCargaManual={guardarCargaManual}
@@ -4129,18 +4234,20 @@ function DashboardView({ dashboard, setDashboard, ventas }) {
   );
 }
 
-function DashboardAnual({ anio, setAnio, ventas, dashboard, cargaManual, setCargaManual, guardarCargaManual, eliminarCargaManual }) {
+function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, cargaManual, setCargaManual, guardarCargaManual, eliminarCargaManual }) {
   const historialManual = dashboard.historialManual || [];
   const nombresMes = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
   const meses = Array.from({ length: 12 }, (_, i) => {
     const mesStr = `${anio}-${String(i + 1).padStart(2, "0")}`;
-    return { mes: mesStr, nombre: nombresMes[i], ...datosDelMes(mesStr, ventas, dashboard) };
+    return { mes: mesStr, nombre: nombresMes[i], ...datosDelMes(mesStr, ventas, dashboard, pagosProveedores) };
   });
 
   const totalAnioMeta = meses.reduce((s, m) => s + m.meta, 0);
   const totalAnioVendido = meses.reduce((s, m) => s + m.vendido, 0);
   const totalAnioCobrado = meses.reduce((s, m) => s + m.cobrado, 0);
+  const totalAnioGastos = meses.reduce((s, m) => s + (m.gastos || 0), 0);
+  const debeHaberCajaAnual = totalAnioCobrado - totalAnioGastos;
   const pctAnio = totalAnioMeta > 0 ? (totalAnioVendido / totalAnioMeta) * 100 : 0;
   const mesesConDatos = meses.filter((m) => m.origen !== "sin_datos");
   const promedioMensual = mesesConDatos.length > 0 ? totalAnioVendido / mesesConDatos.length : 0;
@@ -4158,6 +4265,8 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, cargaManual, setCarg
         <TotalBox titulo="Meta anual" monto={totalAnioMeta} color="#2563eb" />
         <TotalBox titulo="Vendido anual" monto={totalAnioVendido} color="#0f766e" subtitulo={`${pctAnio.toFixed(1)}% de la meta`} />
         <TotalBox titulo="Cobrado anual" monto={totalAnioCobrado} color="#059669" />
+        <TotalBox titulo="Pago a proveedores anual" monto={totalAnioGastos} color="#7c3aed" />
+        <TotalBox titulo="Debe haber en caja" monto={debeHaberCajaAnual} color={debeHaberCajaAnual >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado anual − pago a proveedores" />
         <TotalBox titulo="Promedio mensual" monto={promedioMensual} color="#7c3aed" subtitulo={`${mesesConDatos.length} mes(es) con datos`} />
       </div>
 
@@ -4254,9 +4363,10 @@ export default function App() {
     metasPorMes: {},
     historialManual: [],
   });
+  const [proveedores, setProveedores, loadedPr, statusPr, errorPr, retryPr, cargarPr] = useStoredState(STORAGE_KEYS.proveedores, []);
 
   function recargarTodo() {
-    cargarP(); cargarI(); cargarA(); cargarV(); cargarU(); cargarC(); cargarL(); cargarPP(); cargarD();
+    cargarP(); cargarI(); cargarA(); cargarV(); cargarU(); cargarC(); cargarL(); cargarPP(); cargarD(); cargarPr();
   }
 
   const secciones = [
@@ -4269,6 +4379,7 @@ export default function App() {
     { nombre: "Laboratorio", status: statusL, error: errorL, retry: retryL },
     { nombre: "Pagos a proveedores", status: statusPP, error: errorPP, retry: retryPP },
     { nombre: "Dashboard", status: statusD, error: errorD, retry: retryD },
+    { nombre: "Proveedores", status: statusPr, error: errorPr, retry: retryPr },
   ];
   const seccionesConError = secciones.filter((s) => s.status === "error");
   const guardandoAlgo = secciones.some((s) => s.status === "saving");
@@ -4284,7 +4395,7 @@ export default function App() {
   });
   const [sesion, setSesion] = useSesion();
 
-  const todoListo = loadedP && loadedI && loadedA && loadedV && loadedU && loadedC && loadedL && loadedPP && loadedD;
+  const todoListo = loadedP && loadedI && loadedA && loadedV && loadedU && loadedC && loadedL && loadedPP && loadedD && loadedPr;
 
   if (!todoListo) {
     return (
@@ -4308,7 +4419,7 @@ export default function App() {
       </button>
       <button
         onClick={() =>
-          exportarRespaldo({ pacientes, inventario, agenda, ventas, usuarios, config, laboratorio, pagosProveedores, dashboard })
+          exportarRespaldo({ pacientes, inventario, agenda, ventas, usuarios, config, laboratorio, pagosProveedores, dashboard, proveedores })
         }
         className="px-2 py-1 rounded bg-white border border-red-300 text-red-700 text-xs"
       >
@@ -4419,18 +4530,21 @@ export default function App() {
             laboratorio={laboratorio}
             pagosProveedores={pagosProveedores}
             setPagosProveedores={setPagosProveedores}
+            proveedores={proveedores}
           />
         )}
-        {seccion === "usuarios" && <UsuariosView usuarios={usuarios} setUsuarios={setUsuarios} />}
+        {seccion === "administracion" && (
+          <AdministracionView usuarios={usuarios} setUsuarios={setUsuarios} proveedores={proveedores} setProveedores={setProveedores} />
+        )}
         {seccion === "importar" && (
           <ImportarView pacientes={pacientes} setPacientes={setPacientes} inventario={inventario} setInventario={setInventario} />
         )}
-        {seccion === "dashboard" && <DashboardView dashboard={dashboard} setDashboard={setDashboard} ventas={ventas} />}
+        {seccion === "dashboard" && <DashboardView dashboard={dashboard} setDashboard={setDashboard} ventas={ventas} pagosProveedores={pagosProveedores} />}
         {seccion === "config" && (
           <ConfigView
             config={config}
             setConfig={setConfig}
-            respaldoCompleto={{ pacientes, inventario, agenda, ventas, usuarios, config, laboratorio, pagosProveedores, dashboard }}
+            respaldoCompleto={{ pacientes, inventario, agenda, ventas, usuarios, config, laboratorio, pagosProveedores, dashboard, proveedores }}
             restaurarRespaldo={(datos) => {
               if (datos.pacientes) setPacientes(datos.pacientes);
               if (datos.inventario) setInventario(datos.inventario);
@@ -4441,6 +4555,7 @@ export default function App() {
               if (datos.laboratorio) setLaboratorio(datos.laboratorio);
               if (datos.pagosProveedores) setPagosProveedores(datos.pagosProveedores);
               if (datos.dashboard) setDashboard(datos.dashboard);
+              if (datos.proveedores) setProveedores(datos.proveedores);
             }}
           />
         )}
