@@ -232,6 +232,22 @@ function GlobalPrintStyles() {
           width: 100% !important;
           padding: 24px !important;
         }
+        .print-only * {
+          overflow: visible !important;
+          max-height: none !important;
+          white-space: normal !important;
+        }
+        .print-only .flex {
+          flex-wrap: wrap !important;
+        }
+        .print-only table {
+          width: 100% !important;
+          table-layout: auto !important;
+        }
+        @page {
+          size: auto;
+          margin: 12mm;
+        }
       }
     `}</style>
   );
@@ -2361,6 +2377,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
                     <button onClick={() => cancelarOrden(o.id)} className="text-xs text-red-500 underline">Cancelar</button>
                   )}
                   <button onClick={() => eliminarOrden(o.id)} className="text-xs text-red-700 underline ml-2">Eliminar</button>
+                  <button onClick={() => imprimirElemento(`orden-lab-${o.id}`)} className="text-xs text-slate-600 underline ml-2">Imprimir orden</button>
                 </td>
               </tr>
             ))}
@@ -2371,6 +2388,53 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Plantillas imprimibles de orden de laboratorio (ocultas en pantalla) */}
+      <div className="plantilla-oculta" style={{ position: "absolute", left: -9999, top: 0 }}>
+        {laboratorio.map((o) => {
+          const paciente = pacientes.find((p) => p.id === o.pacienteId);
+          return (
+            <div key={o.id} id={`orden-lab-${o.id}`}>
+              <div className="flex items-center gap-3 mb-4" style={{ borderBottom: "2px solid #5EB6E8", paddingBottom: 10 }}>
+                {config?.logo && <img src={config.logo} style={{ height: 70 }} alt="logo" />}
+                <div>
+                  <p className="font-bold text-lg">Spektrum Ópticas</p>
+                  <p className="text-xs">{config?.direccion}</p>
+                  <p className="text-xs">Tel: {config?.telefono}</p>
+                </div>
+              </div>
+              <p className="font-bold text-center mb-3" style={{ fontSize: 16 }}>ORDEN DE LABORATORIO</p>
+              <table style={{ width: "100%", fontSize: 13, marginBottom: 12 }}>
+                <tbody>
+                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Paciente:</td><td>{o.nombreCliente || paciente?.nombre || "—"}</td></tr>
+                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Folio de venta:</td><td>{o.folioVenta || "—"}</td></tr>
+                </tbody>
+              </table>
+              <p className="font-semibold" style={{ marginBottom: 4 }}>Receta completa</p>
+              <p style={{ fontSize: 13, marginBottom: 12, whiteSpace: "pre-wrap" }}>{o.receta || "Sin receta capturada"}</p>
+              <table style={{ width: "100%", fontSize: 13, marginBottom: 12, borderCollapse: "collapse" }}>
+                <tbody>
+                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Armazón:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.armazon || "—"}</td></tr>
+                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Material:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.material || "—"}</td></tr>
+                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha de envío a laboratorio:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaEnvio || "—"}</td></tr>
+                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha prometida:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaPrometida || "—"}</td></tr>
+                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha de recibido del laboratorio:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaRecepcion || "Pendiente"}</td></tr>
+                </tbody>
+              </table>
+              <div style={{ marginTop: 40, display: "flex", justifyContent: "space-between" }}>
+                <div style={{ textAlign: "center", width: "45%" }}>
+                  <div style={{ borderTop: "1px solid #333", marginTop: 30 }} />
+                  <p className="text-xs">Firma laboratorio</p>
+                </div>
+                <div style={{ textAlign: "center", width: "45%" }}>
+                  <div style={{ borderTop: "1px solid #333", marginTop: 30 }} />
+                  <p className="text-xs">Firma recepción óptica</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
