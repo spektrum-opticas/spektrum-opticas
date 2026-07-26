@@ -3987,7 +3987,6 @@ function DashboardView({ dashboard, setDashboard, ventas }) {
           </div>
         </div>
       </div>
-      </div>
 
       <div className="bg-white border rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
