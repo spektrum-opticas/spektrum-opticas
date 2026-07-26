@@ -947,9 +947,12 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
   const [busquedaArt, setBusquedaArt] = useState("");
   const [carrito, setCarrito] = useState([]);
   const [vendedor, setVendedor] = useState("");
+  const [optometrista, setOptometrista] = useState("");
   const [formaPago, setFormaPago] = useState("efectivo");
   const [abono, setAbono] = useState(0);
   const [preview, setPreview] = useState(null);
+  const [modoFechaPasada, setModoFechaPasada] = useState(false);
+  const [fechaVentaManual, setFechaVentaManual] = useState(fechaISO(new Date()));
 
   useEffect(() => {
     if (presetPacienteId) {
@@ -981,7 +984,9 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
 
   function generarNota(estatus) {
     const folio = (ventas[ventas.length - 1]?.folio || 0) + 1;
-    const ahora = new Date().toISOString();
+    const ahora = modoFechaPasada
+      ? new Date(`${fechaVentaManual}T12:00:00`).toISOString()
+      : new Date().toISOString();
     const montoAbono = Number(abono || 0);
     const pagoInicial =
       estatus === "venta" && montoAbono > 0
@@ -999,6 +1004,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
       estatus,
       formaPago,
       vendedor,
+      optometrista,
       pagos: pagoInicial,
     };
     setVentas([...ventas, nota]);
@@ -1050,6 +1056,8 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
     setPreview(nota);
     setCarrito([]);
     setAbono(0);
+    setModoFechaPasada(false);
+    setFechaVentaManual(fechaISO(new Date()));
   }
 
   return (
@@ -1095,6 +1103,13 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
             value={vendedor}
             onChange={(e) => setVendedor(e.target.value)}
             placeholder="Nombre de quien vende"
+            className="w-full border rounded-lg px-2 py-1.5 text-sm mb-2"
+          />
+          <label className="text-xs text-slate-500">Optometrista que atendió (para el Dashboard)</label>
+          <input
+            value={optometrista}
+            onChange={(e) => setOptometrista(e.target.value)}
+            placeholder="Nombre del optometrista"
             className="w-full border rounded-lg px-2 py-1.5 text-sm"
           />
         </div>
@@ -1150,7 +1165,27 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
         </div>
 
         <div className="bg-white rounded-xl border p-3">
-          <h3 className="font-semibold text-sm mb-2">Nota de venta — folio #{(ventas[ventas.length - 1]?.folio || 0) + 1}</h3>
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+            <h3 className="font-semibold text-sm">Nota de venta — folio #{(ventas[ventas.length - 1]?.folio || 0) + 1}</h3>
+            <button
+              onClick={() => setModoFechaPasada(!modoFechaPasada)}
+              className={`text-xs px-2 py-1 rounded-lg ${modoFechaPasada ? "bg-amber-500 text-white" : "bg-slate-100 text-slate-600"}`}
+            >
+              {modoFechaPasada ? "✕ Cancelar fecha pasada" : "📅 Registrar venta de fecha pasada"}
+            </button>
+          </div>
+          {modoFechaPasada && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-2 flex items-center gap-2">
+              <label className="text-xs text-amber-700">Fecha real de la venta:</label>
+              <input
+                type="date"
+                value={fechaVentaManual}
+                max={fechaISO(new Date())}
+                onChange={(e) => setFechaVentaManual(e.target.value)}
+                className="border rounded px-2 py-1 text-xs"
+              />
+            </div>
+          )}
           <div className="max-h-40 overflow-y-auto">
             {carrito.map((c) => (
               <div key={c.uidLinea} className="flex justify-between items-center text-sm border-b py-1">
@@ -3659,12 +3694,12 @@ function barraTexto(pct) {
   return `[${"█".repeat(bloques)}${"░".repeat(10 - bloques)}] ${pct.toFixed(0)}%`;
 }
 
-function calcOptometrista(o, pctMeta) {
+function calcOptometrista(o, pctMeta, montoAuto) {
   const citasAtendidas = Number(o.citasAtendidas) || 0;
   const citasConCompra = Number(o.citasConCompra) || 0;
   const comprasCanceladas = Number(o.comprasCanceladas) || 0;
   const retrabajos = Number(o.retrabajos) || 0;
-  const monto = Number(o.montoExamenesVenta) || 0;
+  const monto = montoAuto !== undefined ? montoAuto : Number(o.montoExamenesVenta) || 0;
   const efectividad = citasAtendidas > 0 ? ((citasConCompra - comprasCanceladas - retrabajos) / citasAtendidas) * 100 : 0;
   const retrabajoPct = citasAtendidas > 0 ? (retrabajos / citasAtendidas) * 100 : 0;
   const comisionBase = monto * 0.03;
@@ -3674,26 +3709,43 @@ function calcOptometrista(o, pctMeta) {
   return { efectividad, comisionBase, comisionAjustada, retrabajoPct, penalizado };
 }
 
-function calcVendedor(v, pctMeta) {
+function calcVendedor(v, pctMeta, montoAuto, ventasHechasAuto) {
   const pacientesAsignados = Number(v.pacientesAsignados) || 0;
-  const ventasHechas = Number(v.ventasHechas) || 0;
-  const monto = Number(v.montoVentas) || 0;
+  const ventasHechas = ventasHechasAuto !== undefined ? ventasHechasAuto : Number(v.ventasHechas) || 0;
+  const monto = montoAuto !== undefined ? montoAuto : Number(v.montoVentas) || 0;
   const efectividad = pacientesAsignados > 0 ? (ventasHechas / pacientesAsignados) * 100 : 0;
   const comisionBase = monto * 0.025;
   const comisionAjustada = aplicarModificadorMeta(comisionBase, pctMeta);
-  return { efectividad, comisionBase, comisionAjustada };
+  return { efectividad, comisionBase, comisionAjustada, ventasHechas };
 }
 
-function DashboardView({ dashboard, setDashboard }) {
+function DashboardView({ dashboard, setDashboard, ventas }) {
   const { optometristas, vendedores, metaMensual } = dashboard;
   const [nuevoOptoNombre, setNuevoOptoNombre] = useState("");
   const [nuevoVendNombre, setNuevoVendNombre] = useState("");
   const [asignando, setAsignando] = useState(false);
   const [vendedorAsignado, setVendedorAsignado] = useState("");
+  const [mesAnalisis, setMesAnalisis] = useState(mesISO(new Date()));
 
   const meta = Number(metaMensual.meta) || 0;
   const alcanzado = Number(metaMensual.alcanzado) || 0;
   const pctMeta = meta > 0 ? (alcanzado / meta) * 100 : 0;
+
+  const ventasDelMes = ventas.filter((v) => v.estatus === "venta" && v.fecha && v.fecha.slice(0, 7) === mesAnalisis);
+
+  function montoPorOptometrista(nombre) {
+    const clave = (nombre || "").trim().toLowerCase();
+    if (!clave) return { monto: 0, cantidad: 0 };
+    const propias = ventasDelMes.filter((v) => (v.optometrista || "").trim().toLowerCase() === clave);
+    return { monto: propias.reduce((s, v) => s + v.total, 0), cantidad: propias.length };
+  }
+
+  function ventasPorVendedor(nombre) {
+    const clave = (nombre || "").trim().toLowerCase();
+    if (!clave) return { monto: 0, cantidad: 0 };
+    const propias = ventasDelMes.filter((v) => (v.vendedor || "").trim().toLowerCase() === clave);
+    return { monto: propias.reduce((s, v) => s + v.total, 0), cantidad: propias.length };
+  }
 
   function actualizarMeta(campo, valor) {
     setDashboard({ ...dashboard, metaMensual: { ...metaMensual, [campo]: valor } });
@@ -3761,9 +3813,16 @@ function DashboardView({ dashboard, setDashboard }) {
   }
 
   const inputCelda = "w-20 border rounded px-1 py-1 text-xs text-center";
+  const totalVendidoMes = ventasDelMes.reduce((s, v) => s + v.total, 0);
 
   return (
     <div className="p-4 space-y-6">
+      <div className="bg-white border rounded-xl p-4 flex items-center gap-2 flex-wrap">
+        <label className="text-xs font-medium text-slate-500 uppercase">Mes de análisis (ventas reales)</label>
+        <input type="month" value={mesAnalisis} onChange={(e) => setMesAnalisis(e.target.value)} className="border rounded-lg px-2 py-1.5 text-sm" />
+        <span className="text-xs text-slate-400">Vendido real este mes: ${totalVendidoMes.toFixed(2)} ({ventasDelMes.length} ventas)</span>
+      </div>
+
       <div className="bg-white border rounded-xl p-4">
         <h3 className="font-semibold text-slate-700 mb-3">Meta mensual de la óptica</h3>
         <div className="flex flex-wrap gap-3 items-end mb-3">
@@ -3775,6 +3834,9 @@ function DashboardView({ dashboard, setDashboard }) {
             <label className="text-xs text-slate-500">Alcanzado ($ MXN)</label>
             <input type="number" value={metaMensual.alcanzado} onChange={(e) => actualizarMeta("alcanzado", e.target.value)} className="block border rounded-lg px-2 py-1.5 text-sm w-32" />
           </div>
+          <button onClick={() => actualizarMeta("alcanzado", totalVendidoMes)} className="text-xs px-2 py-1.5 rounded-lg bg-slate-100 text-slate-600">
+            Usar vendido real (${totalVendidoMes.toFixed(2)})
+          </button>
           <div className="text-2xl font-bold" style={{ color: SKY_DARK }}>{pctMeta.toFixed(1)}%</div>
         </div>
         <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden mb-2">
@@ -3804,7 +3866,7 @@ function DashboardView({ dashboard, setDashboard }) {
                 <th className="px-2 py-2">Citas sin compra</th>
                 <th className="px-2 py-2">Compras canceladas</th>
                 <th className="px-2 py-2">Retrabajos</th>
-                <th className="px-2 py-2">Monto exámenes con venta</th>
+                <th className="px-2 py-2">Monto exámenes con venta (automático)</th>
                 <th className="px-2 py-2">% Efectividad</th>
                 <th className="px-2 py-2">Comisión base</th>
                 <th className="px-2 py-2">Comisión ajustada</th>
@@ -3813,7 +3875,8 @@ function DashboardView({ dashboard, setDashboard }) {
             </thead>
             <tbody>
               {optometristas.map((o) => {
-                const r = calcOptometrista(o, pctMeta);
+                const { monto: montoAuto, cantidad: ventasAuto } = montoPorOptometrista(o.nombre);
+                const r = calcOptometrista(o, pctMeta, montoAuto);
                 return (
                   <tr key={o.id} className="border-t">
                     <td className="px-2 py-2 font-medium">{o.nombre}</td>
@@ -3825,7 +3888,10 @@ function DashboardView({ dashboard, setDashboard }) {
                       <input type="number" value={o.retrabajos} onChange={(e) => actualizarOptometrista(o.id, "retrabajos", e.target.value)} className={inputCelda} />
                       {r.penalizado && <p className="text-[10px] text-red-500 mt-0.5">Supera 10% — penalizado</p>}
                     </td>
-                    <td className="px-2 py-2"><input type="number" value={o.montoExamenesVenta} onChange={(e) => actualizarOptometrista(o.id, "montoExamenesVenta", e.target.value)} className={inputCelda} /></td>
+                    <td className="px-2 py-2 text-center">
+                      <p className="font-semibold" style={{ color: SKY_DARK }}>${montoAuto.toFixed(2)}</p>
+                      <p className="text-[10px] text-slate-400">{ventasAuto} venta(s) reales</p>
+                    </td>
                     <td className="px-2 py-2 text-center font-semibold">{r.efectividad.toFixed(1)}%</td>
                     <td className="px-2 py-2 text-center">${r.comisionBase.toFixed(2)}</td>
                     <td className="px-2 py-2 text-center font-semibold" style={{ color: SKY_DARK }}>${r.comisionAjustada.toFixed(2)}</td>
@@ -3843,6 +3909,10 @@ function DashboardView({ dashboard, setDashboard }) {
             </tbody>
           </table>
         </div>
+        <p className="text-xs text-slate-400 mt-2">
+          El monto de exámenes con venta se calcula solo, sumando las ventas reales del POS del mes elegido cuyo
+          campo "Optometrista que atendió" coincida exactamente con este nombre.
+        </p>
       </div>
 
       <div className="bg-white border rounded-xl p-4">
@@ -3863,8 +3933,8 @@ function DashboardView({ dashboard, setDashboard }) {
                 <th className="text-left px-2 py-2">Nombre</th>
                 <th className="px-2 py-2">Pacientes asignados</th>
                 <th className="px-2 py-2">Posibles ventas</th>
-                <th className="px-2 py-2">Ventas hechas</th>
-                <th className="px-2 py-2">Monto ventas</th>
+                <th className="px-2 py-2">Ventas hechas (automático)</th>
+                <th className="px-2 py-2">Monto ventas (automático)</th>
                 <th className="px-2 py-2">% Efectividad</th>
                 <th className="px-2 py-2">Comisión ajustada</th>
                 <th className="px-2 py-2"></th>
@@ -3872,14 +3942,15 @@ function DashboardView({ dashboard, setDashboard }) {
             </thead>
             <tbody>
               {vendedores.map((v) => {
-                const r = calcVendedor(v, pctMeta);
+                const { monto: montoAuto, cantidad: ventasHechasAuto } = ventasPorVendedor(v.nombre);
+                const r = calcVendedor(v, pctMeta, montoAuto, ventasHechasAuto);
                 return (
                   <tr key={v.id} className="border-t">
                     <td className="px-2 py-2 font-medium">{v.nombre}</td>
                     <td className="px-2 py-2"><input type="number" value={v.pacientesAsignados} onChange={(e) => actualizarVendedor(v.id, "pacientesAsignados", e.target.value)} className={inputCelda} /></td>
                     <td className="px-2 py-2"><input type="number" value={v.posiblesVentas} onChange={(e) => actualizarVendedor(v.id, "posiblesVentas", e.target.value)} className={inputCelda} /></td>
-                    <td className="px-2 py-2"><input type="number" value={v.ventasHechas} onChange={(e) => actualizarVendedor(v.id, "ventasHechas", e.target.value)} className={inputCelda} /></td>
-                    <td className="px-2 py-2"><input type="number" value={v.montoVentas} onChange={(e) => actualizarVendedor(v.id, "montoVentas", e.target.value)} className={inputCelda} /></td>
+                    <td className="px-2 py-2 text-center font-semibold">{ventasHechasAuto}</td>
+                    <td className="px-2 py-2 text-center font-semibold" style={{ color: SKY_DARK }}>${montoAuto.toFixed(2)}</td>
                     <td className="px-2 py-2 text-center font-semibold">{r.efectividad.toFixed(1)}%</td>
                     <td className="px-2 py-2 text-center font-semibold" style={{ color: SKY_DARK }}>${r.comisionAjustada.toFixed(2)}</td>
                     <td className="px-2 py-2 text-right">
@@ -4101,7 +4172,7 @@ export default function App() {
         {seccion === "importar" && (
           <ImportarView pacientes={pacientes} setPacientes={setPacientes} inventario={inventario} setInventario={setInventario} />
         )}
-        {seccion === "dashboard" && <DashboardView dashboard={dashboard} setDashboard={setDashboard} />}
+        {seccion === "dashboard" && <DashboardView dashboard={dashboard} setDashboard={setDashboard} ventas={ventas} />}
         {seccion === "config" && (
           <ConfigView
             config={config}
