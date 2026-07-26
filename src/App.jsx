@@ -2256,6 +2256,18 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
     setLaboratorio(laboratorio.filter((o) => o.id !== id));
   }
 
+  function recetaParaImprimir(o) {
+    if (o.od || o.os) return { od: o.od, os: o.os, descripcion: o.descripcion };
+    const paciente = pacientes.find((p) => p.id === o.pacienteId);
+    const historial = ordenarVisitasDesc(paciente?.compras || []);
+    const visitaReceta = historial.find((v) => v.od || v.os);
+    return {
+      od: visitaReceta?.od || null,
+      os: visitaReceta?.os || null,
+      descripcion: o.descripcion || visitaReceta?.descripcion || "",
+    };
+  }
+
   function marcarRecibido(o) {
     const hoy = fechaISO(new Date());
     setLaboratorio(laboratorio.map((x) => (x.id === o.id ? { ...x, fechaRecepcion: hoy } : x)));
@@ -2393,8 +2405,8 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
             {laboratorio.map((o) => (
               <tr key={o.id} className={`border-t align-top ${o.cancelada ? "opacity-50" : ""}`}>
                 <td className="px-3 py-2">{o.nombreCliente || pacientes.find((p) => p.id === o.pacienteId)?.nombre || "—"}</td>
-                <td className="px-3 py-2 max-w-[220px] truncate" title={`${lineaOjo(o.od, "O.D.")} | ${lineaOjo(o.os, "O.S.")}`}>
-                  {o.od || o.os ? `${lineaOjo(o.od, "O.D.")} | ${lineaOjo(o.os, "O.S.")}` : "—"}
+                <td className="px-3 py-2 max-w-[220px] truncate" title={`${lineaOjo(recetaParaImprimir(o).od, "O.D.")} | ${lineaOjo(recetaParaImprimir(o).os, "O.S.")}`}>
+                  {recetaParaImprimir(o).od || recetaParaImprimir(o).os ? `${lineaOjo(recetaParaImprimir(o).od, "O.D.")} | ${lineaOjo(recetaParaImprimir(o).os, "O.S.")}` : "—"}
                 </td>
                 <td className="px-3 py-2">{o.material || "—"}</td>
                 <td className="px-3 py-2">{o.armazon || "—"}</td>
@@ -2474,10 +2486,10 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
                 </table>
                 <div style={{ border: "1px solid #ccc", borderRadius: 6, padding: "8px 10px", marginBottom: 12 }}>
                   <p className="font-semibold" style={{ marginBottom: 4 }}>Receta</p>
-                  <p style={{ fontSize: 13 }}>{lineaOjo(o.od, "O.D.")}</p>
-                  <p style={{ fontSize: 13 }}>{lineaOjo(o.os, "O.S.")}</p>
+                  <p style={{ fontSize: 13 }}>{lineaOjo(recetaParaImprimir(o).od, "O.D.")}</p>
+                  <p style={{ fontSize: 13 }}>{lineaOjo(recetaParaImprimir(o).os, "O.S.")}</p>
                   <p style={{ fontSize: 13, marginTop: 4 }}>Material: {o.material || "-"}</p>
-                  <p style={{ fontSize: 13 }}>Descripción: {o.descripcion || "-"}</p>
+                  <p style={{ fontSize: 13 }}>Descripción: {recetaParaImprimir(o).descripcion || "-"}</p>
                 </div>
                 <table style={{ width: "100%", fontSize: 13, marginBottom: 12, borderCollapse: "collapse" }}>
                   <tbody>
@@ -2513,10 +2525,10 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
               </table>
               <div style={{ border: "1px solid #ccc", borderRadius: 6, padding: "8px 10px", marginBottom: 12 }}>
                 <p className="font-semibold" style={{ marginBottom: 4 }}>Receta</p>
-                <p style={{ fontSize: 13 }}>{lineaOjo(o.od, "O.D.")}</p>
-                <p style={{ fontSize: 13 }}>{lineaOjo(o.os, "O.S.")}</p>
+                <p style={{ fontSize: 13 }}>{lineaOjo(recetaParaImprimir(o).od, "O.D.")}</p>
+                <p style={{ fontSize: 13 }}>{lineaOjo(recetaParaImprimir(o).os, "O.S.")}</p>
                 <p style={{ fontSize: 13, marginTop: 4 }}>Material: {o.material || "-"}</p>
-                <p style={{ fontSize: 13 }}>Descripción: {o.descripcion || "-"}</p>
+                <p style={{ fontSize: 13 }}>Descripción: {recetaParaImprimir(o).descripcion || "-"}</p>
               </div>
               <table style={{ width: "100%", fontSize: 13, marginBottom: 12, borderCollapse: "collapse" }}>
                 <tbody>
