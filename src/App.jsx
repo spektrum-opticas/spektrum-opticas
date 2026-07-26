@@ -2671,6 +2671,30 @@ function mesISO(d) {
   return d.toISOString().slice(0, 7); // AAAA-MM
 }
 
+function diasEnMes(mesStr) {
+  const [y, m] = mesStr.split("-").map(Number);
+  return new Date(y, m, 0).getDate();
+}
+
+function datosDelMes(mes, ventas, dashboard) {
+  const ventasDelMes = ventas.filter((v) => v.estatus === "venta" && v.fecha && v.fecha.slice(0, 7) === mes);
+  const vendidoReal = ventasDelMes.reduce((s, v) => s + v.total, 0);
+  const todosPagos = ventas.flatMap((v) => (v.pagos || []));
+  const cobradoReal = todosPagos
+    .filter((p) => p.fecha && p.fecha.slice(0, 7) === mes)
+    .reduce((s, p) => s + p.monto, 0);
+  const hayDatosReales = ventasDelMes.length > 0;
+  const manual = (dashboard.historialManual || []).find((h) => h.mes === mes);
+  const meta = Number((dashboard.metasPorMes || {})[mes]) || Number(manual?.meta) || 0;
+  if (hayDatosReales) {
+    return { vendido: vendidoReal, cobrado: cobradoReal, meta, origen: "real", tickets: ventasDelMes.length };
+  }
+  if (manual) {
+    return { vendido: Number(manual.vendido) || 0, cobrado: Number(manual.cobrado) || 0, meta, origen: "manual", tickets: 0 };
+  }
+  return { vendido: 0, cobrado: 0, meta, origen: "sin_datos", tickets: 0 };
+}
+
 function CorteMensual({ ventas, pagosProveedores }) {
   const [mes, setMes] = useState(mesISO(new Date()));
 
@@ -3762,16 +3786,29 @@ function calcVendedor(v, pctMeta, montoAuto, ventasHechasAuto) {
 }
 
 function DashboardView({ dashboard, setDashboard, ventas }) {
-  const { optometristas, vendedores, metaMensual } = dashboard;
+  const { optometristas, vendedores } = dashboard;
+  const metasPorMes = dashboard.metasPorMes || {};
+  const historialManual = dashboard.historialManual || [];
   const [nuevoOptoNombre, setNuevoOptoNombre] = useState("");
   const [nuevoVendNombre, setNuevoVendNombre] = useState("");
   const [asignando, setAsignando] = useState(false);
   const [vendedorAsignado, setVendedorAsignado] = useState("");
   const [mesAnalisis, setMesAnalisis] = useState(mesISO(new Date()));
+  const [vistaDashboard, setVistaDashboard] = useState("mensual"); // mensual | anual
+  const [anioAnalisis, setAnioAnalisis] = useState(new Date().getFullYear());
+  const [cargaManual, setCargaManual] = useState({ mes: mesISO(new Date()), vendido: "", cobrado: "", meta: "" });
 
-  const meta = Number(metaMensual.meta) || 0;
-  const alcanzado = Number(metaMensual.alcanzado) || 0;
+  const datosMes = datosDelMes(mesAnalisis, ventas, dashboard);
+  const meta = datosMes.meta;
+  const alcanzado = datosMes.vendido; // siempre automático: vendido real del mes
   const pctMeta = meta > 0 ? (alcanzado / meta) * 100 : 0;
+
+  const esMesActual = mesAnalisis === mesISO(new Date());
+  const diasTotalesMes = diasEnMes(mesAnalisis);
+  const diaActual = esMesActual ? new Date().getDate() : diasTotalesMes;
+  const proyectadoVendido = diaActual > 0 ? (datosMes.vendido / diaActual) * diasTotalesMes : 0;
+  const proyectadoCobrado = diaActual > 0 ? (datosMes.cobrado / diaActual) * diasTotalesMes : 0;
+  const pctProyectado = meta > 0 ? (proyectadoVendido / meta) * 100 : 0;
 
   const ventasDelMes = ventas.filter((v) => v.estatus === "venta" && v.fecha && v.fecha.slice(0, 7) === mesAnalisis);
 
@@ -3789,8 +3826,23 @@ function DashboardView({ dashboard, setDashboard, ventas }) {
     return { monto: propias.reduce((s, v) => s + v.total, 0), cantidad: propias.length };
   }
 
-  function actualizarMeta(campo, valor) {
-    setDashboard({ ...dashboard, metaMensual: { ...metaMensual, [campo]: valor } });
+  function actualizarMetaMes(valor) {
+    setDashboard({ ...dashboard, metasPorMes: { ...metasPorMes, [mesAnalisis]: valor } });
+  }
+
+  function guardarCargaManual() {
+    if (!cargaManual.mes) return;
+    const existe = historialManual.some((h) => h.mes === cargaManual.mes);
+    const nuevoHistorial = existe
+      ? historialManual.map((h) => (h.mes === cargaManual.mes ? { ...h, ...cargaManual, id: h.id } : h))
+      : [...historialManual, { ...cargaManual, id: uid() }];
+    const nuevasMetas = cargaManual.meta ? { ...metasPorMes, [cargaManual.mes]: cargaManual.meta } : metasPorMes;
+    setDashboard({ ...dashboard, historialManual: nuevoHistorial, metasPorMes: nuevasMetas });
+    setCargaManual({ mes: cargaManual.mes, vendido: "", cobrado: "", meta: "" });
+  }
+
+  function eliminarCargaManual(mes) {
+    setDashboard({ ...dashboard, historialManual: historialManual.filter((h) => h.mes !== mes) });
   }
 
   function agregarOptometrista() {
@@ -3855,39 +3907,86 @@ function DashboardView({ dashboard, setDashboard, ventas }) {
   }
 
   const inputCelda = "w-20 border rounded px-1 py-1 text-xs text-center";
-  const totalVendidoMes = ventasDelMes.reduce((s, v) => s + v.total, 0);
 
   return (
     <div className="p-4 space-y-6">
-      <div className="bg-white border rounded-xl p-4 flex items-center gap-2 flex-wrap">
-        <label className="text-xs font-medium text-slate-500 uppercase">Mes de análisis (ventas reales)</label>
-        <input type="month" value={mesAnalisis} onChange={(e) => setMesAnalisis(e.target.value)} className="border rounded-lg px-2 py-1.5 text-sm" />
-        <span className="text-xs text-slate-400">Vendido real este mes: ${totalVendidoMes.toFixed(2)} ({ventasDelMes.length} ventas)</span>
+      <div className="flex gap-2">
+        <button onClick={() => setVistaDashboard("mensual")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${vistaDashboard === "mensual" ? "text-white" : "bg-white border"}`} style={vistaDashboard === "mensual" ? { background: SKY_DARK } : {}}>
+          Dashboard mensual
+        </button>
+        <button onClick={() => setVistaDashboard("anual")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${vistaDashboard === "anual" ? "text-white" : "bg-white border"}`} style={vistaDashboard === "anual" ? { background: SKY_DARK } : {}}>
+          Dashboard anual
+        </button>
       </div>
 
-      <div className="bg-white border rounded-xl p-4">
-        <h3 className="font-semibold text-slate-700 mb-3">Meta mensual de la óptica</h3>
-        <div className="flex flex-wrap gap-3 items-end mb-3">
-          <div>
-            <label className="text-xs text-slate-500">Meta ($ MXN)</label>
-            <input type="number" value={metaMensual.meta} onChange={(e) => actualizarMeta("meta", e.target.value)} className="block border rounded-lg px-2 py-1.5 text-sm w-32" />
+      {vistaDashboard === "anual" ? (
+        <DashboardAnual
+          anio={anioAnalisis}
+          setAnio={setAnioAnalisis}
+          ventas={ventas}
+          dashboard={dashboard}
+          cargaManual={cargaManual}
+          setCargaManual={setCargaManual}
+          guardarCargaManual={guardarCargaManual}
+          eliminarCargaManual={eliminarCargaManual}
+        />
+      ) : (
+      <>
+      <div className="bg-white border rounded-xl p-4 flex items-center gap-2 flex-wrap">
+        <label className="text-xs font-medium text-slate-500 uppercase">Mes de análisis</label>
+        <input type="month" value={mesAnalisis} onChange={(e) => setMesAnalisis(e.target.value)} className="border rounded-lg px-2 py-1.5 text-sm" />
+        {datosMes.origen === "manual" && <span className="text-xs text-amber-600">Usando datos cargados manualmente (sin ventas reales en el sistema para este mes)</span>}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white border rounded-xl p-4">
+          <h3 className="font-semibold text-slate-700 mb-3">Meta mensual de la óptica</h3>
+          <div className="flex flex-wrap gap-3 items-end mb-3">
+            <div>
+              <label className="text-xs text-slate-500">Meta ($ MXN)</label>
+              <input type="number" value={metasPorMes[mesAnalisis] || ""} onChange={(e) => actualizarMetaMes(e.target.value)} className="block border rounded-lg px-2 py-1.5 text-sm w-32" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Alcanzado (automático)</label>
+              <p className="font-semibold text-lg" style={{ color: SKY_DARK }}>${alcanzado.toFixed(2)}</p>
+            </div>
+            <div className="text-2xl font-bold" style={{ color: SKY_DARK }}>{pctMeta.toFixed(1)}%</div>
           </div>
-          <div>
-            <label className="text-xs text-slate-500">Alcanzado ($ MXN)</label>
-            <input type="number" value={metaMensual.alcanzado} onChange={(e) => actualizarMeta("alcanzado", e.target.value)} className="block border rounded-lg px-2 py-1.5 text-sm w-32" />
+          <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden mb-2">
+            <div className="h-4 rounded-full transition-all" style={{ width: `${Math.min(100, pctMeta)}%`, background: SKY_DARK }} />
           </div>
-          <button onClick={() => actualizarMeta("alcanzado", totalVendidoMes)} className="text-xs px-2 py-1.5 rounded-lg bg-slate-100 text-slate-600">
-            Usar vendido real (${totalVendidoMes.toFixed(2)})
-          </button>
-          <div className="text-2xl font-bold" style={{ color: SKY_DARK }}>{pctMeta.toFixed(1)}%</div>
+          <p className="font-mono text-xs text-slate-500">{barraTexto(pctMeta)}</p>
+          <p className="text-xs text-slate-400 mt-2">
+            ≤79%: 50% de comisión · 80-90%: 75% · 91-99%: 90% · 100-105%: 100% + hasta 5% de bono adicional
+          </p>
         </div>
-        <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden mb-2">
-          <div className="h-4 rounded-full transition-all" style={{ width: `${Math.min(100, pctMeta)}%`, background: SKY_DARK }} />
+
+        <div className="bg-white border rounded-xl p-4">
+          <h3 className="font-semibold text-slate-700 mb-3">Proyectado del mes</h3>
+          {esMesActual ? (
+            <p className="text-xs text-slate-400 mb-2">Con base en el ritmo de venta de los primeros {diaActual} de {diasTotalesMes} días del mes.</p>
+          ) : (
+            <p className="text-xs text-slate-400 mb-2">Mes ya cerrado — se muestra el resultado final, no una proyección.</p>
+          )}
+          <div className="flex flex-wrap gap-4 mb-2">
+            <div>
+              <p className="text-xs text-slate-500">Vendido proyectado</p>
+              <p className="font-semibold text-lg" style={{ color: SKY_DARK }}>${proyectadoVendido.toFixed(2)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Cobrado proyectado</p>
+              <p className="font-semibold text-lg" style={{ color: "#059669" }}>${proyectadoCobrado.toFixed(2)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">% de la meta proyectado</p>
+              <p className="font-semibold text-lg">{pctProyectado.toFixed(1)}%</p>
+            </div>
+          </div>
+          <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-3 rounded-full transition-all" style={{ width: `${Math.min(100, pctProyectado)}%`, background: pctProyectado >= 100 ? "#059669" : "#f59e0b" }} />
+          </div>
         </div>
-        <p className="font-mono text-xs text-slate-500">{barraTexto(pctMeta)}</p>
-        <p className="text-xs text-slate-400 mt-2">
-          ≤79%: 50% de comisión · 80-90%: 75% · 91-99%: 90% · 100-105%: 100% + hasta 5% de bono adicional
-        </p>
+      </div>
       </div>
 
       <div className="bg-white border rounded-xl p-4">
@@ -4025,6 +4124,117 @@ function DashboardView({ dashboard, setDashboard, ventas }) {
           Confirmar asignación
         </button>
       </Modal>
+      </>
+      )}
+    </div>
+  );
+}
+
+function DashboardAnual({ anio, setAnio, ventas, dashboard, cargaManual, setCargaManual, guardarCargaManual, eliminarCargaManual }) {
+  const historialManual = dashboard.historialManual || [];
+  const nombresMes = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+  const meses = Array.from({ length: 12 }, (_, i) => {
+    const mesStr = `${anio}-${String(i + 1).padStart(2, "0")}`;
+    return { mes: mesStr, nombre: nombresMes[i], ...datosDelMes(mesStr, ventas, dashboard) };
+  });
+
+  const totalAnioMeta = meses.reduce((s, m) => s + m.meta, 0);
+  const totalAnioVendido = meses.reduce((s, m) => s + m.vendido, 0);
+  const totalAnioCobrado = meses.reduce((s, m) => s + m.cobrado, 0);
+  const pctAnio = totalAnioMeta > 0 ? (totalAnioVendido / totalAnioMeta) * 100 : 0;
+  const mesesConDatos = meses.filter((m) => m.origen !== "sin_datos");
+  const promedioMensual = mesesConDatos.length > 0 ? totalAnioVendido / mesesConDatos.length : 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white border rounded-xl p-4 flex items-center gap-2 flex-wrap">
+        <label className="text-xs font-medium text-slate-500 uppercase">Año</label>
+        <button onClick={() => setAnio(anio - 1)} className="p-1.5 rounded-lg hover:bg-sky-100"><ChevronLeft size={16} /></button>
+        <span className="font-semibold text-lg">{anio}</span>
+        <button onClick={() => setAnio(anio + 1)} className="p-1.5 rounded-lg hover:bg-sky-100"><ChevronRight size={16} /></button>
+      </div>
+
+      <div className="flex gap-3 overflow-x-auto pb-1">
+        <TotalBox titulo="Meta anual" monto={totalAnioMeta} color="#2563eb" />
+        <TotalBox titulo="Vendido anual" monto={totalAnioVendido} color="#0f766e" subtitulo={`${pctAnio.toFixed(1)}% de la meta`} />
+        <TotalBox titulo="Cobrado anual" monto={totalAnioCobrado} color="#059669" />
+        <TotalBox titulo="Promedio mensual" monto={promedioMensual} color="#7c3aed" subtitulo={`${mesesConDatos.length} mes(es) con datos`} />
+      </div>
+
+      <div className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead style={{ background: BEIGE }}>
+            <tr>
+              <th className="text-left px-3 py-2">Mes</th>
+              <th className="text-right px-3 py-2">Meta</th>
+              <th className="text-right px-3 py-2">Vendido</th>
+              <th className="text-right px-3 py-2">Cobrado</th>
+              <th className="text-right px-3 py-2">% Meta</th>
+              <th className="px-3 py-2">Avance</th>
+              <th className="px-3 py-2">Origen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {meses.map((m) => {
+              const pct = m.meta > 0 ? (m.vendido / m.meta) * 100 : 0;
+              return (
+                <tr key={m.mes} className="border-t">
+                  <td className="px-3 py-2 font-medium">{m.nombre}</td>
+                  <td className="px-3 py-2 text-right">${m.meta.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right">${m.vendido.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right">${m.cobrado.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right">{pct.toFixed(1)}%</td>
+                  <td className="px-3 py-2 w-32">
+                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-2 rounded-full" style={{ width: `${Math.min(100, pct)}%`, background: pct >= 100 ? "#059669" : SKY_DARK }} />
+                    </div>
+                  </td>
+                  <td className="px-3 py-2">
+                    {m.origen === "real" && <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Real (POS)</span>}
+                    {m.origen === "manual" && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 flex items-center gap-1 w-fit">
+                        Manual
+                        <button onClick={() => eliminarCargaManual(m.mes)} className="text-amber-700 hover:text-red-600"><X size={10} /></button>
+                      </span>
+                    )}
+                    {m.origen === "sin_datos" && <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-400">Sin datos</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="bg-white border rounded-xl p-4">
+        <h3 className="font-semibold text-slate-700 mb-2">Cargar datos de un mes pasado (antes de usar el sistema)</h3>
+        <p className="text-xs text-slate-500 mb-3">
+          Solo se usa para meses donde no hay ventas reales capturadas en el POS. Si el mes ya tiene ventas reales, esos
+          datos tienen prioridad y esta carga se ignora en los cálculos.
+        </p>
+        <div className="flex flex-wrap gap-2 items-end">
+          <div>
+            <label className="text-xs text-slate-500">Mes</label>
+            <input type="month" value={cargaManual.mes} onChange={(e) => setCargaManual({ ...cargaManual, mes: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Vendido ($ MXN)</label>
+            <input type="number" value={cargaManual.vendido} onChange={(e) => setCargaManual({ ...cargaManual, vendido: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm w-32" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Cobrado ($ MXN)</label>
+            <input type="number" value={cargaManual.cobrado} onChange={(e) => setCargaManual({ ...cargaManual, cobrado: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm w-32" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Meta de ese mes ($ MXN)</label>
+            <input type="number" value={cargaManual.meta} onChange={(e) => setCargaManual({ ...cargaManual, meta: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm w-32" />
+          </div>
+          <button onClick={guardarCargaManual} className="px-3 py-1.5 rounded-lg text-white text-sm" style={{ background: SKY_DARK }}>
+            Guardar mes
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -4042,6 +4252,8 @@ export default function App() {
     optometristas: [],
     vendedores: [],
     metaMensual: { meta: "", alcanzado: "" },
+    metasPorMes: {},
+    historialManual: [],
   });
 
   function recargarTodo() {
