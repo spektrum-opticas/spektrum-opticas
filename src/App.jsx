@@ -1488,6 +1488,7 @@ function InventarioView({ inventario, setInventario }) {
     marcaSolar: "",
     modeloSolar: "",
     colorSolar: "",
+    imagen: "",
   });
 
   const lista = inventario[cat] || [];
@@ -1518,8 +1519,16 @@ function InventarioView({ inventario, setInventario }) {
     setNuevo({
       nombre: "", precio: "", existencias: "", tipo: "", material: "", tratamiento: "", rango: "",
       tipoLinea: "", categoriaArmazon: "", tipoReemplazo: "", marcaContacto: "", cosmetico: false,
-      marcaSolar: "", modeloSolar: "", colorSolar: "",
+      marcaSolar: "", modeloSolar: "", colorSolar: "", imagen: "",
     });
+  }
+
+  function subirImagenArticulo(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setNuevo((n) => ({ ...n, imagen: reader.result }));
+    reader.readAsDataURL(file);
   }
 
   function agregar() {
@@ -1735,6 +1744,17 @@ function InventarioView({ inventario, setInventario }) {
             className="block border rounded-lg px-2 py-1.5 text-sm w-24"
           />
         </div>
+        <div>
+          <label className="text-xs text-slate-500">Imagen (tienda en línea)</label>
+          <div className="flex items-center gap-2">
+            {nuevo.imagen ? (
+              <img src={nuevo.imagen} alt="" className="w-10 h-10 rounded object-cover border" />
+            ) : (
+              <div className="w-10 h-10 rounded border border-dashed bg-slate-50" />
+            )}
+            <input type="file" accept="image/*" onChange={subirImagenArticulo} className="text-xs w-32" />
+          </div>
+        </div>
         <button onClick={agregar} className="px-3 py-1.5 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
           <Plus size={16} /> Agregar
         </button>
@@ -1748,6 +1768,7 @@ function InventarioView({ inventario, setInventario }) {
         <table className="w-full text-sm">
           <thead style={{ background: BEIGE }}>
             <tr>
+              <th className="text-left px-3 py-2 print:hidden">Imagen</th>
               <th className="text-left px-3 py-2">SKU</th>
               <th className="text-left px-3 py-2">Nombre</th>
               <th className="text-left px-3 py-2">Descripción</th>
@@ -1759,6 +1780,28 @@ function InventarioView({ inventario, setInventario }) {
           <tbody>
             {lista.map((a) => (
               <tr key={a.id} className="border-t">
+                <td className="px-3 py-2 print:hidden">
+                  <label className="cursor-pointer block w-10 h-10">
+                    {a.imagen ? (
+                      <img src={a.imagen} alt="" className="w-10 h-10 rounded object-cover border" />
+                    ) : (
+                      <div className="w-10 h-10 rounded border border-dashed bg-slate-50 flex items-center justify-center text-slate-300 text-[9px] text-center">vacío</div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = () =>
+                          setInventario({ ...inventario, [cat]: lista.map((x) => (x.id === a.id ? { ...x, imagen: reader.result } : x)) });
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                  </label>
+                </td>
                 <td className="px-3 py-2 text-slate-500">{a.sku}</td>
                 <td className="px-3 py-2">{a.nombre}</td>
                 <td className="px-3 py-2 text-slate-500 max-w-[260px]">{a.rangoDescripcion || "—"}</td>
@@ -1773,7 +1816,7 @@ function InventarioView({ inventario, setInventario }) {
             ))}
             {lista.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center text-slate-400 py-6">
+                <td colSpan={7} className="text-center text-slate-400 py-6">
                   Sin artículos en esta categoría todavía.
                 </td>
               </tr>
@@ -3679,6 +3722,18 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
     reader.readAsDataURL(file);
   }
 
+  function subirImagenPrincipal(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setLocal({ ...local, imagenPrincipal: reader.result });
+    reader.readAsDataURL(file);
+  }
+
+  function quitarImagenPrincipal() {
+    setLocal({ ...local, imagenPrincipal: "" });
+  }
+
   function manejarRestaurar(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -3702,6 +3757,21 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
           <label className="text-xs font-medium text-slate-500 uppercase block mb-1">Logotipo</label>
           {local.logo && <img src={local.logo} alt="logo" style={{ height: 100 }} className="mb-2" />}
           <input type="file" accept="image/*" onChange={subirLogo} className="text-sm" />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-slate-500 uppercase block mb-1">Imagen principal de la tienda en línea</label>
+          <p className="text-xs text-slate-400 mb-1">Se muestra de fondo en el inicio de la tienda. Mientras no la subas, ese espacio queda vacío.</p>
+          {local.imagenPrincipal ? (
+            <div className="mb-2">
+              <img src={local.imagenPrincipal} alt="imagen principal" style={{ height: 120 }} className="rounded-lg mb-1" />
+              <button onClick={quitarImagenPrincipal} className="text-xs text-red-500 underline block">Quitar imagen</button>
+            </div>
+          ) : (
+            <div className="h-24 rounded-lg bg-slate-100 border border-dashed flex items-center justify-center text-xs text-slate-400 mb-2">
+              Sin imagen todavía
+            </div>
+          )}
+          <input type="file" accept="image/*" onChange={subirImagenPrincipal} className="text-sm" />
         </div>
         <Field label="Dirección" value={local.direccion} onChange={(e) => setLocal({ ...local, direccion: e.target.value })} />
         <Field label="Teléfono" value={local.telefono} onChange={(e) => setLocal({ ...local, telefono: e.target.value })} />
@@ -3982,10 +4052,26 @@ function TiendaHeader({ config, sesionCliente, sesionStaff, carritoCount, onAbri
 function TiendaInicio({ config, onIrCategoria, onAgendar }) {
   return (
     <div>
-      <div className="relative" style={{ background: "linear-gradient(135deg, #cfeaf5, #eaf6fb)" }}>
-        <div className="max-w-5xl mx-auto px-6 py-20 text-center">
-          <h1 className="text-4xl sm:text-5xl font-semibold mb-4">Ve mejor. Véte mejor.</h1>
-          <p className="text-slate-600 mb-8">Armazones, lentes graduados, de contacto y solares — con examen de la vista incluido.</p>
+      <div
+        className="relative"
+        style={
+          config?.imagenPrincipal
+            ? { backgroundImage: `url(${config.imagenPrincipal})`, backgroundSize: "cover", backgroundPosition: "center" }
+            : { background: "#f4f4f4" }
+        }
+      >
+        {!config?.imagenPrincipal && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <p className="text-xs text-slate-300">Sube tu imagen principal desde Configuración</p>
+          </div>
+        )}
+        <div className="relative max-w-5xl mx-auto px-6 py-20 text-center">
+          {config?.logo ? (
+            <img src={config.logo} alt="Spektrum Ópticas" style={{ height: 90, margin: "0 auto" }} className="mb-2" />
+          ) : (
+            <h1 className="text-4xl sm:text-5xl font-semibold mb-2">Spektrum Ópticas</h1>
+          )}
+          <p className="text-xs tracking-widest text-slate-500 uppercase mb-8">Imagen, calidad y precio</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
             <button onClick={onAgendar} className="px-6 py-3 rounded-full bg-white border border-black text-sm font-medium">Agendar examen</button>
             <button onClick={() => onIrCategoria("armazones")} className="px-6 py-3 rounded-full bg-black text-white text-sm font-medium">Ver armazones</button>
@@ -4085,8 +4171,8 @@ function TiendaCategoria({ categoriaActiva, inventario, onVerProducto, onAgregar
         {lista.map((a) => (
           <div key={a.sku} className="border rounded-2xl p-3 hover:shadow-md transition-shadow">
             <button onClick={() => onVerProducto({ ...a, categoria: categoriaActiva })} className="w-full text-left">
-              <div className="rounded-xl mb-2 flex items-center justify-center" style={{ background: BEIGE, height: 110 }}>
-                <Package size={36} className="text-slate-300" />
+              <div className="rounded-xl mb-2 overflow-hidden" style={{ background: "#f4f4f4", height: 110 }}>
+                {a.imagen && <img src={a.imagen} alt={a.nombre} className="w-full h-full object-cover" />}
               </div>
               <p className="text-sm font-medium truncate">{a.nombre}</p>
               <p className="text-sm text-slate-500">${a.precio} MXN</p>
@@ -4119,8 +4205,8 @@ function TiendaProducto({ producto, open, onClose, onAgregarCarrito }) {
 
   return (
     <DrawerLateral open={open} onClose={onClose}>
-      <div className="rounded-2xl mb-4 flex items-center justify-center" style={{ background: BEIGE, height: 220 }}>
-        <Package size={64} className="text-slate-300" />
+      <div className="rounded-2xl mb-4 overflow-hidden" style={{ background: "#f4f4f4", height: 220 }}>
+        {producto.imagen && <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-cover" />}
       </div>
       <h2 className="text-2xl font-semibold mb-1">{producto.nombre}</h2>
       <p className="text-lg mb-4">${producto.precio} MXN {requiereReceta && <span className="text-sm text-slate-400">| Requiere receta</span>}</p>
