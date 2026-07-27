@@ -4155,16 +4155,22 @@ function TiendaInicio({ config, onIrCategoria, onAgendar }) {
             <p className="text-xs text-slate-300">Sube tu imagen principal desde Configuración</p>
           </div>
         )}
-        <div className="absolute top-0 left-0 right-0 pt-12 sm:pt-16 px-6 text-center">
-          {config?.logo ? (
-            <img src={config.logo} alt="Spektrum Ópticas" style={{ height: 90, margin: "0 auto" }} className="mb-2" />
-          ) : (
-            <h1 className="text-4xl sm:text-5xl font-semibold mb-2">Spektrum Ópticas</h1>
-          )}
-          <p className="text-xs tracking-widest text-slate-500 uppercase mb-8">Imagen, calidad y precio</p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
-            <button onClick={onAgendar} className="px-6 py-3 rounded-full bg-white border border-black text-sm font-medium">Agendar examen</button>
-            <button onClick={() => onIrCategoria("armazones")} className="px-6 py-3 rounded-full bg-black text-white text-sm font-medium">¡Yo quiero!</button>
+        <div className="absolute inset-0 flex items-center">
+          <div className="pl-6 sm:pl-14 max-w-xs sm:max-w-sm text-left">
+            {config?.logo ? (
+              <img
+                src={config.logo}
+                alt="Spektrum Ópticas"
+                style={{ height: 99, mixBlendMode: "multiply" }}
+                className="mb-4"
+              />
+            ) : (
+              <h1 className="text-4xl sm:text-5xl font-semibold mb-4">Spektrum Ópticas</h1>
+            )}
+            <div className="flex flex-col gap-3 max-w-[220px]">
+              <button onClick={onAgendar} className="px-6 py-3 rounded-full bg-white border border-black text-sm font-medium">Agendar examen</button>
+              <button onClick={() => onIrCategoria("armazones")} className="px-6 py-3 rounded-full bg-black text-white text-sm font-medium">¡Yo quiero!</button>
+            </div>
           </div>
         </div>
       </div>
