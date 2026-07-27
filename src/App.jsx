@@ -71,6 +71,11 @@ const emptyConfig = () => ({
   logo: null,
   direccion: "Calle 6 Sur 1310-614, Col. Lomas del Sol 2, Puebla, Puebla",
   telefono: "2228595304",
+  mail: "optispektrum@hotmail.com",
+  imagenPrincipal: "",
+  redesSociales: { facebook: "", x: "", instagram: "", tiktok: "" },
+  contenidoPaginas: {},
+  suscriptores: [],
 });
 
 function uid() {
@@ -88,6 +93,40 @@ function imprimirElemento(id) {
 }
 
 const NOMBRE_OPTICA = "Spektrum Ópticas";
+
+const AVISO_PRIVACIDAD_DEFAULT = `AVISO DE PRIVACIDAD — ${NOMBRE_OPTICA}
+
+En cumplimiento con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares, ${NOMBRE_OPTICA} es responsable del uso y protección de tus datos personales.
+
+1. Datos que recabamos: nombre, teléfono, correo electrónico, domicilio, y datos de salud visual (receta óptica) necesarios para brindarte el servicio de examen de la vista y venta de armazones, lentes graduados, de contacto y solares.
+
+2. Finalidades: agendar tus citas, elaborar tu receta y tus lentes, procesar tus compras y pagos, dar seguimiento a garantías y devoluciones, y enviarte avisos relacionados con tu pedido por correo electrónico o WhatsApp.
+
+3. Datos sensibles: tu receta óptica se considera un dato de salud. Solo se usa para la elaboración de tus lentes y no se comparte con terceros ajenos al proceso de laboratorio óptico.
+
+4. Transferencia de datos: no vendemos ni compartimos tus datos con terceros para fines distintos a los aquí señalados, salvo requerimiento de autoridad competente.
+
+5. Derechos ARCO: puedes solicitar en cualquier momento el Acceso, Rectificación, Cancelación u Oposición al uso de tus datos personales escribiendo a optispektrum@hotmail.com o llamando al teléfono de contacto de la óptica.
+
+6. Cambios al aviso: cualquier modificación a este aviso de privacidad se publicará en esta misma página.
+
+Última actualización: 2026.`;
+
+function mensajeCitaConfirmada(nombre, fecha, hora, consultorio, urlSitio) {
+  return {
+    email: {
+      asunto: `Tu cita en ${NOMBRE_OPTICA} quedó confirmada`,
+      cuerpo:
+        `Hola, ${nombre}:\n\n` +
+        `Tu cita para examen de la vista quedó agendada:\n📅 Fecha: ${fecha}\n⏰ Hora: ${hora}\n📍 ${consultorio}\n\n` +
+        `Puedes ver o modificar tu cuenta aquí: ${urlSitio}\n\n` +
+        `Te esperamos.\nEl equipo de ${NOMBRE_OPTICA}`,
+    },
+    whatsapp:
+      `¡Hola, ${nombre}! 👋 Tu cita en ${NOMBRE_OPTICA} quedó confirmada para el ${fecha} a las ${hora} (${consultorio}). ` +
+      `Consulta o administra tu cuenta aquí: ${urlSitio} ¡Te esperamos! 🤓`,
+  };
+}
 
 function mensajeAgradecimiento(nombre) {
   return {
@@ -3775,8 +3814,52 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
         </div>
         <Field label="Dirección" value={local.direccion} onChange={(e) => setLocal({ ...local, direccion: e.target.value })} />
         <Field label="Teléfono" value={local.telefono} onChange={(e) => setLocal({ ...local, telefono: e.target.value })} />
+        <Field label="Correo de contacto" value={local.mail} onChange={(e) => setLocal({ ...local, mail: e.target.value })} />
         <button onClick={() => setConfig(local)} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
           <Save size={16} /> Guardar configuración
+        </button>
+      </div>
+
+      <div className="bg-white border rounded-xl p-4 space-y-3">
+        <h3 className="font-semibold text-slate-700 mb-1">Redes sociales de la tienda en línea</h3>
+        <Field label="Facebook (URL)" value={local.redesSociales?.facebook || ""} onChange={(e) => setLocal({ ...local, redesSociales: { ...local.redesSociales, facebook: e.target.value } })} />
+        <Field label="X / Twitter (URL)" value={local.redesSociales?.x || ""} onChange={(e) => setLocal({ ...local, redesSociales: { ...local.redesSociales, x: e.target.value } })} />
+        <Field label="Instagram (URL)" value={local.redesSociales?.instagram || ""} onChange={(e) => setLocal({ ...local, redesSociales: { ...local.redesSociales, instagram: e.target.value } })} />
+        <Field label="TikTok (URL)" value={local.redesSociales?.tiktok || ""} onChange={(e) => setLocal({ ...local, redesSociales: { ...local.redesSociales, tiktok: e.target.value } })} />
+        <button onClick={() => setConfig(local)} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
+          <Save size={16} /> Guardar redes sociales
+        </button>
+      </div>
+
+      <div className="bg-white border rounded-xl p-4 space-y-3">
+        <h3 className="font-semibold text-slate-700 mb-1">Contenido de páginas de la tienda (pie de página)</h3>
+        <p className="text-xs text-slate-500">
+          Mientras no llenes un campo, el visitante verá "Contenido próximamente" al abrir ese enlace.
+        </p>
+        {[
+          ["manifiesto", "Nuestro manifiesto"],
+          ["politicaIntegridad", "Política de integridad"],
+          ["avisoPrivacidad", "Aviso de privacidad (ya viene con un texto sugerido)"],
+          ["rastreoPedido", "Rastrear mi pedido"],
+          ["trabajaConNosotros", "Trabaja con nosotros"],
+          ["preguntasFrecuentes", "Preguntas frecuentes"],
+          ["devolucionesGarantias", "Devoluciones y garantías"],
+          ["terminosCondiciones", "Términos y condiciones"],
+          ["lentesComputadora", "Lentes pa' la compu"],
+          ["facturacionElectronica", "Facturación electrónica"],
+        ].map(([clave, label]) => (
+          <div key={clave}>
+            <label className="text-xs font-medium text-slate-500 uppercase block mb-1">{label}</label>
+            <textarea
+              value={local.contenidoPaginas?.[clave] ?? (clave === "avisoPrivacidad" ? AVISO_PRIVACIDAD_DEFAULT : "")}
+              onChange={(e) => setLocal({ ...local, contenidoPaginas: { ...local.contenidoPaginas, [clave]: e.target.value } })}
+              rows={3}
+              className="w-full border rounded-lg px-2 py-1.5 text-sm"
+            />
+          </div>
+        ))}
+        <button onClick={() => setConfig(local)} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
+          <Save size={16} /> Guardar contenido
         </button>
       </div>
 
@@ -3870,7 +3953,7 @@ function DrawerLateral({ open, onClose, children, title }) {
 }
 
 /* ---------- Drawer de acceso: empleado o cliente ---------- */
-function AccesoDrawer({ open, onClose, usuarios, setUsuarios, onLoginEmpleado, pacientes, setPacientes, onLoginCliente }) {
+function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLoginEmpleado, pacientes, setPacientes, onLoginCliente }) {
   const [paso, setPaso] = useState("elegir"); // elegir | empleado | cliente
   const [empUsuario, setEmpUsuario] = useState("");
   const [empPassword, setEmpPassword] = useState("");
@@ -3879,6 +3962,10 @@ function AccesoDrawer({ open, onClose, usuarios, setUsuarios, onLoginEmpleado, p
   const [clienteTelefono, setClienteTelefono] = useState("");
   const [clienteMail, setClienteMail] = useState("");
   const [clienteError, setClienteError] = useState("");
+
+  useEffect(() => {
+    if (open) setPaso(pasoInicial || "elegir");
+  }, [open, pasoInicial]);
 
   function reset() {
     setPaso("elegir");
@@ -3983,6 +4070,14 @@ function AccesoDrawer({ open, onClose, usuarios, setUsuarios, onLoginEmpleado, p
           <Field label="Correo (opcional)" value={clienteMail} onChange={(e) => setClienteMail(e.target.value)} />
           {clienteError && <p className="text-xs text-red-600 mb-2">{clienteError}</p>}
           <BotonNegro onClick={entrarCliente} className="mt-2">Entrar</BotonNegro>
+          <div className="flex items-center gap-2 my-3">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs text-slate-400">o</span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
+          <BotonContorno onClick={() => setClienteError("El registro con Google todavía no está conectado — por ahora usa tu nombre y teléfono.")}>
+            Continuar con Google
+          </BotonContorno>
           <p className="text-xs text-slate-400 mt-3">Si ya tienes cuenta, solo captura el mismo teléfono para reconocerte.</p>
         </div>
       )}
@@ -4052,20 +4147,15 @@ function TiendaHeader({ config, sesionCliente, sesionStaff, carritoCount, onAbri
 function TiendaInicio({ config, onIrCategoria, onAgendar }) {
   return (
     <div>
-      <div
-        className="relative"
-        style={
-          config?.imagenPrincipal
-            ? { backgroundImage: `url(${config.imagenPrincipal})`, backgroundSize: "cover", backgroundPosition: "center" }
-            : { background: "#f4f4f4" }
-        }
-      >
-        {!config?.imagenPrincipal && (
-          <div className="absolute inset-0 flex items-center justify-center">
+      <div className="relative">
+        {config?.imagenPrincipal ? (
+          <img src={config.imagenPrincipal} alt="Spektrum Ópticas" className="w-full h-auto block" />
+        ) : (
+          <div className="w-full flex items-center justify-center" style={{ height: 380, background: "#f4f4f4" }}>
             <p className="text-xs text-slate-300">Sube tu imagen principal desde Configuración</p>
           </div>
         )}
-        <div className="relative max-w-5xl mx-auto px-6 py-20 text-center">
+        <div className="absolute top-0 left-0 right-0 pt-12 sm:pt-16 px-6 text-center">
           {config?.logo ? (
             <img src={config.logo} alt="Spektrum Ópticas" style={{ height: 90, margin: "0 auto" }} className="mb-2" />
           ) : (
@@ -4074,7 +4164,7 @@ function TiendaInicio({ config, onIrCategoria, onAgendar }) {
           <p className="text-xs tracking-widest text-slate-500 uppercase mb-8">Imagen, calidad y precio</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
             <button onClick={onAgendar} className="px-6 py-3 rounded-full bg-white border border-black text-sm font-medium">Agendar examen</button>
-            <button onClick={() => onIrCategoria("armazones")} className="px-6 py-3 rounded-full bg-black text-white text-sm font-medium">Ver armazones</button>
+            <button onClick={() => onIrCategoria("armazones")} className="px-6 py-3 rounded-full bg-black text-white text-sm font-medium">¡Yo quiero!</button>
           </div>
         </div>
       </div>
@@ -4096,6 +4186,165 @@ function TiendaInicio({ config, onIrCategoria, onAgendar }) {
 }
 
 /* ---------- Categoría: filtros + grid ---------- */
+/* ---------- Visor de páginas de contenido (CMS ligero) ---------- */
+function ContenidoPaginaDrawer({ open, onClose, titulo, contenido }) {
+  return (
+    <DrawerLateral open={open} onClose={onClose} title={titulo}>
+      {contenido ? (
+        <p className="text-sm text-slate-600 whitespace-pre-wrap">{contenido}</p>
+      ) : (
+        <p className="text-sm text-slate-400">Contenido próximamente.</p>
+      )}
+    </DrawerLateral>
+  );
+}
+
+/* ---------- Mapa de ubicación ---------- */
+function MapaUbicacion({ direccion }) {
+  return (
+    <div className="rounded-2xl overflow-hidden border" style={{ height: 260 }}>
+      {direccion ? (
+        <iframe
+          title="Ubicación"
+          width="100%"
+          height="100%"
+          style={{ border: 0 }}
+          loading="lazy"
+          src={`https://www.google.com/maps?q=${encodeURIComponent(direccion)}&output=embed`}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-xs text-slate-400 bg-slate-50">
+          Agrega tu dirección en Configuración para mostrar el mapa
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Pie de página ---------- */
+function TiendaFooter({ config, setConfig, onIrInicio, onIrCategoria, onAbrirCuenta, onAbrirExamen, onAbrirReceta }) {
+  const [paginaAbierta, setPaginaAbierta] = useState(null); // {titulo, contenido}
+  const [mapaAbierto, setMapaAbierto] = useState(false);
+  const [correoNewsletter, setCorreoNewsletter] = useState("");
+  const [mensajeNewsletter, setMensajeNewsletter] = useState("");
+
+  const contenido = config?.contenidoPaginas || {};
+  const redes = config?.redesSociales || {};
+
+  function abrirPagina(clave, titulo, textoPorDefecto) {
+    setPaginaAbierta({ titulo, contenido: contenido[clave] || textoPorDefecto || "" });
+  }
+
+  function suscribir() {
+    if (!correoNewsletter.trim()) return;
+    const suscriptores = config?.suscriptores || [];
+    if (suscriptores.some((s) => s.email.toLowerCase() === correoNewsletter.trim().toLowerCase())) {
+      setMensajeNewsletter("Ya estabas suscrito.");
+      return;
+    }
+    setConfig({ ...config, suscriptores: [...suscriptores, { email: correoNewsletter.trim(), fecha: new Date().toISOString() }] });
+    setCorreoNewsletter("");
+    setMensajeNewsletter("¡Listo! Ya estás suscrito.");
+  }
+
+  const enlace = "text-left hover:underline text-slate-300 hover:text-white text-sm";
+
+  return (
+    <div className="bg-black text-white mt-10">
+      <div className="max-w-6xl mx-auto px-6 py-12 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-8">
+        <div className="flex flex-col gap-2">
+          <h4 className="font-semibold mb-1">Productos</h4>
+          <button onClick={onIrInicio} className={enlace}>Nuestros lentes y micas</button>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <h4 className="font-semibold mb-1">Templos</h4>
+          <button onClick={() => setMapaAbierto(true)} className={enlace}>Ubicaciones</button>
+          <button onClick={onAbrirExamen} className={enlace}>Examen de la vista</button>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <h4 className="font-semibold mb-1">Nosotros</h4>
+          <button onClick={() => abrirPagina("manifiesto", "Nuestro manifiesto")} className={enlace}>Nuestro Manifiesto</button>
+          <button onClick={() => abrirPagina("politicaIntegridad", "Política de integridad")} className={enlace}>Política de integridad</button>
+          <button onClick={() => abrirPagina("avisoPrivacidad", "Aviso de Privacidad", AVISO_PRIVACIDAD_DEFAULT)} className={enlace}>Aviso de Privacidad</button>
+          <button onClick={() => abrirPagina("rastreoPedido", "Rastrear mi pedido")} className={enlace}>Rastrear mi Pedido</button>
+          <button onClick={() => abrirPagina("trabajaConNosotros", "Trabaja con nosotros")} className={enlace}>Trabaja con nosotros</button>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <h4 className="font-semibold mb-1">Más enlaces</h4>
+          <button onClick={onAbrirCuenta} className={enlace}>Mi cuenta {NOMBRE_OPTICA}</button>
+          <button onClick={() => abrirPagina("preguntasFrecuentes", "Preguntas frecuentes")} className={enlace}>Preguntas frecuentes</button>
+          <button onClick={onAbrirReceta} className={enlace}>Cómo subir tu receta</button>
+          <button onClick={() => abrirPagina("devolucionesGarantias", "Devoluciones y garantías")} className={enlace}>Devoluciones y garantías</button>
+          <button onClick={() => abrirPagina("terminosCondiciones", "Términos y condiciones")} className={enlace}>Términos y condiciones</button>
+          <button onClick={() => abrirPagina("lentesComputadora", "Lentes pa' la compu")} className={enlace}>Lentes pa' la compu</button>
+          <button onClick={() => abrirPagina("facturacionElectronica", "Facturación electrónica")} className={enlace}>Facturación electrónica</button>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <h4 className="font-semibold mb-1">¿Tienes alguna duda?</h4>
+          {config?.telefono && (
+            <a href={`https://wa.me/52${config.telefono.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className={enlace}>
+              WhatsApp
+            </a>
+          )}
+          <h4 className="font-semibold mb-1 mt-2">Síguenos</h4>
+          <div className="flex gap-3 text-slate-300">
+            {redes.facebook && <a href={redes.facebook} target="_blank" rel="noreferrer" className="hover:text-white">Facebook</a>}
+            {redes.x && <a href={redes.x} target="_blank" rel="noreferrer" className="hover:text-white">X</a>}
+            {redes.instagram && <a href={redes.instagram} target="_blank" rel="noreferrer" className="hover:text-white">Instagram</a>}
+            {redes.tiktok && <a href={redes.tiktok} target="_blank" rel="noreferrer" className="hover:text-white">TikTok</a>}
+            {!redes.facebook && !redes.x && !redes.instagram && !redes.tiktok && (
+              <span className="text-xs text-slate-500">Agrega tus redes desde Configuración</span>
+            )}
+          </div>
+          <h4 className="font-semibold mb-1 mt-2">Contáctanos</h4>
+          <p className="text-sm text-slate-300">{config?.mail || "optispektrum@hotmail.com"}</p>
+          <p className="text-sm text-slate-300">{config?.telefono}</p>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6 pb-8">
+        <div className="border-t border-slate-700 pt-6">
+          <h4 className="font-semibold mb-2 text-sm">Los chismes de {NOMBRE_OPTICA}</h4>
+          <div className="flex gap-2 max-w-sm">
+            <input
+              value={correoNewsletter}
+              onChange={(e) => setCorreoNewsletter(e.target.value)}
+              placeholder="tu@correo.com"
+              className="flex-1 rounded-full px-4 py-2 text-sm text-black"
+            />
+            <button onClick={suscribir} className="px-4 py-2 rounded-full bg-white text-black text-sm font-medium">Suscribir</button>
+          </div>
+          {mensajeNewsletter && <p className="text-xs text-emerald-400 mt-2">{mensajeNewsletter}</p>}
+          <p className="text-xs text-slate-500 mt-2">
+            Al registrarte estás aceptando los{" "}
+            <button onClick={() => abrirPagina("terminosCondiciones", "Términos y condiciones")} className="underline">términos y condiciones</button> y el{" "}
+            <button onClick={() => abrirPagina("avisoPrivacidad", "Aviso de Privacidad", AVISO_PRIVACIDAD_DEFAULT)} className="underline">aviso de privacidad</button> de {NOMBRE_OPTICA}.
+          </p>
+        </div>
+        <div className="border-t border-slate-700 mt-6 pt-6 text-xs text-slate-500 flex flex-wrap justify-between gap-2">
+          <p>{config?.direccion}</p>
+          <p>Derechos Reservados {NOMBRE_OPTICA} © {new Date().getFullYear()}</p>
+        </div>
+      </div>
+
+      <ContenidoPaginaDrawer
+        open={!!paginaAbierta}
+        onClose={() => setPaginaAbierta(null)}
+        titulo={paginaAbierta?.titulo}
+        contenido={paginaAbierta?.contenido}
+      />
+      <DrawerLateral open={mapaAbierto} onClose={() => setMapaAbierto(false)} title="Nuestra ubicación">
+        <MapaUbicacion direccion={config?.direccion} />
+        <p className="text-sm text-slate-600 mt-3">{config?.direccion}</p>
+      </DrawerLateral>
+    </div>
+  );
+}
+
 function TiendaCategoria({ categoriaActiva, inventario, onVerProducto, onAgregarCarrito }) {
   const [filtroTipo, setFiltroTipo] = useState("");
   const [filtroMaterial, setFiltroMaterial] = useState("");
@@ -4334,7 +4583,11 @@ function TiendaAgendar({ open, onClose, agenda, setAgenda, pacientes, setPacient
       ...agenda,
       { id: uid(), fecha, hora, consultorio, pacienteId: sesionCliente.pacienteId, nombre: sesionCliente.nombre, estatus: "proxima", origen: "portal" },
     ]);
-    onListo(`Tu cita quedó agendada para el ${fecha} a las ${hora} (${consultorio}).`);
+    const urlSitio = typeof window !== "undefined" ? window.location.origin : "";
+    const msj = mensajeCitaConfirmada(sesionCliente.nombre, fecha, hora, consultorio, urlSitio);
+    if (sesionCliente.telefono) abrirWhatsApp(sesionCliente.telefono, msj.whatsapp);
+    if (sesionCliente.mail) abrirEmail(sesionCliente.mail, msj.email.asunto, msj.email.cuerpo);
+    onListo(`Tu cita quedó agendada para el ${fecha} a las ${hora} (${consultorio}). Te enviamos la confirmación.`);
     onClose();
   }
 
@@ -4374,7 +4627,7 @@ function TiendaAgendar({ open, onClose, agenda, setAgenda, pacientes, setPacient
 }
 
 /* ---------- Orquestador principal de la tienda ---------- */
-function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas, inventario, config, usuarios, setUsuarios, onLoginEmpleado, sesionStaff, onVolverPanel }) {
+function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas, inventario, config, setConfig, usuarios, setUsuarios, onLoginEmpleado, sesionStaff, onVolverPanel }) {
   const [vista, setVista] = useState("inicio"); // inicio | categoria
   const [categoriaActiva, setCategoriaActiva] = useState("armazones");
   const [carrito, setCarrito] = useState([]);
@@ -4382,7 +4635,9 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
   const [carritoAbierto, setCarritoAbierto] = useState(false);
   const [checkoutAbierto, setCheckoutAbierto] = useState(false);
   const [accesoAbierto, setAccesoAbierto] = useState(false);
+  const [accesoPasoInicial, setAccesoPasoInicial] = useState("elegir");
   const [agendarAbierto, setAgendarAbierto] = useState(false);
+  const [recetaInfoAbierto, setRecetaInfoAbierto] = useState(false);
   const [sesionCliente, setSesionCliente] = useSesionCliente();
   const [mensajeFinal, setMensajeFinal] = useState("");
 
@@ -4394,6 +4649,23 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
     setCategoriaActiva(cat);
     setVista("categoria");
     window.scrollTo(0, 0);
+  }
+
+  function abrirAcceso(pasoInicial) {
+    setAccesoPasoInicial(pasoInicial || "elegir");
+    setAccesoAbierto(true);
+  }
+
+  function abrirExamen() {
+    if (!sesionCliente) {
+      abrirAcceso("cliente");
+      return;
+    }
+    setAgendarAbierto(true);
+  }
+
+  function abrirCuenta() {
+    abrirAcceso("cliente");
   }
 
   function confirmarPedido(receta) {
@@ -4429,7 +4701,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         sesionStaff={sesionStaff}
         carritoCount={carrito.length}
         onAbrirCarrito={() => setCarritoAbierto(true)}
-        onAbrirAcceso={() => setAccesoAbierto(true)}
+        onAbrirAcceso={() => abrirAcceso("elegir")}
         onIrCategoria={irCategoria}
         onIrInicio={() => setVista("inicio")}
         onVolverPanel={onVolverPanel}
@@ -4444,7 +4716,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
       )}
 
       {vista === "inicio" ? (
-        <TiendaInicio config={config} onIrCategoria={irCategoria} onAgendar={() => setAgendarAbierto(true)} />
+        <TiendaInicio config={config} onIrCategoria={irCategoria} onAgendar={abrirExamen} />
       ) : (
         <TiendaCategoria
           categoriaActiva={categoriaActiva}
@@ -4454,9 +4726,15 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         />
       )}
 
-      <div className="border-t mt-10 py-8 text-center text-xs text-slate-400">
-        {config?.direccion} · Tel: {config?.telefono}
-      </div>
+      <TiendaFooter
+        config={config}
+        setConfig={setConfig}
+        onIrInicio={() => setVista("inicio")}
+        onIrCategoria={irCategoria}
+        onAbrirCuenta={abrirCuenta}
+        onAbrirExamen={abrirExamen}
+        onAbrirReceta={() => setRecetaInfoAbierto(true)}
+      />
 
       <TiendaProducto producto={productoVer} open={!!productoVer} onClose={() => setProductoVer(null)} onAgregarCarrito={agregarCarrito} />
       <TiendaCarrito
@@ -4474,7 +4752,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         onClose={() => setCheckoutAbierto(false)}
         carrito={carrito}
         sesionCliente={sesionCliente}
-        onAbrirAcceso={() => setAccesoAbierto(true)}
+        onAbrirAcceso={() => abrirAcceso("cliente")}
         onConfirmar={confirmarPedido}
       />
       <TiendaAgendar
@@ -4485,12 +4763,13 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         pacientes={pacientes}
         setPacientes={setPacientes}
         sesionCliente={sesionCliente}
-        onAbrirAcceso={() => setAccesoAbierto(true)}
+        onAbrirAcceso={() => abrirAcceso("cliente")}
         onListo={(msg) => setMensajeFinal(msg)}
       />
       <AccesoDrawer
         open={accesoAbierto}
         onClose={() => setAccesoAbierto(false)}
+        pasoInicial={accesoPasoInicial}
         usuarios={usuarios}
         setUsuarios={setUsuarios}
         onLoginEmpleado={onLoginEmpleado}
@@ -4498,6 +4777,13 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         setPacientes={setPacientes}
         onLoginCliente={setSesionCliente}
       />
+      <DrawerLateral open={recetaInfoAbierto} onClose={() => setRecetaInfoAbierto(false)} title="Cómo subir tu receta">
+        <p className="text-sm text-slate-600 mb-4">
+          Agrega tus lentes graduados o de contacto al carrito y da clic en "Continuar". En el paso de confirmar
+          pedido vas a poder subir la foto o el PDF de tu receta antes de terminar tu compra.
+        </p>
+        <BotonNegro onClick={() => { setRecetaInfoAbierto(false); irCategoria("lentesGraduados"); }}>Ir a lentes graduados</BotonNegro>
+      </DrawerLateral>
     </div>
   );
 }
@@ -5114,6 +5400,7 @@ export default function App() {
           setVentas={setVentas}
           inventario={inventario}
           config={config}
+          setConfig={setConfig}
           usuarios={usuarios}
           setUsuarios={setUsuarios}
           onLoginEmpleado={setSesion}
