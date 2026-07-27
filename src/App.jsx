@@ -4155,21 +4155,22 @@ function TiendaInicio({ config, onIrCategoria, onAgendar }) {
             <p className="text-xs text-slate-300">Sube tu imagen principal desde Configuración</p>
           </div>
         )}
-        <div className="absolute inset-0 flex items-center justify-end">
-          <div className="pr-6 sm:pr-14 max-w-xs sm:max-w-sm text-left">
+        <div className="absolute inset-0 flex items-center">
+          <div style={{ position: "absolute", left: "80%", transform: "translateX(-50%)" }} className="max-w-xs sm:max-w-sm text-left px-4">
             {config?.logo ? (
               <img
                 src={config.logo}
                 alt="Spektrum Ópticas"
-                style={{ height: 119, mixBlendMode: "multiply" }}
-                className="mb-4"
+                style={{ height: 143, mixBlendMode: "multiply" }}
+                className="mb-1"
               />
             ) : (
-              <h1 className="text-4xl sm:text-5xl font-semibold mb-4">Spektrum Ópticas</h1>
+              <h1 className="text-4xl sm:text-5xl font-semibold mb-1">Spektrum Ópticas</h1>
             )}
-            <div className="flex flex-col gap-3 max-w-[220px]">
-              <button onClick={onAgendar} className="px-6 py-3 rounded-full bg-white border border-black text-sm font-medium">Agendar examen</button>
-              <button onClick={() => onIrCategoria("armazones")} className="px-6 py-3 rounded-full bg-black text-white text-sm font-medium">¡Yo quiero!</button>
+            <p className="italic font-serif mb-5" style={{ fontSize: 28, lineHeight: 1.1 }}>Mi mirada. Mi estilo</p>
+            <div className="flex flex-col gap-4 max-w-[264px]">
+              <button onClick={onAgendar} className="px-8 py-4 rounded-full bg-white border border-black text-base font-medium">Agendar examen</button>
+              <button onClick={() => onIrCategoria("armazones")} className="px-8 py-4 rounded-full bg-black text-white text-base font-medium">¡Yo quiero!</button>
             </div>
           </div>
         </div>
