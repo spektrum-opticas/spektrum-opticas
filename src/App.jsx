@@ -1010,6 +1010,16 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
     ? pacientes.filter((p) => p.nombre.toLowerCase().includes(busquedaCliente.toLowerCase()))
     : [];
 
+  const pedidosPortal = ventas.filter((v) => v.origen === "portal" && v.estatus === "presupuesto");
+
+  function cargarPedidoPortal(pedido) {
+    const p = pacientes.find((x) => x.id === pedido.pacienteId);
+    if (p) setClienteSel(p);
+    setCarrito(pedido.items.map((it) => ({ ...it, uidLinea: uid() })));
+    setVentas(ventas.map((v) => (v.folio === pedido.folio ? { ...v, estatus: "convertido" } : v)));
+    window.scrollTo(0, 0);
+  }
+
   function agregarArticulo(a) {
     setCarrito([...carrito, { ...a, cantidad: 1, uidLinea: uid() }]);
   }
@@ -1108,7 +1118,35 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
   }
 
   return (
-    <div className="p-4 grid grid-cols-3 gap-4">
+    <div className="p-4">
+      {pedidosPortal.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+          <h3 className="font-semibold text-amber-800 text-sm mb-2">
+            📦 Pedidos nuevos de la tienda en línea ({pedidosPortal.length})
+          </h3>
+          <div className="space-y-2">
+            {pedidosPortal.map((v) => (
+              <div key={v.folio} className="bg-white rounded-lg border border-amber-200 p-2 flex items-center justify-between flex-wrap gap-2">
+                <div className="text-sm">
+                  <p className="font-medium">{v.nombreCliente} — ${v.total.toFixed(2)} MXN</p>
+                  <p className="text-xs text-slate-500">
+                    {v.items.map((it) => it.nombre).join(", ")} · {new Date(v.fecha).toLocaleString("es-MX")}
+                    {v.recetaArchivo && " · Con receta adjunta"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => cargarPedidoPortal(v)}
+                  className="text-xs px-3 py-1.5 rounded-lg text-white"
+                  style={{ background: SKY_DARK }}
+                >
+                  Cargar en el POS para cobrar
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    <div className="grid grid-cols-3 gap-4">
       <div className="col-span-1 space-y-3">
         <div className="bg-white rounded-xl border p-3">
           <h3 className="font-semibold text-sm mb-2 flex items-center gap-1">
@@ -1376,6 +1414,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
           </div>
         )}
       </Modal>
+    </div>
     </div>
   );
 }
@@ -3700,196 +3739,293 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
 }
 
 /* ============================================================
-   PORTAL DE PACIENTES (acceso público)
+   TIENDA EN LÍNEA (acceso único, estilo e-commerce)
    ============================================================ */
-function PortalPaciente({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas, inventario, config, onVolver }) {
-  const [paso, setPaso] = useState("inicio"); // inicio | agendar | comprar | confirmacion
-  const [datosCliente, setDatosCliente] = useState({ nombre: "", telefono: "", email: "" });
-  const [mensajeFinal, setMensajeFinal] = useState("");
+function useSesionCliente() {
+  const [sesionCliente, setSesionClienteState] = useState(() => {
+    try {
+      const raw = localStorage.getItem("spektrum_sesion_cliente");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  const setSesionCliente = (s) => {
+    setSesionClienteState(s);
+    try {
+      if (s) localStorage.setItem("spektrum_sesion_cliente", JSON.stringify(s));
+      else localStorage.removeItem("spektrum_sesion_cliente");
+    } catch {}
+  };
+  return [sesionCliente, setSesionCliente];
+}
 
-  function confirmar(mensaje) {
-    setMensajeFinal(mensaje);
-    setPaso("confirmacion");
+function BotonNegro({ children, ...props }) {
+  return (
+    <button
+      {...props}
+      className={`w-full py-3 rounded-full bg-black text-white text-sm font-medium hover:bg-slate-800 transition-colors disabled:opacity-40 ${props.className || ""}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function BotonContorno({ children, ...props }) {
+  return (
+    <button
+      {...props}
+      className={`w-full py-3 rounded-full border border-black text-black text-sm font-medium hover:bg-slate-50 transition-colors ${props.className || ""}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ---------- Drawer lateral genérico ---------- */
+function DrawerLateral({ open, onClose, children, title }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="relative bg-white w-full max-w-sm h-full overflow-y-auto p-6 shadow-2xl">
+        <button onClick={onClose} className="absolute top-5 right-5 text-slate-400 hover:text-black">
+          <X size={22} />
+        </button>
+        {title && <h2 className="text-xl font-semibold mb-4">{title}</h2>}
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Drawer de acceso: empleado o cliente ---------- */
+function AccesoDrawer({ open, onClose, usuarios, setUsuarios, onLoginEmpleado, pacientes, setPacientes, onLoginCliente }) {
+  const [paso, setPaso] = useState("elegir"); // elegir | empleado | cliente
+  const [empUsuario, setEmpUsuario] = useState("");
+  const [empPassword, setEmpPassword] = useState("");
+  const [empError, setEmpError] = useState("");
+  const [clienteNombre, setClienteNombre] = useState("");
+  const [clienteTelefono, setClienteTelefono] = useState("");
+  const [clienteMail, setClienteMail] = useState("");
+  const [clienteError, setClienteError] = useState("");
+
+  function reset() {
+    setPaso("elegir");
+    setEmpUsuario("");
+    setEmpPassword("");
+    setEmpError("");
+    setClienteNombre("");
+    setClienteTelefono("");
+    setClienteMail("");
+    setClienteError("");
+  }
+
+  function cerrar() {
+    reset();
+    onClose();
+  }
+
+  function entrarEmpleado() {
+    setEmpError("");
+    const esPrimerAcceso = usuarios.length === 0;
+    if (!empUsuario || !empPassword) {
+      setEmpError("Completa usuario y contraseña.");
+      return;
+    }
+    if (esPrimerAcceso) {
+      const admin = { id: uid(), nombre: empUsuario, password: empPassword, rol: "ADMIN" };
+      setUsuarios([admin]);
+      onLoginEmpleado({ nombre: admin.nombre, rol: admin.rol });
+      cerrar();
+      return;
+    }
+    const encontrado = usuarios.find(
+      (u) => u.nombre.trim().toLowerCase() === empUsuario.trim().toLowerCase() && u.password === empPassword
+    );
+    if (!encontrado) {
+      setEmpError("Usuario o contraseña incorrectos.");
+      return;
+    }
+    onLoginEmpleado({ nombre: encontrado.nombre, rol: encontrado.rol });
+    cerrar();
+  }
+
+  function entrarCliente() {
+    setClienteError("");
+    if (!clienteNombre.trim() || !clienteTelefono.trim()) {
+      setClienteError("Nombre y teléfono son obligatorios.");
+      return;
+    }
+    let paciente = pacientes.find((p) => p.telefono && p.telefono.trim() === clienteTelefono.trim());
+    if (!paciente) {
+      paciente = {
+        id: uid(),
+        folio: pacientes.length + 1,
+        nombre: clienteNombre.trim(),
+        telefono: clienteTelefono.trim(),
+        mail: clienteMail.trim(),
+        compras: [],
+      };
+      setPacientes([...pacientes, paciente]);
+    } else if (!paciente.mail && clienteMail) {
+      setPacientes(pacientes.map((p) => (p.id === paciente.id ? { ...p, mail: clienteMail.trim() } : p)));
+    }
+    onLoginCliente({ nombre: paciente.nombre, telefono: paciente.telefono, mail: paciente.mail || clienteMail, pacienteId: paciente.id });
+    cerrar();
   }
 
   return (
-    <div className="min-h-screen" style={{ background: BEIGE }}>
-      <div className="flex items-center gap-4 px-6 py-4 bg-white border-b">
-        {config.logo && <img src={config.logo} alt="logo" style={{ height: 64 }} />}
+    <DrawerLateral open={open} onClose={cerrar} title={paso === "elegir" ? "Ingresa a tu cuenta" : undefined}>
+      {paso === "elegir" && (
+        <div className="space-y-3">
+          <p className="text-sm text-slate-500 mb-4">¿Cómo quieres ingresar?</p>
+          <BotonNegro onClick={() => setPaso("empleado")}>Soy empleado</BotonNegro>
+          <BotonContorno onClick={() => setPaso("cliente")}>Soy cliente</BotonContorno>
+        </div>
+      )}
+
+      {paso === "empleado" && (
         <div>
-          <h1 className="text-xl font-bold text-slate-800">Spektrum Ópticas — Portal de pacientes</h1>
-          <p className="text-xs text-slate-500">{config.direccion} · Tel: {config.telefono}</p>
+          <button onClick={() => setPaso("elegir")} className="text-xs text-slate-400 mb-3">← Volver</button>
+          <h2 className="text-xl font-semibold mb-1">Acceso de personal</h2>
+          <p className="text-sm text-slate-500 mb-4">
+            {usuarios.length === 0 ? "Primer acceso — crea la cuenta de administrador." : "Usa tu usuario y contraseña asignados."}
+          </p>
+          <Field label="Usuario" value={empUsuario} onChange={(e) => setEmpUsuario(e.target.value)} />
+          <Field label="Contraseña" type="password" value={empPassword} onChange={(e) => setEmpPassword(e.target.value)} />
+          {empError && <p className="text-xs text-red-600 mb-2">{empError}</p>}
+          <BotonNegro onClick={entrarEmpleado} className="mt-2">
+            {usuarios.length === 0 ? "Crear cuenta y entrar" : "Iniciar sesión"}
+          </BotonNegro>
+        </div>
+      )}
+
+      {paso === "cliente" && (
+        <div>
+          <button onClick={() => setPaso("elegir")} className="text-xs text-slate-400 mb-3">← Volver</button>
+          <h2 className="text-xl font-semibold mb-1">Tu cuenta</h2>
+          <p className="text-sm text-slate-500 mb-4">
+            Con tu nombre y teléfono guardamos tus pedidos, tu receta y tu historial para la próxima vez.
+          </p>
+          <Field label="Nombre" value={clienteNombre} onChange={(e) => setClienteNombre(e.target.value)} />
+          <Field label="Teléfono (WhatsApp)" value={clienteTelefono} onChange={(e) => setClienteTelefono(e.target.value)} />
+          <Field label="Correo (opcional)" value={clienteMail} onChange={(e) => setClienteMail(e.target.value)} />
+          {clienteError && <p className="text-xs text-red-600 mb-2">{clienteError}</p>}
+          <BotonNegro onClick={entrarCliente} className="mt-2">Entrar</BotonNegro>
+          <p className="text-xs text-slate-400 mt-3">Si ya tienes cuenta, solo captura el mismo teléfono para reconocerte.</p>
+        </div>
+      )}
+    </DrawerLateral>
+  );
+}
+
+/* ---------- Header de la tienda ---------- */
+function TiendaHeader({ config, sesionCliente, sesionStaff, carritoCount, onAbrirCarrito, onAbrirAcceso, onIrCategoria, onIrInicio, onVolverPanel, categoriaActiva }) {
+  const categorias = [
+    { key: "armazones", label: "Armazones" },
+    { key: "lentesGraduados", label: "Lentes graduados" },
+    { key: "lentesContacto", label: "Lentes de contacto" },
+    { key: "lentesSolares", label: "Lentes solares" },
+    { key: "accesorios", label: "Accesorios" },
+  ];
+  return (
+    <div className="bg-white border-b sticky top-0 z-30">
+      <div className="text-center text-xs bg-black text-white py-1.5">Bienvenido a {NOMBRE_OPTICA} — agenda tu examen de la vista gratis</div>
+      <div className="flex items-center justify-between px-4 sm:px-8 py-4">
+        <button onClick={onIrInicio} className="flex items-center gap-2">
+          {config?.logo ? <img src={config.logo} alt="logo" style={{ height: 36 }} /> : <span className="font-bold text-lg tracking-wide">{NOMBRE_OPTICA.toUpperCase()}</span>}
+        </button>
+        <div className="hidden md:flex gap-6 text-sm font-medium">
+          {categorias.map((c) => (
+            <button
+              key={c.key}
+              onClick={() => onIrCategoria(c.key)}
+              className={`hover:text-black ${categoriaActiva === c.key ? "text-black underline" : "text-slate-500"}`}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-4">
+          {sesionStaff && (
+            <button onClick={onVolverPanel} className="text-xs px-3 py-1.5 rounded-full bg-slate-100 hidden sm:block">
+              Volver al panel
+            </button>
+          )}
+          <button onClick={onAbrirAcceso} className="flex items-center gap-1 text-sm">
+            <UserCog size={20} />
+            <span className="hidden sm:inline">{sesionCliente ? sesionCliente.nombre.split(" ")[0] : "Cuenta"}</span>
+          </button>
+          <button onClick={onAbrirCarrito} className="relative">
+            <ShoppingCart size={20} />
+            {carritoCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-black text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                {carritoCount}
+              </span>
+            )}
+          </button>
         </div>
       </div>
-
-      <div className="max-w-2xl mx-auto p-6">
-        {paso === "inicio" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button
-              onClick={() => setPaso("agendar")}
-              className="bg-white border rounded-xl p-6 text-left hover:shadow-md transition-shadow"
-            >
-              <Calendar className="mb-2 text-sky-600" />
-              <p className="font-semibold">Agendar una cita</p>
-              <p className="text-sm text-slate-500">Elige fecha y hora disponible para tu examen de la vista.</p>
-            </button>
-            <button
-              onClick={() => setPaso("comprar")}
-              className="bg-white border rounded-xl p-6 text-left hover:shadow-md transition-shadow"
-            >
-              <ShoppingCart className="mb-2 text-sky-600" />
-              <p className="font-semibold">Comprar en línea</p>
-              <p className="text-sm text-slate-500">Armazones, lentes graduados, solares y de contacto.</p>
-            </button>
-          </div>
-        )}
-
-        {paso === "agendar" && (
-          <PortalAgendar
-            pacientes={pacientes}
-            setPacientes={setPacientes}
-            agenda={agenda}
-            setAgenda={setAgenda}
-            datosCliente={datosCliente}
-            setDatosCliente={setDatosCliente}
-            onListo={(fecha, hora, consultorio) =>
-              confirmar(
-                `Tu cita quedó agendada para el ${fecha} a las ${hora} (${consultorio}). Te enviamos la confirmación por correo/WhatsApp.`
-              )
-            }
-            onVolver={() => setPaso("inicio")}
-          />
-        )}
-
-        {paso === "comprar" && (
-          <PortalComprar
-            pacientes={pacientes}
-            setPacientes={setPacientes}
-            ventas={ventas}
-            setVentas={setVentas}
-            inventario={inventario}
-            datosCliente={datosCliente}
-            setDatosCliente={setDatosCliente}
-            onNecesitaCita={() => setPaso("agendar")}
-            onListo={(folio) =>
-              confirmar(`Tu pedido quedó registrado con folio #${folio}. Te enviamos la confirmación y el presupuesto por correo/WhatsApp.`)
-            }
-            onVolver={() => setPaso("inicio")}
-          />
-        )}
-
-        {paso === "confirmacion" && (
-          <div className="bg-white border rounded-xl p-6 text-center">
-            <p className="text-emerald-600 font-semibold mb-2">¡Listo!</p>
-            <p className="text-sm text-slate-600">{mensajeFinal}</p>
-            <button
-              onClick={() => {
-                setPaso("inicio");
-                setDatosCliente({ nombre: "", telefono: "", email: "" });
-              }}
-              className="mt-4 px-4 py-2 rounded-lg text-white text-sm"
-              style={{ background: SKY_DARK }}
-            >
-              Volver al inicio
-            </button>
-          </div>
-        )}
-
-        <button onClick={onVolver} className="mt-6 text-xs text-slate-400 underline">
-          Acceso para trabajadores
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function PortalAgendar({ pacientes, setPacientes, agenda, setAgenda, datosCliente, setDatosCliente, onListo, onVolver }) {
-  const [fecha, setFecha] = useState(fechaISO(new Date()));
-  const [consultorio, setConsultorio] = useState("Consultorio 1");
-  const [hora, setHora] = useState("");
-
-  const ocupadas = agenda.filter((c) => c.fecha === fecha && c.consultorio === consultorio).map((c) => c.hora);
-  const disponibles = HORAS.filter((h) => !ocupadas.includes(h));
-
-  function agendar() {
-    if (!hora || !datosCliente.nombre) return;
-    let paciente = pacientes.find(
-      (p) => p.telefono && datosCliente.telefono && p.telefono === datosCliente.telefono
-    );
-    if (!paciente) {
-      paciente = { id: uid(), folio: pacientes.length + 1, ...datosCliente, compras: [] };
-      setPacientes([...pacientes, paciente]);
-    }
-    setAgenda([
-      ...agenda,
-      { id: uid(), fecha, hora, consultorio, pacienteId: paciente.id, nombre: paciente.nombre, estatus: "proxima", origen: "portal" },
-    ]);
-    onListo(fecha, hora, consultorio);
-  }
-
-  return (
-    <div className="bg-white border rounded-xl p-5">
-      <h3 className="font-semibold mb-3">Agendar cita</h3>
-      <div className="grid grid-cols-2 gap-3 mb-3">
-        <Field label="Nombre" value={datosCliente.nombre} onChange={(e) => setDatosCliente({ ...datosCliente, nombre: e.target.value })} />
-        <Field label="Teléfono" value={datosCliente.telefono} onChange={(e) => setDatosCliente({ ...datosCliente, telefono: e.target.value })} />
-        <Field label="Email" value={datosCliente.email} onChange={(e) => setDatosCliente({ ...datosCliente, email: e.target.value })} />
-      </div>
-      <div className="flex gap-2 mb-3">
-        <select value={consultorio} onChange={(e) => { setConsultorio(e.target.value); setHora(""); }} className="border rounded-lg px-2 py-2 text-sm">
-          <option>Consultorio 1</option>
-          <option>Consultorio 2</option>
-        </select>
-        <input type="date" value={fecha} onChange={(e) => { setFecha(e.target.value); setHora(""); }} className="border rounded-lg px-2 py-2 text-sm" />
-      </div>
-      <div className="grid grid-cols-4 gap-1 mb-4 max-h-40 overflow-y-auto">
-        {disponibles.map((h) => (
-          <button
-            key={h}
-            onClick={() => setHora(h)}
-            className={`text-xs py-1.5 rounded ${hora === h ? "text-white" : "bg-slate-100"}`}
-            style={hora === h ? { background: SKY_DARK } : {}}
-          >
-            {h}
+      <div className="flex md:hidden gap-4 overflow-x-auto px-4 pb-3 text-sm font-medium">
+        {categorias.map((c) => (
+          <button key={c.key} onClick={() => onIrCategoria(c.key)} className={`whitespace-nowrap ${categoriaActiva === c.key ? "text-black underline" : "text-slate-500"}`}>
+            {c.label}
           </button>
         ))}
-        {disponibles.length === 0 && <p className="text-xs text-slate-400 col-span-4">Sin horarios libres ese día.</p>}
-      </div>
-      <div className="flex gap-2">
-        <button onClick={onVolver} className="flex-1 py-2 rounded-lg bg-slate-100 text-sm">Volver</button>
-        <button
-          onClick={agendar}
-          disabled={!hora || !datosCliente.nombre}
-          className="flex-1 py-2 rounded-lg text-white text-sm disabled:opacity-40"
-          style={{ background: SKY_DARK }}
-        >
-          Confirmar cita
-        </button>
       </div>
     </div>
   );
 }
 
-function PortalComprar({ pacientes, setPacientes, ventas, setVentas, inventario, datosCliente, setDatosCliente, onNecesitaCita, onListo, onVolver }) {
-  const [cat, setCat] = useState("armazones");
+/* ---------- Inicio de la tienda ---------- */
+function TiendaInicio({ config, onIrCategoria, onAgendar }) {
+  return (
+    <div>
+      <div className="relative" style={{ background: "linear-gradient(135deg, #cfeaf5, #eaf6fb)" }}>
+        <div className="max-w-5xl mx-auto px-6 py-20 text-center">
+          <h1 className="text-4xl sm:text-5xl font-semibold mb-4">Ve mejor. Véte mejor.</h1>
+          <p className="text-slate-600 mb-8">Armazones, lentes graduados, de contacto y solares — con examen de la vista incluido.</p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
+            <button onClick={onAgendar} className="px-6 py-3 rounded-full bg-white border border-black text-sm font-medium">Agendar examen</button>
+            <button onClick={() => onIrCategoria("armazones")} className="px-6 py-3 rounded-full bg-black text-white text-sm font-medium">Ver armazones</button>
+          </div>
+        </div>
+      </div>
+      <div className="max-w-5xl mx-auto px-6 py-10 grid grid-cols-2 sm:grid-cols-5 gap-3">
+        {[
+          { key: "armazones", label: "Armazones" },
+          { key: "lentesGraduados", label: "Graduados" },
+          { key: "lentesContacto", label: "Contacto" },
+          { key: "lentesSolares", label: "Solares" },
+          { key: "accesorios", label: "Accesorios" },
+        ].map((c) => (
+          <button key={c.key} onClick={() => onIrCategoria(c.key)} className="border rounded-2xl py-8 px-3 text-center hover:shadow-md transition-shadow">
+            <p className="font-medium">{c.label}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Categoría: filtros + grid ---------- */
+function TiendaCategoria({ categoriaActiva, inventario, onVerProducto, onAgregarCarrito }) {
   const [filtroTipo, setFiltroTipo] = useState("");
   const [filtroMaterial, setFiltroMaterial] = useState("");
   const [filtroTratamiento, setFiltroTratamiento] = useState("");
   const [filtroReemplazo, setFiltroReemplazo] = useState("");
   const [filtroCosmetico, setFiltroCosmetico] = useState("");
-  const [carrito, setCarrito] = useState([]);
-  const [receta, setReceta] = useState(null); // {nombreArchivo, dataUrl}
-  const fileRef = useRef(null);
 
-  const lista = (inventario[cat] || []).filter((a) => {
-    if (cat === "lentesGraduados") {
+  const lista = (inventario[categoriaActiva] || []).filter((a) => {
+    if (categoriaActiva === "lentesGraduados") {
       return (
         (!filtroTipo || a.tipo === filtroTipo) &&
         (!filtroMaterial || a.material === filtroMaterial) &&
         (!filtroTratamiento || a.tratamiento === filtroTratamiento)
       );
     }
-    if (cat === "lentesContacto") {
+    if (categoriaActiva === "lentesContacto") {
       return (
         (!filtroReemplazo || a.tipoReemplazo === filtroReemplazo) &&
         (!filtroCosmetico || (filtroCosmetico === "si" ? a.cosmetico : !a.cosmetico))
@@ -3898,12 +4034,151 @@ function PortalComprar({ pacientes, setPacientes, ventas, setVentas, inventario,
     return true;
   });
 
-  const requiereReceta = cat === "lentesGraduados" || cat === "lentesContacto";
-  const total = carrito.reduce((s, c) => s + Number(c.precio || 0), 0);
+  const nombresCategoria = {
+    armazones: "Armazones",
+    lentesGraduados: "Lentes graduados",
+    lentesContacto: "Lentes de contacto",
+    lentesSolares: "Lentes solares",
+    accesorios: "Accesorios",
+  };
 
-  function agregar(a) {
-    setCarrito([...carrito, { ...a, categoria: cat, uidLinea: uid() }]);
-  }
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-8 py-8">
+      <p className="text-xs text-slate-400 mb-2">Inicio / {nombresCategoria[categoriaActiva]}</p>
+      <div className="rounded-2xl overflow-hidden mb-6" style={{ background: "linear-gradient(135deg,#cfeaf5,#eaf6fb)", padding: "40px 24px" }}>
+        <h1 className="text-2xl sm:text-3xl font-semibold">{nombresCategoria[categoriaActiva]}</h1>
+      </div>
+
+      {categoriaActiva === "lentesGraduados" && (
+        <div className="flex gap-2 mb-4 flex-wrap">
+          <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)} className="border rounded-full px-3 py-1.5 text-xs">
+            <option value="">Tipo (todos)</option>
+            <option>Monofocal</option><option>Bifocal</option><option>Progresivo</option>
+          </select>
+          <select value={filtroMaterial} onChange={(e) => setFiltroMaterial(e.target.value)} className="border rounded-full px-3 py-1.5 text-xs">
+            <option value="">Material (todos)</option>
+            <option>CR39</option><option>Policarbonato</option><option>Hi Index</option>
+          </select>
+          <select value={filtroTratamiento} onChange={(e) => setFiltroTratamiento(e.target.value)} className="border rounded-full px-3 py-1.5 text-xs">
+            <option value="">Tratamiento (todos)</option>
+            <option>Antireflejante</option><option>Antiblue</option><option>Fotocromático</option>
+          </select>
+        </div>
+      )}
+      {categoriaActiva === "lentesContacto" && (
+        <div className="flex gap-2 mb-4 flex-wrap">
+          <select value={filtroReemplazo} onChange={(e) => setFiltroReemplazo(e.target.value)} className="border rounded-full px-3 py-1.5 text-xs">
+            <option value="">Tipo de reemplazo (todos)</option>
+            <option>Mensual</option><option>Anual</option>
+          </select>
+          <select value={filtroCosmetico} onChange={(e) => setFiltroCosmetico(e.target.value)} className="border rounded-full px-3 py-1.5 text-xs">
+            <option value="">Uso cosmético (todos)</option>
+            <option value="si">Cosmético</option>
+            <option value="no">No cosmético</option>
+          </select>
+        </div>
+      )}
+
+      <p className="text-sm text-slate-400 mb-4">{lista.length} artículo(s)</p>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        {lista.map((a) => (
+          <div key={a.sku} className="border rounded-2xl p-3 hover:shadow-md transition-shadow">
+            <button onClick={() => onVerProducto({ ...a, categoria: categoriaActiva })} className="w-full text-left">
+              <div className="rounded-xl mb-2 flex items-center justify-center" style={{ background: BEIGE, height: 110 }}>
+                <Package size={36} className="text-slate-300" />
+              </div>
+              <p className="text-sm font-medium truncate">{a.nombre}</p>
+              <p className="text-sm text-slate-500">${a.precio} MXN</p>
+            </button>
+            <button
+              onClick={() => onAgregarCarrito({ ...a, categoria: categoriaActiva })}
+              className="w-full mt-2 py-1.5 rounded-full border border-black text-xs font-medium hover:bg-black hover:text-white transition-colors"
+            >
+              Agregar
+            </button>
+          </div>
+        ))}
+        {lista.length === 0 && <p className="text-sm text-slate-400 col-span-full text-center py-10">Sin artículos disponibles con esos filtros.</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Detalle de producto (drawer) ---------- */
+function TiendaProducto({ producto, open, onClose, onAgregarCarrito }) {
+  if (!producto) return null;
+  const specs = [];
+  if (producto.tipo) specs.push(["Tipo", producto.tipo]);
+  if (producto.material) specs.push(["Material", producto.material]);
+  if (producto.tratamiento) specs.push(["Tratamiento", producto.tratamiento]);
+  if (producto.rango) specs.push(["Rango de graduación", producto.rango]);
+  if (producto.tipoReemplazo) specs.push(["Tipo de reemplazo", producto.tipoReemplazo]);
+  if (producto.cosmetico !== undefined) specs.push(["Uso cosmético", producto.cosmetico ? "Sí" : "No"]);
+  const requiereReceta = producto.categoria === "lentesGraduados" || producto.categoria === "lentesContacto";
+
+  return (
+    <DrawerLateral open={open} onClose={onClose}>
+      <div className="rounded-2xl mb-4 flex items-center justify-center" style={{ background: BEIGE, height: 220 }}>
+        <Package size={64} className="text-slate-300" />
+      </div>
+      <h2 className="text-2xl font-semibold mb-1">{producto.nombre}</h2>
+      <p className="text-lg mb-4">${producto.precio} MXN {requiereReceta && <span className="text-sm text-slate-400">| Requiere receta</span>}</p>
+      {specs.length > 0 && (
+        <table className="w-full text-sm mb-6">
+          <tbody>
+            {specs.map(([k, v]) => (
+              <tr key={k} className="border-t">
+                <td className="py-2 text-slate-500">{k}</td>
+                <td className="py-2 text-right">{v}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <BotonNegro onClick={() => { onAgregarCarrito(producto); onClose(); }}>Lo quiero comprar</BotonNegro>
+    </DrawerLateral>
+  );
+}
+
+/* ---------- Carrito (drawer) ---------- */
+function TiendaCarrito({ open, onClose, carrito, setCarrito, onIrCheckout }) {
+  const total = carrito.reduce((s, c) => s + Number(c.precio || 0), 0);
+  return (
+    <DrawerLateral open={open} onClose={onClose} title="Tu carrito">
+      {carrito.length === 0 ? (
+        <p className="text-sm text-slate-400">Tu carrito está vacío.</p>
+      ) : (
+        <>
+          <div className="space-y-3 mb-6">
+            {carrito.map((c) => (
+              <div key={c.uidLinea} className="flex items-center justify-between border-b pb-3">
+                <div>
+                  <p className="text-sm font-medium">{c.nombre}</p>
+                  <p className="text-xs text-slate-500">${c.precio} MXN</p>
+                </div>
+                <button onClick={() => setCarrito(carrito.filter((x) => x.uidLinea !== c.uidLinea))} className="text-slate-400 hover:text-red-500">
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between text-sm font-semibold mb-4">
+            <span>Total</span>
+            <span>${total.toFixed(2)} MXN</span>
+          </div>
+          <BotonNegro onClick={onIrCheckout}>Continuar</BotonNegro>
+        </>
+      )}
+    </DrawerLateral>
+  );
+}
+
+/* ---------- Checkout (drawer) ---------- */
+function TiendaCheckout({ open, onClose, carrito, sesionCliente, onAbrirAcceso, onConfirmar }) {
+  const [receta, setReceta] = useState(null);
+  const requiereReceta = carrito.some((c) => c.categoria === "lentesGraduados" || c.categoria === "lentesContacto");
+  const total = carrito.reduce((s, c) => s + Number(c.precio || 0), 0);
 
   function subirReceta(e) {
     const file = e.target.files[0];
@@ -3913,150 +4188,230 @@ function PortalComprar({ pacientes, setPacientes, ventas, setVentas, inventario,
     reader.readAsDataURL(file);
   }
 
-  const faltaReceta = requiereReceta && !receta && carrito.some((c) => c.categoria === "lentesGraduados" || c.categoria === "lentesContacto");
+  const faltaReceta = requiereReceta && !receta;
 
-  function finalizar() {
-    if (!datosCliente.nombre || carrito.length === 0) return;
-    let paciente = pacientes.find((p) => p.telefono && datosCliente.telefono && p.telefono === datosCliente.telefono);
-    if (!paciente) {
-      paciente = { id: uid(), folio: pacientes.length + 1, ...datosCliente, compras: [] };
-      setPacientes([...pacientes, paciente]);
-    }
+  return (
+    <DrawerLateral open={open} onClose={onClose} title="Confirmar pedido">
+      {!sesionCliente ? (
+        <div>
+          <p className="text-sm text-slate-500 mb-4">Necesitas iniciar sesión o registrarte para terminar tu pedido.</p>
+          <BotonNegro onClick={onAbrirAcceso}>Ingresar / Registrarme</BotonNegro>
+        </div>
+      ) : (
+        <div>
+          <p className="text-sm mb-1">Cliente: <b>{sesionCliente.nombre}</b></p>
+          <p className="text-sm text-slate-500 mb-4">{sesionCliente.telefono}</p>
+          <div className="space-y-2 mb-4">
+            {carrito.map((c) => (
+              <div key={c.uidLinea} className="flex justify-between text-sm border-b pb-2">
+                <span>{c.nombre}</span>
+                <span>${c.precio}</span>
+              </div>
+            ))}
+          </div>
+          <p className="flex justify-between font-semibold mb-4">
+            <span>Total</span><span>${total.toFixed(2)} MXN</span>
+          </p>
+          {requiereReceta && (
+            <div className="mb-4">
+              <label className="text-xs text-slate-500 block mb-1">Sube tu receta (foto o PDF)</label>
+              <input type="file" accept="image/*,.pdf" onChange={subirReceta} className="text-xs" />
+              {receta && <p className="text-xs text-emerald-600 mt-1">Receta cargada: {receta.nombreArchivo}</p>}
+            </div>
+          )}
+          {faltaReceta && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700 mb-4">
+              Necesitas subir tu receta para pedir lentes graduados o de contacto en línea.
+            </div>
+          )}
+          <BotonNegro onClick={() => onConfirmar(receta)} disabled={carrito.length === 0 || faltaReceta}>
+            Confirmar pedido
+          </BotonNegro>
+        </div>
+      )}
+    </DrawerLateral>
+  );
+}
+
+/* ---------- Agendar cita ---------- */
+function TiendaAgendar({ open, onClose, agenda, setAgenda, pacientes, setPacientes, sesionCliente, onAbrirAcceso, onListo }) {
+  const [fecha, setFecha] = useState(fechaISO(new Date()));
+  const [consultorio, setConsultorio] = useState("Consultorio 1");
+  const [hora, setHora] = useState("");
+
+  const ocupadas = agenda.filter((c) => c.fecha === fecha && c.consultorio === consultorio).map((c) => c.hora);
+  const disponibles = HORAS.filter((h) => !ocupadas.includes(h));
+
+  function agendar() {
+    if (!hora || !sesionCliente) return;
+    setAgenda([
+      ...agenda,
+      { id: uid(), fecha, hora, consultorio, pacienteId: sesionCliente.pacienteId, nombre: sesionCliente.nombre, estatus: "proxima", origen: "portal" },
+    ]);
+    onListo(`Tu cita quedó agendada para el ${fecha} a las ${hora} (${consultorio}).`);
+    onClose();
+  }
+
+  return (
+    <DrawerLateral open={open} onClose={onClose} title="Agendar examen">
+      {!sesionCliente ? (
+        <div>
+          <p className="text-sm text-slate-500 mb-4">Necesitas iniciar sesión o registrarte para agendar tu cita.</p>
+          <BotonNegro onClick={onAbrirAcceso}>Ingresar / Registrarme</BotonNegro>
+        </div>
+      ) : (
+        <div>
+          <div className="flex gap-2 mb-3">
+            <select value={consultorio} onChange={(e) => { setConsultorio(e.target.value); setHora(""); }} className="border rounded-lg px-2 py-2 text-sm">
+              <option>Consultorio 1</option>
+              <option>Consultorio 2</option>
+            </select>
+            <input type="date" value={fecha} min={fechaISO(new Date())} onChange={(e) => { setFecha(e.target.value); setHora(""); }} className="border rounded-lg px-2 py-2 text-sm" />
+          </div>
+          <div className="grid grid-cols-4 gap-1 mb-4 max-h-40 overflow-y-auto">
+            {disponibles.map((h) => (
+              <button
+                key={h}
+                onClick={() => setHora(h)}
+                className={`text-xs py-1.5 rounded ${hora === h ? "bg-black text-white" : "bg-slate-100"}`}
+              >
+                {h}
+              </button>
+            ))}
+            {disponibles.length === 0 && <p className="text-xs text-slate-400 col-span-4">Sin horarios libres ese día.</p>}
+          </div>
+          <BotonNegro onClick={agendar} disabled={!hora}>Confirmar cita</BotonNegro>
+        </div>
+      )}
+    </DrawerLateral>
+  );
+}
+
+/* ---------- Orquestador principal de la tienda ---------- */
+function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas, inventario, config, usuarios, setUsuarios, onLoginEmpleado, sesionStaff, onVolverPanel }) {
+  const [vista, setVista] = useState("inicio"); // inicio | categoria
+  const [categoriaActiva, setCategoriaActiva] = useState("armazones");
+  const [carrito, setCarrito] = useState([]);
+  const [productoVer, setProductoVer] = useState(null);
+  const [carritoAbierto, setCarritoAbierto] = useState(false);
+  const [checkoutAbierto, setCheckoutAbierto] = useState(false);
+  const [accesoAbierto, setAccesoAbierto] = useState(false);
+  const [agendarAbierto, setAgendarAbierto] = useState(false);
+  const [sesionCliente, setSesionCliente] = useSesionCliente();
+  const [mensajeFinal, setMensajeFinal] = useState("");
+
+  function agregarCarrito(a) {
+    setCarrito([...carrito, { ...a, uidLinea: uid() }]);
+  }
+
+  function irCategoria(cat) {
+    setCategoriaActiva(cat);
+    setVista("categoria");
+    window.scrollTo(0, 0);
+  }
+
+  function confirmarPedido(receta) {
+    let paciente = pacientes.find((p) => p.id === sesionCliente.pacienteId);
     const folio = (ventas[ventas.length - 1]?.folio || 0) + 1;
+    const total = carrito.reduce((s, c) => s + Number(c.precio || 0), 0);
     const nota = {
       folio,
       fecha: new Date().toISOString(),
-      pacienteId: paciente.id,
-      nombreCliente: paciente.nombre,
+      pacienteId: sesionCliente.pacienteId,
+      nombreCliente: paciente?.nombre || sesionCliente.nombre,
       items: carrito,
       total,
       abono: 0,
       saldo: total,
       estatus: "presupuesto",
       formaPago: "pendiente",
-      vendedor: "Portal en línea",
+      vendedor: "Tienda en línea",
       origen: "portal",
       recetaArchivo: receta,
     };
     setVentas([...ventas, nota]);
-    onListo(folio);
+    setCarrito([]);
+    setCheckoutAbierto(false);
+    setMensajeFinal(`¡Listo! Tu pedido quedó registrado con folio #${folio}. Te avisamos por WhatsApp o correo en cuanto esté confirmado.`);
   }
 
   return (
-    <div className="bg-white border rounded-xl p-5">
-      <h3 className="font-semibold mb-3">Comprar en línea</h3>
-      <div className="flex gap-2 flex-wrap mb-3">
-        {CATEGORIAS_INV.map((c) => (
-          <button
-            key={c.key}
-            onClick={() => {
-              setCat(c.key);
-              setFiltroTipo(""); setFiltroMaterial(""); setFiltroTratamiento("");
-              setFiltroReemplazo(""); setFiltroCosmetico("");
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium ${cat === c.key ? "text-white" : "bg-slate-100"}`}
-            style={cat === c.key ? { background: SKY_DARK } : {}}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
+    <div className="min-h-screen bg-white">
+      <TiendaHeader
+        config={config}
+        sesionCliente={sesionCliente}
+        sesionStaff={sesionStaff}
+        carritoCount={carrito.length}
+        onAbrirCarrito={() => setCarritoAbierto(true)}
+        onAbrirAcceso={() => setAccesoAbierto(true)}
+        onIrCategoria={irCategoria}
+        onIrInicio={() => setVista("inicio")}
+        onVolverPanel={onVolverPanel}
+        categoriaActiva={vista === "categoria" ? categoriaActiva : null}
+      />
 
-      {cat === "lentesGraduados" && (
-        <div className="flex gap-2 mb-3 flex-wrap">
-          <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)} className="border rounded-lg px-2 py-1.5 text-xs">
-            <option value="">Tipo (todos)</option>
-            <option>Monofocal</option><option>Bifocal</option><option>Progresivo</option>
-          </select>
-          <select value={filtroMaterial} onChange={(e) => setFiltroMaterial(e.target.value)} className="border rounded-lg px-2 py-1.5 text-xs">
-            <option value="">Material (todos)</option>
-            <option>CR39</option><option>Policarbonato</option><option>Hi Index</option>
-          </select>
-          <select value={filtroTratamiento} onChange={(e) => setFiltroTratamiento(e.target.value)} className="border rounded-lg px-2 py-1.5 text-xs">
-            <option value="">Tratamiento (todos)</option>
-            <option>Antireflejante</option><option>Antiblue</option><option>Fotocromático</option>
-          </select>
+      {mensajeFinal && (
+        <div className="bg-emerald-50 border-b border-emerald-200 text-emerald-700 text-sm text-center py-2 px-4">
+          {mensajeFinal}
+          <button onClick={() => setMensajeFinal("")} className="ml-3 underline">Cerrar</button>
         </div>
       )}
 
-      {cat === "lentesContacto" && (
-        <div className="flex gap-2 mb-3 flex-wrap">
-          <select value={filtroReemplazo} onChange={(e) => setFiltroReemplazo(e.target.value)} className="border rounded-lg px-2 py-1.5 text-xs">
-            <option value="">Tipo de reemplazo (todos)</option>
-            <option>Mensual</option><option>Anual</option>
-          </select>
-          <select value={filtroCosmetico} onChange={(e) => setFiltroCosmetico(e.target.value)} className="border rounded-lg px-2 py-1.5 text-xs">
-            <option value="">Uso cosmético (todos)</option>
-            <option value="si">Cosmético</option>
-            <option value="no">No cosmético</option>
-          </select>
-        </div>
+      {vista === "inicio" ? (
+        <TiendaInicio config={config} onIrCategoria={irCategoria} onAgendar={() => setAgendarAbierto(true)} />
+      ) : (
+        <TiendaCategoria
+          categoriaActiva={categoriaActiva}
+          inventario={inventario}
+          onVerProducto={setProductoVer}
+          onAgregarCarrito={agregarCarrito}
+        />
       )}
 
-      <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto mb-4">
-        {lista.map((a) => (
-          <button key={a.sku} onClick={() => agregar(a)} className="text-left text-xs border rounded-lg px-2 py-2 hover:bg-sky-50">
-            <p className="font-medium">{a.nombre}</p>
-            <p className="text-slate-500">${a.precio} MXN</p>
-          </button>
-        ))}
-        {lista.length === 0 && <p className="text-xs text-slate-400 col-span-2">Sin artículos disponibles con esos filtros.</p>}
+      <div className="border-t mt-10 py-8 text-center text-xs text-slate-400">
+        {config?.direccion} · Tel: {config?.telefono}
       </div>
 
-      <div className="border-t pt-3 mb-3">
-        <h4 className="text-sm font-semibold mb-1">Cesta / presupuesto</h4>
-        {carrito.map((c) => (
-          <div key={c.uidLinea} className="flex justify-between text-sm border-b py-1">
-            <span>{c.nombre}</span>
-            <span className="flex items-center gap-2">
-              ${c.precio}
-              <button onClick={() => setCarrito(carrito.filter((x) => x.uidLinea !== c.uidLinea))} className="text-red-400">
-                <X size={14} />
-              </button>
-            </span>
-          </div>
-        ))}
-        {carrito.length === 0 && <p className="text-xs text-slate-400">Tu cesta está vacía.</p>}
-        <p className="text-right font-semibold text-sm mt-1">Total: ${total.toFixed(2)} MXN</p>
-      </div>
-
-      {requiereReceta && (
-        <div className="mb-3">
-          <label className="text-xs text-slate-500 block mb-1">Sube tu receta (foto o PDF)</label>
-          <input ref={fileRef} type="file" accept="image/*,.pdf" onChange={subirReceta} className="text-xs" />
-          {receta && <p className="text-xs text-emerald-600 mt-1">Receta cargada: {receta.nombreArchivo}</p>}
-        </div>
-      )}
-
-      <div className="grid grid-cols-3 gap-3 mb-3">
-        <Field label="Nombre" value={datosCliente.nombre} onChange={(e) => setDatosCliente({ ...datosCliente, nombre: e.target.value })} />
-        <Field label="Teléfono" value={datosCliente.telefono} onChange={(e) => setDatosCliente({ ...datosCliente, telefono: e.target.value })} />
-        <Field label="Email" value={datosCliente.email} onChange={(e) => setDatosCliente({ ...datosCliente, email: e.target.value })} />
-      </div>
-
-      {faltaReceta ? (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700 mb-3">
-          Necesitas subir tu receta para comprar lentes graduados o de contacto en línea. Si no la tienes a la mano, puedes agendar una cita para atenderte en tienda.
-        </div>
-      ) : null}
-
-      <div className="flex gap-2">
-        <button onClick={onVolver} className="flex-1 py-2 rounded-lg bg-slate-100 text-sm">Volver</button>
-        {faltaReceta ? (
-          <button onClick={onNecesitaCita} className="flex-1 py-2 rounded-lg text-white text-sm" style={{ background: SKY_DARK }}>
-            Agendar cita en tienda
-          </button>
-        ) : (
-          <button
-            onClick={finalizar}
-            disabled={carrito.length === 0 || !datosCliente.nombre}
-            className="flex-1 py-2 rounded-lg text-white text-sm disabled:opacity-40"
-            style={{ background: SKY_DARK }}
-          >
-            Confirmar pedido
-          </button>
-        )}
-      </div>
+      <TiendaProducto producto={productoVer} open={!!productoVer} onClose={() => setProductoVer(null)} onAgregarCarrito={agregarCarrito} />
+      <TiendaCarrito
+        open={carritoAbierto}
+        onClose={() => setCarritoAbierto(false)}
+        carrito={carrito}
+        setCarrito={setCarrito}
+        onIrCheckout={() => {
+          setCarritoAbierto(false);
+          setCheckoutAbierto(true);
+        }}
+      />
+      <TiendaCheckout
+        open={checkoutAbierto}
+        onClose={() => setCheckoutAbierto(false)}
+        carrito={carrito}
+        sesionCliente={sesionCliente}
+        onAbrirAcceso={() => setAccesoAbierto(true)}
+        onConfirmar={confirmarPedido}
+      />
+      <TiendaAgendar
+        open={agendarAbierto}
+        onClose={() => setAgendarAbierto(false)}
+        agenda={agenda}
+        setAgenda={setAgenda}
+        pacientes={pacientes}
+        setPacientes={setPacientes}
+        sesionCliente={sesionCliente}
+        onAbrirAcceso={() => setAccesoAbierto(true)}
+        onListo={(msg) => setMensajeFinal(msg)}
+      />
+      <AccesoDrawer
+        open={accesoAbierto}
+        onClose={() => setAccesoAbierto(false)}
+        usuarios={usuarios}
+        setUsuarios={setUsuarios}
+        onLoginEmpleado={onLoginEmpleado}
+        pacientes={pacientes}
+        setPacientes={setPacientes}
+        onLoginCliente={setSesionCliente}
+      />
     </div>
   );
 }
@@ -4624,13 +4979,7 @@ export default function App() {
 
   const [seccion, setSeccion] = useState("agenda");
   const [presetPacienteId, setPresetPacienteId] = useState(null);
-  const [vista, setVista] = useState(() => {
-    try {
-      return new URLSearchParams(window.location.search).get("portal") === "1" ? "portal" : "staff";
-    } catch {
-      return "staff";
-    }
-  });
+  const [previsualizarTienda, setPrevisualizarTienda] = useState(false);
   const [sesion, setSesion] = useSesion();
 
   const todoListo = loadedP && loadedI && loadedA && loadedV && loadedU && loadedC && loadedL && loadedPP && loadedD && loadedPr;
@@ -4666,11 +5015,11 @@ export default function App() {
     </div>
   );
 
-  if (vista === "portal") {
+  if (!sesion || previsualizarTienda) {
     return (
       <div>
-        {bannerGuardado}
-        <PortalPaciente
+        {sesion && bannerGuardado}
+        <Tienda
           pacientes={pacientes}
           setPacientes={setPacientes}
           agenda={agenda}
@@ -4679,14 +5028,14 @@ export default function App() {
           setVentas={setVentas}
           inventario={inventario}
           config={config}
-          onVolver={() => setVista("staff")}
+          usuarios={usuarios}
+          setUsuarios={setUsuarios}
+          onLoginEmpleado={setSesion}
+          sesionStaff={sesion}
+          onVolverPanel={() => setPrevisualizarTienda(false)}
         />
       </div>
     );
-  }
-
-  if (!sesion) {
-    return <LoginScreen usuarios={usuarios} setUsuarios={setUsuarios} onIngresar={setSesion} config={config} />;
   }
 
   return (
@@ -4712,11 +5061,11 @@ export default function App() {
             ↻ Actualizar
           </button>
           <button
-            onClick={() => setVista("portal")}
+            onClick={() => setPrevisualizarTienda(true)}
             className="text-xs px-3 py-1.5 rounded-lg text-white"
             style={{ background: SKY_DARK }}
           >
-            Ver portal de pacientes
+            Ver tienda en línea
           </button>
           <button onClick={() => setSesion(null)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600">
             Cerrar sesión
