@@ -4155,13 +4155,13 @@ function TiendaInicio({ config, onIrCategoria, onAgendar }) {
             <p className="text-xs text-slate-300">Sube tu imagen principal desde Configuración</p>
           </div>
         )}
-        <div className="absolute inset-0 flex items-center">
-          <div className="pl-6 sm:pl-14 max-w-xs sm:max-w-sm text-left">
+        <div className="absolute inset-0 flex items-center justify-end">
+          <div className="pr-6 sm:pr-14 max-w-xs sm:max-w-sm text-left">
             {config?.logo ? (
               <img
                 src={config.logo}
                 alt="Spektrum Ópticas"
-                style={{ height: 99, mixBlendMode: "multiply" }}
+                style={{ height: 119, mixBlendMode: "multiply" }}
                 className="mb-4"
               />
             ) : (
