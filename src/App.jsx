@@ -1528,6 +1528,7 @@ function InventarioView({ inventario, setInventario }) {
     modeloSolar: "",
     colorSolar: "",
     imagen: "",
+    descripcion: "",
   });
 
   const lista = inventario[cat] || [];
@@ -1544,6 +1545,15 @@ function InventarioView({ inventario, setInventario }) {
     Unisex: ["Unisex - Metal", "Unisex - Pasta", "Unisex - Combinado"],
     Junior: ["Junior - Metal", "Junior - Pasta", "Junior - Combinado"],
   };
+  const COLORES_PASTA = ["Negro", "Café", "Azul", "Transparente", "Rosa", "Traslúcido", "Verde", "Morado", "Lila", "Animal print"];
+  const COLORES_METAL = ["Dorado", "Plata", "Café", "Negro", "Azul", "Morado", "Lila", "Rojo", "Combinado"];
+  const coloresDisponibles = nuevo.categoriaArmazon?.includes("Pasta")
+    ? COLORES_PASTA
+    : nuevo.categoriaArmazon?.includes("Metal")
+    ? COLORES_METAL
+    : nuevo.categoriaArmazon?.includes("Combinado")
+    ? [...new Set([...COLORES_PASTA, ...COLORES_METAL])]
+    : [];
 
   const rangosDisponibles = nuevo.material ? RANGOS_POR_MATERIAL[nuevo.material] || [] : [];
   const marcasDisponibles = nuevo.tipoReemplazo ? LENTES_CONTACTO_DATA[nuevo.tipoReemplazo] || [] : [];
@@ -1558,7 +1568,7 @@ function InventarioView({ inventario, setInventario }) {
     setNuevo({
       nombre: "", precio: "", existencias: "", tipo: "", material: "", tratamiento: "", rango: "",
       tipoLinea: "", categoriaArmazon: "", tipoReemplazo: "", marcaContacto: "", cosmetico: false,
-      marcaSolar: "", modeloSolar: "", colorSolar: "", imagen: "",
+      marcaSolar: "", modeloSolar: "", colorSolar: "", imagen: "", descripcion: "",
     });
   }
 
@@ -1637,7 +1647,7 @@ function InventarioView({ inventario, setInventario }) {
               <label className="text-xs text-slate-500">Categoría</label>
               <select
                 value={nuevo.categoriaArmazon}
-                onChange={(e) => setNuevo({ ...nuevo, categoriaArmazon: e.target.value })}
+                onChange={(e) => setNuevo({ ...nuevo, categoriaArmazon: e.target.value, descripcion: "" })}
                 className="block border rounded-lg px-2 py-1.5 text-sm"
               >
                 <option value="">—</option>
@@ -1647,6 +1657,20 @@ function InventarioView({ inventario, setInventario }) {
                       <option key={o} value={o}>{o}</option>
                     ))}
                   </optgroup>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Descripción (color)</label>
+              <select
+                value={nuevo.descripcion}
+                onChange={(e) => setNuevo({ ...nuevo, descripcion: e.target.value })}
+                disabled={!nuevo.categoriaArmazon}
+                className="block border rounded-lg px-2 py-1.5 text-sm disabled:bg-slate-100 disabled:opacity-60"
+              >
+                <option value="">{nuevo.categoriaArmazon ? "—" : "Elige categoría primero"}</option>
+                {coloresDisponibles.map((c) => (
+                  <option key={c} value={c}>{c}</option>
                 ))}
               </select>
             </div>
@@ -1843,12 +1867,21 @@ function InventarioView({ inventario, setInventario }) {
                 </td>
                 <td className="px-3 py-2 text-slate-500">{a.sku}</td>
                 <td className="px-3 py-2">{a.nombre}</td>
-                <td className="px-3 py-2 text-slate-500 max-w-[260px]">{a.rangoDescripcion || "—"}</td>
+                <td className="px-3 py-2 text-slate-500 max-w-[260px]">{a.rangoDescripcion || a.descripcion || "—"}</td>
                 <td className="px-3 py-2 text-right">${a.precio}</td>
-                <td className="px-3 py-2 text-right">{a.existencias}</td>
+                <td className="px-3 py-2 text-right">
+                  <input
+                    type="number"
+                    value={a.existencias}
+                    onChange={(e) =>
+                      setInventario({ ...inventario, [cat]: lista.map((x) => (x.id === a.id ? { ...x, existencias: e.target.value } : x)) })
+                    }
+                    className="w-16 border rounded px-1 py-1 text-right text-sm print:hidden"
+                  />
+                  <span className="hidden print:inline">{a.existencias}</span>
+                </td>
                 <td className="px-3 py-2 text-right print:hidden">
-                  <button onClick={() => eliminar(a.id)} className="text-red-400 hover:text-red-600">
-                    <Trash2 size={16} />
+                  <button onClick={() => eliminar(a.id)} className="text-red-400 hover:text-red-600">                    <Trash2 size={16} />
                   </button>
                 </td>
               </tr>
@@ -4299,7 +4332,7 @@ function TiendaFooter({ config, setConfig, onIrInicio, onIrCategoria, onAbrirCue
         </div>
 
         <div className="flex flex-col gap-2">
-          <h4 className="font-semibold mb-1">Templos</h4>
+          <h4 className="font-semibold mb-1">Tiendas</h4>
           <button onClick={() => setMapaAbierto(true)} className={enlace}>Ubicaciones</button>
           <button onClick={onAbrirExamen} className={enlace}>Examen de la vista</button>
         </div>
