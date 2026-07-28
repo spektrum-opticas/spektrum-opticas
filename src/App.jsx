@@ -1971,6 +1971,7 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, set
               <th className="text-left px-3 py-2">Teléfono</th>
               <th className="text-right px-3 py-2">Saldo</th>
               <th className="text-right px-3 py-2 print:hidden"># Compras</th>
+              <th className="text-left px-3 py-2 print:hidden">Cuenta</th>
               <th className="px-3 py-2 print:hidden"></th>
             </tr>
           </thead>
@@ -1986,6 +1987,28 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, set
                 <td className="px-3 py-2">{p.telefono}</td>
                 <td className="px-3 py-2 text-right">${Number(p.saldo || 0).toFixed(2)}</td>
                 <td className="px-3 py-2 text-right print:hidden">{(p.compras || []).length}</td>
+                <td className="px-3 py-2 print:hidden">
+                  {p.cuentaActiva ? (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Activa</span>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (!p.telefono) {
+                          window.alert("Este paciente no tiene teléfono guardado para invitarlo.");
+                          return;
+                        }
+                        abrirWhatsApp(
+                          p.telefono,
+                          "Estamos felices que seas uno de nuestros clientes distinguidos, y nos encantaría invitarte a crear una cuenta en nuestra página, para acceder a promociones, lanzamientos y más. En Spektrum Ópticas estamos comprometidos con tu salud visual"
+                        );
+                      }}
+                      className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      title="Invitar a crear cuenta por WhatsApp"
+                    >
+                      Inactiva
+                    </button>
+                  )}
+                </td>
                 <td className="px-3 py-2 text-right print:hidden">
                   <button onClick={() => eliminarPaciente(p.id)} className="text-red-400 hover:text-red-600">
                     <Trash2 size={16} />
@@ -1995,7 +2018,7 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, set
             ))}
             {filtrados.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center text-slate-400 py-6">
+                <td colSpan={7} className="text-center text-slate-400 py-6">
                   Sin pacientes registrados todavía.
                 </td>
               </tr>
@@ -3937,11 +3960,17 @@ function BotonContorno({ children, ...props }) {
 
 /* ---------- Drawer lateral genérico ---------- */
 function DrawerLateral({ open, onClose, children, title }) {
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div
+      className={`fixed inset-0 z-50 flex justify-end transition-opacity duration-300 ${
+        open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+      }`}
+    >
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative bg-white w-full max-w-sm h-full overflow-y-auto p-6 shadow-2xl">
+      <div
+        className="relative bg-white w-full max-w-sm h-full overflow-y-auto p-6 shadow-2xl transition-transform duration-300 ease-out"
+        style={{ transform: open ? "translateX(0)" : "translateX(100%)" }}
+      >
         <button onClick={onClose} className="absolute top-5 right-5 text-slate-400 hover:text-black">
           <X size={22} />
         </button>
@@ -4023,10 +4052,15 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
         telefono: clienteTelefono.trim(),
         mail: clienteMail.trim(),
         compras: [],
+        cuentaActiva: true,
       };
       setPacientes([...pacientes, paciente]);
-    } else if (!paciente.mail && clienteMail) {
-      setPacientes(pacientes.map((p) => (p.id === paciente.id ? { ...p, mail: clienteMail.trim() } : p)));
+    } else {
+      setPacientes(
+        pacientes.map((p) =>
+          p.id === paciente.id ? { ...p, mail: p.mail || clienteMail.trim() || p.mail, cuentaActiva: true } : p
+        )
+      );
     }
     onLoginCliente({ nombre: paciente.nombre, telefono: paciente.telefono, mail: paciente.mail || clienteMail, pacienteId: paciente.id });
     cerrar();
