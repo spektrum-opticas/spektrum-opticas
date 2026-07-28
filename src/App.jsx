@@ -1511,6 +1511,7 @@ const LENTES_CONTACTO_DATA = {
 
 function InventarioView({ inventario, setInventario }) {
   const [cat, setCat] = useState("armazones");
+  const [editando, setEditando] = useState(null);
   const [nuevo, setNuevo] = useState({
     nombre: "",
     precio: "",
@@ -1529,6 +1530,12 @@ function InventarioView({ inventario, setInventario }) {
     colorSolar: "",
     imagen: "",
     descripcion: "",
+    tallas: [],
+    recomendadoPara: "",
+    clipOnCompatible: "",
+    anchoMica: "",
+    acercaDe: "",
+    galeriaExtra: [],
   });
 
   const lista = inventario[cat] || [];
@@ -1569,6 +1576,7 @@ function InventarioView({ inventario, setInventario }) {
       nombre: "", precio: "", existencias: "", tipo: "", material: "", tratamiento: "", rango: "",
       tipoLinea: "", categoriaArmazon: "", tipoReemplazo: "", marcaContacto: "", cosmetico: false,
       marcaSolar: "", modeloSolar: "", colorSolar: "", imagen: "", descripcion: "",
+      tallas: [], recomendadoPara: "", clipOnCompatible: "", anchoMica: "", acercaDe: "", galeriaExtra: [],
     });
   }
 
@@ -1673,6 +1681,51 @@ function InventarioView({ inventario, setInventario }) {
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 block">Tallas disponibles</label>
+              <div className="flex gap-2">
+                {["M", "G", "EG"].map((t) => (
+                  <label key={t} className="flex items-center gap-1 text-xs border rounded px-2 py-1.5">
+                    <input
+                      type="checkbox"
+                      checked={nuevo.tallas.includes(t)}
+                      onChange={(e) =>
+                        setNuevo({
+                          ...nuevo,
+                          tallas: e.target.checked ? [...nuevo.tallas, t] : nuevo.tallas.filter((x) => x !== t),
+                        })
+                      }
+                    />
+                    {t}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Recomendado para (forma de rostro)</label>
+              <input value={nuevo.recomendadoPara} onChange={(e) => setNuevo({ ...nuevo, recomendadoPara: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm w-40" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Clip-on compatible</label>
+              <select value={nuevo.clipOnCompatible} onChange={(e) => setNuevo({ ...nuevo, clipOnCompatible: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm">
+                <option value="">—</option>
+                <option>Sí</option>
+                <option>No</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Ancho de mica</label>
+              <input value={nuevo.anchoMica} onChange={(e) => setNuevo({ ...nuevo, anchoMica: e.target.value })} placeholder="ej. 47.0 mm" className="block border rounded-lg px-2 py-1.5 text-sm w-28" />
+            </div>
+            <div className="w-full">
+              <label className="text-xs text-slate-500">Acerca de (descripción para la ficha)</label>
+              <textarea
+                value={nuevo.acercaDe}
+                onChange={(e) => setNuevo({ ...nuevo, acercaDe: e.target.value })}
+                rows={2}
+                className="block border rounded-lg px-2 py-1.5 text-sm w-full"
+              />
             </div>
           </>
         )}
@@ -1818,6 +1871,39 @@ function InventarioView({ inventario, setInventario }) {
             <input type="file" accept="image/*" onChange={subirImagenArticulo} className="text-xs w-32" />
           </div>
         </div>
+        {esArmazon && (
+          <div>
+            <label className="text-xs text-slate-500 block">Fotos adicionales (carrusel)</label>
+            <div className="flex items-center gap-1 flex-wrap max-w-[220px]">
+              {nuevo.galeriaExtra.map((img, i) => (
+                <div key={i} className="relative">
+                  <img src={img} alt="" className="w-8 h-8 rounded object-cover border" />
+                  <button
+                    onClick={() => setNuevo({ ...nuevo, galeriaExtra: nuevo.galeriaExtra.filter((_, j) => j !== i) })}
+                    className="absolute -top-1 -right-1 bg-white rounded-full border text-red-500"
+                    style={{ width: 14, height: 14, fontSize: 9, lineHeight: "12px" }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  files.forEach((file) => {
+                    const reader = new FileReader();
+                    reader.onload = () => setNuevo((n) => ({ ...n, galeriaExtra: [...n.galeriaExtra, reader.result] }));
+                    reader.readAsDataURL(file);
+                  });
+                }}
+                className="text-xs w-32"
+              />
+            </div>
+          </div>
+        )}
         <button onClick={agregar} className="px-3 py-1.5 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
           <Plus size={16} /> Agregar
         </button>
@@ -1881,7 +1967,13 @@ function InventarioView({ inventario, setInventario }) {
                   <span className="hidden print:inline">{a.existencias}</span>
                 </td>
                 <td className="px-3 py-2 text-right print:hidden">
-                  <button onClick={() => eliminar(a.id)} className="text-red-400 hover:text-red-600">                    <Trash2 size={16} />
+                  {esArmazon && (
+                    <button onClick={() => setEditando(a)} className="text-sky-600 hover:text-sky-800 mr-2 text-xs underline">
+                      Editar detalles
+                    </button>
+                  )}
+                  <button onClick={() => eliminar(a.id)} className="text-red-400 hover:text-red-600">
+                    <Trash2 size={16} />
                   </button>
                 </td>
               </tr>
@@ -1896,7 +1988,125 @@ function InventarioView({ inventario, setInventario }) {
           </tbody>
         </table>
       </div>
+
+      {editando && (
+        <EditarArticuloModal
+          articulo={editando}
+          onCerrar={() => setEditando(null)}
+          onGuardar={(actualizado) => {
+            setInventario({ ...inventario, [cat]: lista.map((x) => (x.id === actualizado.id ? actualizado : x)) });
+            setEditando(null);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function EditarArticuloModal({ articulo, onCerrar, onGuardar }) {
+  const [datos, setDatos] = useState({
+    ...articulo,
+    tallas: articulo.tallas || [],
+    galeriaExtra: articulo.galeriaExtra || [],
+  });
+  const COLORES_PASTA = ["Negro", "Café", "Azul", "Transparente", "Rosa", "Traslúcido", "Verde", "Morado", "Lila", "Animal print"];
+  const COLORES_METAL = ["Dorado", "Plata", "Café", "Negro", "Azul", "Morado", "Lila", "Rojo", "Combinado"];
+  const coloresDisponibles = datos.categoriaArmazon?.includes("Pasta")
+    ? COLORES_PASTA
+    : datos.categoriaArmazon?.includes("Metal")
+    ? COLORES_METAL
+    : [...new Set([...COLORES_PASTA, ...COLORES_METAL])];
+
+  return (
+    <Modal open={true} onClose={onCerrar} title={`Editar detalles — ${articulo.nombre}`} wide>
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs text-slate-500">Descripción (color)</label>
+          <select value={datos.descripcion} onChange={(e) => setDatos({ ...datos, descripcion: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm">
+            <option value="">—</option>
+            {coloresDisponibles.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-slate-500 block">Tallas disponibles</label>
+          <div className="flex gap-2">
+            {["M", "G", "EG"].map((t) => (
+              <label key={t} className="flex items-center gap-1 text-xs border rounded px-2 py-1.5">
+                <input
+                  type="checkbox"
+                  checked={datos.tallas.includes(t)}
+                  onChange={(e) =>
+                    setDatos({ ...datos, tallas: e.target.checked ? [...datos.tallas, t] : datos.tallas.filter((x) => x !== t) })
+                  }
+                />
+                {t}
+              </label>
+            ))}
+          </div>
+        </div>
+        <Field label="Recomendado para (forma de rostro)" value={datos.recomendadoPara || ""} onChange={(e) => setDatos({ ...datos, recomendadoPara: e.target.value })} />
+        <label className="block mb-3">
+          <span className="text-xs font-medium text-slate-500 uppercase">Clip-on compatible</span>
+          <select value={datos.clipOnCompatible || ""} onChange={(e) => setDatos({ ...datos, clipOnCompatible: e.target.value })} className="mt-1 w-full border rounded-lg px-2 py-2 text-sm">
+            <option value="">—</option>
+            <option>Sí</option>
+            <option>No</option>
+          </select>
+        </label>
+        <Field label="Ancho de mica" value={datos.anchoMica || ""} onChange={(e) => setDatos({ ...datos, anchoMica: e.target.value })} placeholder="ej. 47.0 mm" />
+        <label className="block mb-3">
+          <span className="text-xs font-medium text-slate-500 uppercase">Acerca de (descripción para la ficha)</span>
+          <textarea
+            value={datos.acercaDe || ""}
+            onChange={(e) => setDatos({ ...datos, acercaDe: e.target.value })}
+            rows={3}
+            className="mt-1 w-full border rounded-lg px-2 py-2 text-sm"
+          />
+        </label>
+        <div>
+          <label className="text-xs text-slate-500 block mb-1">Fotos del carrusel</label>
+          <div className="flex items-center gap-2 flex-wrap">
+            {datos.imagen && (
+              <div className="relative">
+                <img src={datos.imagen} alt="" className="w-14 h-14 rounded object-cover border" />
+                <span className="absolute bottom-0 left-0 right-0 text-[8px] bg-black/60 text-white text-center">principal</span>
+              </div>
+            )}
+            {datos.galeriaExtra.map((img, i) => (
+              <div key={i} className="relative">
+                <img src={img} alt="" className="w-14 h-14 rounded object-cover border" />
+                <button
+                  onClick={() => setDatos({ ...datos, galeriaExtra: datos.galeriaExtra.filter((_, j) => j !== i) })}
+                  className="absolute -top-1 -right-1 bg-white rounded-full border text-red-500"
+                  style={{ width: 16, height: 16, fontSize: 10, lineHeight: "14px" }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                files.forEach((file) => {
+                  const reader = new FileReader();
+                  reader.onload = () => setDatos((d) => ({ ...d, galeriaExtra: [...d.galeriaExtra, reader.result] }));
+                  reader.readAsDataURL(file);
+                });
+              }}
+              className="text-xs"
+            />
+          </div>
+        </div>
+        <button onClick={() => onGuardar(datos)} className="w-full py-2 rounded-lg text-white text-sm font-medium" style={{ background: SKY_DARK }}>
+          Guardar detalles
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -4515,38 +4725,327 @@ function TiendaCategoria({ categoriaActiva, inventario, onVerProducto, onAgregar
 }
 
 /* ---------- Detalle de producto (drawer) ---------- */
-function TiendaProducto({ producto, open, onClose, onAgregarCarrito }) {
-  if (!producto) return null;
-  const specs = [];
-  if (producto.tipo) specs.push(["Tipo", producto.tipo]);
-  if (producto.material) specs.push(["Material", producto.material]);
-  if (producto.tratamiento) specs.push(["Tratamiento", producto.tratamiento]);
-  if (producto.rango) specs.push(["Rango de graduación", producto.rango]);
-  if (producto.tipoReemplazo) specs.push(["Tipo de reemplazo", producto.tipoReemplazo]);
-  if (producto.cosmetico !== undefined) specs.push(["Uso cosmético", producto.cosmetico ? "Sí" : "No"]);
-  const requiereReceta = producto.categoria === "lentesGraduados" || producto.categoria === "lentesContacto";
+function colorHex(nombre) {
+  const mapa = {
+    Negro: "#1a1a1a", Café: "#6b4423", Azul: "#3b6ea5", Transparente: "#eaeaea",
+    Rosa: "#e6a8c4", Traslúcido: "#d8d8d8", Verde: "#4a7c59", Morado: "#6b4c9a",
+    Lila: "#b19cd9", "Animal print": "#c9a876", Dorado: "#c9a227", Plata: "#c0c0c0",
+    Rojo: "#b5352f", Combinado: "#8a8a8a",
+  };
+  return mapa[nombre] || "#cccccc";
+}
+
+function materialArmazonDesde(categoriaArmazon) {
+  if (!categoriaArmazon) return "";
+  if (categoriaArmazon.includes("Metal")) return "Metal";
+  if (categoriaArmazon.includes("Pasta")) return "Acetato";
+  if (categoriaArmazon.includes("Combinado")) return "Combinado (metal y acetato)";
+  return "";
+}
+
+/* ---------- Probador virtual (cámara + detección de rostro en tiempo real) ---------- */
+function ProbadorVirtual({ imagenArmazon, onCerrar }) {
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const detectorRef = useRef(null);
+  const streamRef = useRef(null);
+  const rafRef = useRef(null);
+  const imgRef = useRef(null);
+  const [estado, setEstado] = useState("iniciando"); // iniciando | listo | error
+  const [mensajeError, setMensajeError] = useState("");
+
+  useEffect(() => {
+    let cancelado = false;
+
+    async function loop() {
+      if (cancelado) return;
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (video && canvas && detectorRef.current && video.readyState >= 2) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+        ctx.restore();
+
+        try {
+          const caras = await detectorRef.current.estimateFaces(video);
+          if (caras.length > 0) {
+            const kp = caras[0].keypoints;
+            const ojoIzq = kp[33];
+            const ojoDer = kp[263];
+            if (ojoIzq && ojoDer && imgRef.current?.complete) {
+              const xIzq = canvas.width - ojoIzq.x;
+              const xDer = canvas.width - ojoDer.x;
+              const cx = (xIzq + xDer) / 2;
+              const cy = (ojoIzq.y + ojoDer.y) / 2;
+              const dist = Math.hypot(xDer - xIzq, ojoDer.y - ojoIzq.y);
+              const angulo = Math.atan2(ojoDer.y - ojoIzq.y, xDer - xIzq);
+              const ancho = dist * 2.3;
+              const alto = ancho * (imgRef.current.height / imgRef.current.width);
+              ctx.save();
+              ctx.translate(cx, cy);
+              ctx.rotate(angulo);
+              ctx.globalAlpha = 0.92;
+              ctx.drawImage(imgRef.current, -ancho / 2, -alto / 2, ancho, alto);
+              ctx.restore();
+            }
+          }
+        } catch {
+          // se ignora un frame fallido, se sigue intentando
+        }
+      }
+      rafRef.current = requestAnimationFrame(loop);
+    }
+
+    async function iniciar() {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error("Este navegador no soporta acceso a la cámara.");
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+        if (cancelado) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+
+        const tf = await import("@tensorflow/tfjs");
+        await import("@tensorflow/tfjs-backend-webgl");
+        await tf.setBackend("webgl");
+        const faceLandmarksDetection = await import("@tensorflow-models/face-landmarks-detection");
+        const detector = await faceLandmarksDetection.createDetector(
+          faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
+          { runtime: "tfjs", refineLandmarks: false, maxFaces: 1 }
+        );
+        if (cancelado) return;
+        detectorRef.current = detector;
+
+        const img = new Image();
+        img.src = imagenArmazon;
+        imgRef.current = img;
+
+        setEstado("listo");
+        loop();
+      } catch (e) {
+        setMensajeError(e?.message || "No se pudo acceder a la cámara.");
+        setEstado("error");
+      }
+    }
+
+    iniciar();
+    return () => {
+      cancelado = true;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+    };
+  }, [imagenArmazon]);
 
   return (
-    <DrawerLateral open={open} onClose={onClose}>
-      <div className="rounded-2xl mb-4 overflow-hidden" style={{ background: "#f4f4f4", height: 220 }}>
-        {producto.imagen && <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-cover" />}
-      </div>
-      <h2 className="text-2xl font-semibold mb-1">{producto.nombre}</h2>
-      <p className="text-lg mb-4">${producto.precio} MXN {requiereReceta && <span className="text-sm text-slate-400">| Requiere receta</span>}</p>
-      {specs.length > 0 && (
-        <table className="w-full text-sm mb-6">
-          <tbody>
-            {specs.map(([k, v]) => (
-              <tr key={k} className="border-t">
-                <td className="py-2 text-slate-500">{k}</td>
-                <td className="py-2 text-right">{v}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="fixed inset-0 z-[60] bg-black flex flex-col items-center justify-center p-4">
+      <button onClick={onCerrar} className="absolute top-5 right-5 text-white">
+        <X size={28} />
+      </button>
+      {estado === "iniciando" && <p className="text-white text-sm mb-4">Cargando cámara y modelo de rostro… (puede tardar unos segundos la primera vez)</p>}
+      {estado === "error" && (
+        <div className="text-white text-center px-6 max-w-sm">
+          <p className="mb-2">No se pudo abrir la prueba virtual.</p>
+          <p className="text-xs text-slate-400">{mensajeError}</p>
+          <p className="text-xs text-slate-400 mt-2">Revisa que le hayas dado permiso de cámara a esta página.</p>
+        </div>
       )}
-      <BotonNegro onClick={() => { onAgregarCarrito(producto); onClose(); }}>Lo quiero comprar</BotonNegro>
-    </DrawerLateral>
+      <div className="relative" style={{ maxWidth: "100%", maxHeight: "75vh" }}>
+        <video ref={videoRef} playsInline muted className="hidden" />
+        <canvas ref={canvasRef} className="max-w-full max-h-[75vh] rounded-xl" style={{ display: estado === "listo" ? "block" : "none" }} />
+      </div>
+      <p className="text-slate-400 text-xs mt-4 max-w-sm text-center">
+        Prueba virtual en tiempo real usando tu cámara. Para mejores resultados, sube fotos del armazón de frente y con fondo simple desde Inventario.
+      </p>
+    </div>
+  );
+}
+
+function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onAgregarCarrito }) {
+  const [indiceFoto, setIndiceFoto] = useState(0);
+  const [tallaSel, setTallaSel] = useState(producto.tallas?.[0] || "");
+  const [mostrarTodo, setMostrarTodo] = useState(false);
+  const [probadorAbierto, setProbadorAbierto] = useState(false);
+
+  const galeria = [producto.imagen, ...(producto.galeriaExtra || [])].filter(Boolean);
+  const esArmazonProducto = producto.categoria === "armazones";
+  const requiereReceta = producto.categoria === "lentesGraduados" || producto.categoria === "lentesContacto";
+  const materialMostrar = esArmazonProducto ? materialArmazonDesde(producto.categoriaArmazon) : producto.material;
+
+  function siguienteFoto(delta) {
+    if (galeria.length === 0) return;
+    setIndiceFoto((i) => (i + delta + galeria.length) % galeria.length);
+  }
+
+  const specsBase = [];
+  if (producto.recomendadoPara) specsBase.push(["Recomendado para", producto.recomendadoPara]);
+  if (materialMostrar) specsBase.push(["Material", materialMostrar]);
+  if (producto.clipOnCompatible) specsBase.push(["Clip-on compatible", producto.clipOnCompatible]);
+  if (producto.anchoMica) specsBase.push(["Ancho de mica", producto.anchoMica]);
+
+  const specsExtra = [];
+  if (esArmazonProducto) {
+    if (producto.tipoLinea) specsExtra.push(["Línea", producto.tipoLinea]);
+    if (producto.categoriaArmazon) specsExtra.push(["Categoría", producto.categoriaArmazon]);
+  } else {
+    if (producto.tipo) specsExtra.push(["Tipo", producto.tipo]);
+    if (producto.tratamiento) specsExtra.push(["Tratamiento", producto.tratamiento]);
+    if (producto.rango) specsExtra.push(["Rango de graduación", producto.rango]);
+    if (producto.tipoReemplazo) specsExtra.push(["Tipo de reemplazo", producto.tipoReemplazo]);
+    if (producto.cosmetico !== undefined) specsExtra.push(["Uso cosmético", producto.cosmetico ? "Sí" : "No"]);
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-8 py-6">
+      <p className="text-xs text-slate-400 mb-4">
+        <button onClick={onVolver} className="hover:underline">Inicio</button> / {categoriaLabel} / {producto.nombre}
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+        <div>
+          <div className="relative rounded-2xl overflow-hidden" style={{ background: "#f4f4f4", height: 420 }}>
+            {galeria.length > 0 ? (
+              <img src={galeria[indiceFoto]} alt={producto.nombre} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-xs text-slate-300">Sin fotos todavía</div>
+            )}
+            <button
+              onClick={() => {
+                if (galeria.length === 0) {
+                  window.alert("Este armazón todavía no tiene foto — sube una desde Inventario para poder probártelo.");
+                  return;
+                }
+                setProbadorAbierto(true);
+              }}
+              className="absolute bottom-4 right-4 flex items-center gap-1 bg-white rounded-full px-3 py-1.5 text-xs font-medium shadow"
+            >
+              <Eye size={14} /> Pruébatelos
+            </button>
+          </div>
+          {galeria.length > 1 && (
+            <div className="flex items-center justify-between mt-3">
+              <button onClick={() => siguienteFoto(-1)} className="p-2 rounded-full border hover:bg-slate-50">
+                <ChevronLeft size={18} />
+              </button>
+              <div className="flex gap-1.5">
+                {galeria.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setIndiceFoto(i)}
+                    className="rounded-full"
+                    style={{ width: 7, height: 7, background: i === indiceFoto ? "#000" : "#d4d4d4" }}
+                  />
+                ))}
+              </div>
+              <button onClick={() => siguienteFoto(1)} className="p-2 rounded-full border hover:bg-slate-50">
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div className="flex items-start justify-between">
+            <h1 className="text-3xl font-semibold mb-1">{producto.nombre}</h1>
+            <button className="text-slate-300 hover:text-black mt-1">♡</button>
+          </div>
+          <p className="text-lg mb-4">
+            ${producto.precio} MXN {esArmazonProducto && <span className="text-sm text-slate-400">| Incluye micas graduadas</span>}
+            {requiereReceta && <span className="text-sm text-slate-400"> | Requiere receta</span>}
+          </p>
+
+          {producto.descripcion && (
+            <div className="mb-4">
+              <p className="text-sm font-medium mb-2">{producto.descripcion}</p>
+              <div className="flex gap-2">
+                {[producto.descripcion].map((c) => (
+                  <span key={c} className="w-7 h-7 rounded-full border-2 border-black" style={{ background: colorHex(c) }} title={c} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {producto.tallas?.length > 0 && (
+            <div className="mb-5">
+              <p className="text-sm font-medium mb-2">Tallas disponibles</p>
+              <div className="flex gap-2">
+                {producto.tallas.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setTallaSel(t)}
+                    className={`w-9 h-9 rounded-full text-xs font-medium border ${tallaSel === t ? "bg-black text-white border-black" : "border-slate-300"}`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <BotonNegro onClick={() => onAgregarCarrito({ ...producto, tallaSeleccionada: tallaSel })} className="mb-5">
+            Los quiero comprar
+          </BotonNegro>
+
+          <div className="space-y-2 text-sm text-slate-600">
+            <p>🚚 Envío GRATIS en un máximo de 10 días hábiles</p>
+            <p>🛡️ 30 días para cambios y devoluciones</p>
+            <p>👓 Pruébatelos en nuestras tiendas</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-14 border-t pt-8">
+        <h2 className="text-2xl font-semibold mb-4">Acerca de {producto.nombre}</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <p className="text-sm text-slate-600">
+            {producto.acercaDe || "Aún no se ha escrito la descripción de este producto — se puede agregar desde Inventario."}
+          </p>
+          <div>
+            <table className="w-full text-sm">
+              <tbody>
+                {specsBase.length === 0 && specsExtra.length === 0 && (
+                  <tr>
+                    <td className="py-2 text-slate-400">Sin especificaciones capturadas todavía.</td>
+                  </tr>
+                )}
+                {specsBase.map(([k, v]) => (
+                  <tr key={k} className="border-t">
+                    <td className="py-2 text-slate-500">{k}</td>
+                    <td className="py-2 text-right">{v}</td>
+                  </tr>
+                ))}
+                {mostrarTodo &&
+                  specsExtra.map(([k, v]) => (
+                    <tr key={k} className="border-t">
+                      <td className="py-2 text-slate-500">{k}</td>
+                      <td className="py-2 text-right">{v}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+            {specsExtra.length > 0 && (
+              <div className="text-center mt-3">
+                <button onClick={() => setMostrarTodo(!mostrarTodo)} className="px-4 py-1.5 rounded-full border text-xs font-medium">
+                  {mostrarTodo ? "Mostrar menos" : "Mostrar todo"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {probadorAbierto && (
+        <ProbadorVirtual imagenArmazon={galeria[indiceFoto] || producto.imagen} onCerrar={() => setProbadorAbierto(false)} />
+      )}
+    </div>
   );
 }
 
@@ -4702,7 +5201,7 @@ function TiendaAgendar({ open, onClose, agenda, setAgenda, pacientes, setPacient
 
 /* ---------- Orquestador principal de la tienda ---------- */
 function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas, inventario, config, setConfig, usuarios, setUsuarios, onLoginEmpleado, sesionStaff, onVolverPanel }) {
-  const [vista, setVista] = useState("inicio"); // inicio | categoria
+  const [vista, setVista] = useState("inicio"); // inicio | categoria | producto
   const [categoriaActiva, setCategoriaActiva] = useState("armazones");
   const [carrito, setCarrito] = useState([]);
   const [productoVer, setProductoVer] = useState(null);
@@ -4722,6 +5221,12 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
   function irCategoria(cat) {
     setCategoriaActiva(cat);
     setVista("categoria");
+    window.scrollTo(0, 0);
+  }
+
+  function verProducto(p) {
+    setProductoVer(p);
+    setVista("producto");
     window.scrollTo(0, 0);
   }
 
@@ -4791,11 +5296,25 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
 
       {vista === "inicio" ? (
         <TiendaInicio config={config} onIrCategoria={irCategoria} onAgendar={abrirExamen} />
+      ) : vista === "producto" ? (
+        <TiendaProductoPagina
+          producto={productoVer}
+          categoriaLabel={
+            { armazones: "Armazones", lentesGraduados: "Lentes graduados", lentesContacto: "Lentes de contacto", lentesSolares: "Lentes solares", accesorios: "Accesorios" }[
+              productoVer?.categoria
+            ] || ""
+          }
+          onVolver={() => setVista("inicio")}
+          onAgregarCarrito={(p) => {
+            agregarCarrito(p);
+            setCarritoAbierto(true);
+          }}
+        />
       ) : (
         <TiendaCategoria
           categoriaActiva={categoriaActiva}
           inventario={inventario}
-          onVerProducto={setProductoVer}
+          onVerProducto={verProducto}
           onAgregarCarrito={agregarCarrito}
         />
       )}
@@ -4810,7 +5329,6 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         onAbrirReceta={() => setRecetaInfoAbierto(true)}
       />
 
-      <TiendaProducto producto={productoVer} open={!!productoVer} onClose={() => setProductoVer(null)} onAgregarCarrito={agregarCarrito} />
       <TiendaCarrito
         open={carritoAbierto}
         onClose={() => setCarritoAbierto(false)}
