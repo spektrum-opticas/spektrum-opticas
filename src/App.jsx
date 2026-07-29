@@ -3314,6 +3314,17 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
     setMostrarProveedor(false);
   }
 
+  function actualizarPagoProveedor(id, campo, valor) {
+    setPagosProveedores(
+      pagosProveedores.map((p) => (p.id === id ? { ...p, [campo]: campo === "monto" ? Number(valor) : valor } : p))
+    );
+  }
+
+  function eliminarPagoProveedor(id) {
+    if (!window.confirm("¿Eliminar este pago a proveedor? No se podrá recuperar.")) return;
+    setPagosProveedores(pagosProveedores.filter((p) => p.id !== id));
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
@@ -3481,7 +3492,40 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
           <table className="w-full text-xs">
             <tbody>
               {pagosProvDelDia.map((p) => (
-                <tr key={p.id} className="border-t"><td className="py-1">{p.proveedor} — {p.concepto}</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
+                <tr key={p.id} className="border-t align-top">
+                  <td className="py-1 pr-1">
+                    <select
+                      value={p.proveedor}
+                      onChange={(e) => actualizarPagoProveedor(p.id, "proveedor", e.target.value)}
+                      className="border rounded px-1 py-0.5 text-xs w-24"
+                    >
+                      <option value={p.proveedor}>{p.proveedor}</option>
+                      {proveedores.filter((x) => x.nombre !== p.proveedor).map((x) => (
+                        <option key={x.id} value={x.nombre}>{x.nombre}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="py-1 pr-1">
+                    <input
+                      value={p.concepto}
+                      onChange={(e) => actualizarPagoProveedor(p.id, "concepto", e.target.value)}
+                      className="border rounded px-1 py-0.5 text-xs w-24"
+                    />
+                  </td>
+                  <td className="text-right py-1 pr-1">
+                    <input
+                      type="number"
+                      value={p.monto}
+                      onChange={(e) => actualizarPagoProveedor(p.id, "monto", e.target.value)}
+                      className="border rounded px-1 py-0.5 text-xs w-16 text-right"
+                    />
+                  </td>
+                  <td className="text-right py-1">
+                    <button onClick={() => eliminarPagoProveedor(p.id)} className="text-red-400 hover:text-red-600">
+                      <Trash2 size={13} />
+                    </button>
+                  </td>
+                </tr>
               ))}
               {pagosProvDelDia.length === 0 && <tr><td className="text-slate-400 py-2">Sin pagos a proveedores este día.</td></tr>}
             </tbody>
