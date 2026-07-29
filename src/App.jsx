@@ -4223,6 +4223,26 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario }) {
     }
   }
 
+  function parsearFechaImportacion(valor) {
+    if (valor === undefined || valor === null || valor === "") return "";
+    try {
+      if (valor instanceof Date) {
+        return isNaN(valor.getTime()) ? "" : valor.toISOString();
+      }
+      if (typeof valor === "number") {
+        // Número de serie de Excel (días desde 1899-12-30)
+        const ms = Math.round((valor - 25569) * 86400 * 1000);
+        const d = new Date(ms);
+        return isNaN(d.getTime()) ? "" : d.toISOString();
+      }
+      const texto = String(valor).trim();
+      const d = new Date(texto);
+      return isNaN(d.getTime()) ? "" : d.toISOString();
+    } catch {
+      return "";
+    }
+  }
+
   function aplicarImportacion(filas) {
     if (categoria === "Pacientes") {
       let lista = [...pacientes];
@@ -4231,7 +4251,7 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario }) {
         const claveNombre = nombre.trim().toLowerCase();
         const visita = {
           id: uid(),
-          fecha: f["fecha"] ? new Date(f["fecha"]).toISOString() || f["fecha"] : "",
+          fecha: parsearFechaImportacion(f["fecha"]),
           total: f["total"] || "",
           anticipo: f["anticipo"] || "",
           saldo: f["saldo"] || "",
