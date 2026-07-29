@@ -12,7 +12,7 @@ import {
    equipo y el sistema ven los mismos datos).
    ============================================================ */
 
-const SKY = "#6B7280";
+const SKY = "#000000";
 const SKY_DARK = "#000000";
 const BEIGE = "#F3EAD8";
 const BEIGE_DARK = "#E4D4B5";
