@@ -128,6 +128,69 @@ function mensajeCitaConfirmada(nombre, fecha, hora, consultorio, urlSitio) {
   };
 }
 
+async function generarPDFNota(nota, config) {
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF();
+  let y = 18;
+
+  if (config?.logo) {
+    try {
+      const formato = config.logo.includes("image/png") ? "PNG" : "JPEG";
+      doc.addImage(config.logo, formato, 15, y - 8, 32, 16);
+    } catch {}
+  }
+  doc.setFontSize(14);
+  doc.text(NOMBRE_OPTICA, 52, y);
+  doc.setFontSize(9);
+  doc.setTextColor(90);
+  doc.text(config?.direccion || "", 52, y + 6);
+  doc.text(`Tel: ${config?.telefono || ""}`, 52, y + 11);
+  doc.setTextColor(0);
+
+  y += 26;
+  doc.setDrawColor(200);
+  doc.line(15, y, 195, y);
+  y += 10;
+
+  doc.setFontSize(13);
+  doc.text(nota.estatus === "presupuesto" ? "PRESUPUESTO" : "NOTA DE VENTA", 15, y);
+  y += 8;
+  doc.setFontSize(10);
+  doc.text(`Folio: #${nota.folio}`, 15, y); y += 6;
+  doc.text(`Cliente: ${nota.nombreCliente}`, 15, y); y += 6;
+  doc.text(`Fecha: ${new Date(nota.fecha).toLocaleString("es-MX")}`, 15, y); y += 10;
+
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text("Artículo", 15, y);
+  doc.text("Precio", 190, y, { align: "right" });
+  doc.setTextColor(0);
+  y += 5;
+  doc.line(15, y, 195, y);
+  y += 6;
+
+  nota.items.forEach((it) => {
+    if (y > 270) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.text(String(it.nombre), 15, y);
+    doc.text(`$${Number(it.precio).toFixed(2)}`, 190, y, { align: "right" });
+    y += 7;
+  });
+
+  y += 4;
+  doc.line(15, y, 195, y);
+  y += 8;
+  doc.setFontSize(12);
+  doc.text(`Total: $${nota.total.toFixed(2)} MXN`, 190, y, { align: "right" });
+  y += 7;
+  doc.setFontSize(10);
+  doc.text(`Abono: $${nota.abono.toFixed(2)} — Saldo: $${nota.saldo.toFixed(2)}`, 190, y, { align: "right" });
+
+  doc.save(`${nota.estatus}-folio-${nota.folio}.pdf`);
+}
+
 function textoNotaWhatsApp(nota) {
   const encabezado = nota.estatus === "presupuesto" ? "Presupuesto" : "Nota de venta";
   const lineas = nota.items.map((it) => `• ${it.nombre} — $${it.precio}`).join("\n");
@@ -1075,6 +1138,11 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
     window.scrollTo(0, 0);
   }
 
+  function cancelarPresupuesto(folio) {
+    if (!window.confirm(`¿Cancelar el presupuesto #${folio}? Ya no aparecerá en la lista de pendientes.`)) return;
+    setVentas(ventas.map((v) => (v.folio === folio ? { ...v, estatus: "cancelada" } : v)));
+  }
+
   function agregarArticulo(a) {
     setCarrito([...carrito, { ...a, cantidad: 1, uidLinea: uid() }]);
   }
@@ -1157,11 +1225,13 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
           },
         ]);
       }
-      // Mensaje de agradecimiento automático (WhatsApp y/o correo, lo que esté disponible)
+      // Mensaje de agradecimiento automático (WhatsApp y/o correo, lo que esté disponible) + PDF de la nota
       const nombreParaMensaje = clienteSel?.nombre || nota.nombreCliente;
       const msj = mensajeAgradecimiento(nombreParaMensaje);
-      if (clienteSel?.telefono) abrirWhatsApp(clienteSel.telefono, msj.whatsapp);
-      if (clienteSel?.mail) abrirEmail(clienteSel.mail, msj.email.asunto, msj.email.cuerpo);
+      generarPDFNota(nota, config);
+      if (clienteSel?.telefono)
+        abrirWhatsApp(clienteSel.telefono, msj.whatsapp + "\n\n📎 Te comparto tu nota en PDF (adjunta el archivo aquí).");
+      if (clienteSel?.mail) abrirEmail(clienteSel.mail, msj.email.asunto, msj.email.cuerpo + "\n\n(Adjunta el PDF de tu nota que se acaba de descargar.)");
     }
     setPreview(nota);
     setCarrito([]);
@@ -1196,6 +1266,9 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                 >
                   Cargar en el POS para cobrar
                 </button>
+                <button onClick={() => cancelarPresupuesto(v.folio)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-200 text-slate-600">
+                  Cancelar
+                </button>
               </div>
             ))}
           </div>
@@ -1226,6 +1299,9 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                     style={{ background: SKY_DARK }}
                   >
                     Cargar en el POS para cobrar
+                  </button>
+                  <button onClick={() => cancelarPresupuesto(v.folio)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-200 text-slate-600">
+                    Cancelar
                   </button>
                 </div>
               </div>
@@ -1473,6 +1549,10 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                   <p className="text-xs font-medium text-slate-500 uppercase mb-1">
                     Enviar {preview.estatus === "presupuesto" ? "presupuesto" : "nota de venta"} por WhatsApp
                   </p>
+                  <p className="text-xs text-slate-400 mb-2">
+                    Se va a descargar el PDF a tu computadora y se abrirá WhatsApp con el mensaje listo — adjunta ahí el
+                    PDF descargado antes de enviarlo (WhatsApp no permite adjuntarlo solo desde un enlace).
+                  </p>
                   {!p?.telefono && (
                     <input
                       value={telefonoManual}
@@ -1481,13 +1561,28 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                       className="w-full border rounded-lg px-2 py-1.5 text-sm mb-2"
                     />
                   )}
-                  <button
-                    onClick={() => telefono && abrirWhatsApp(telefono, textoNotaWhatsApp(preview))}
-                    disabled={!telefono}
-                    className="w-full py-2 rounded-lg bg-emerald-500 text-white text-sm disabled:opacity-40"
-                  >
-                    Enviar por WhatsApp
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => generarPDFNota(preview, config)}
+                      className="flex-1 py-2 rounded-lg bg-slate-200 text-slate-700 text-sm"
+                    >
+                      Descargar PDF
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await generarPDFNota(preview, config);
+                        if (telefono)
+                          abrirWhatsApp(
+                            telefono,
+                            textoNotaWhatsApp(preview) + "\n\n📎 Te comparto tu nota en PDF (adjunta el archivo aquí)."
+                          );
+                      }}
+                      disabled={!telefono}
+                      className="flex-1 py-2 rounded-lg bg-emerald-500 text-white text-sm disabled:opacity-40"
+                    >
+                      Descargar PDF y abrir WhatsApp
+                    </button>
+                  </div>
                 </div>
               );
             })()}
@@ -1499,7 +1594,10 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                   <>
                     {p?.telefono && (
                       <button
-                        onClick={() => abrirWhatsApp(p.telefono, msj.whatsapp)}
+                        onClick={async () => {
+                          await generarPDFNota(preview, config);
+                          abrirWhatsApp(p.telefono, msj.whatsapp + "\n\n📎 Te comparto tu nota en PDF (adjunta el archivo aquí).");
+                        }}
                         className="flex-1 py-2 rounded-lg bg-emerald-500 text-white text-sm"
                       >
                         Reenviar agradecimiento por WhatsApp
@@ -1507,7 +1605,10 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                     )}
                     {p?.mail && (
                       <button
-                        onClick={() => abrirEmail(p.mail, msj.email.asunto, msj.email.cuerpo)}
+                        onClick={async () => {
+                          await generarPDFNota(preview, config);
+                          abrirEmail(p.mail, msj.email.asunto, msj.email.cuerpo + "\n\n(Adjunta el PDF de tu nota que se acaba de descargar.)");
+                        }}
                         className="flex-1 py-2 rounded-lg bg-slate-600 text-white text-sm"
                       >
                         Reenviar agradecimiento por correo
