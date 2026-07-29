@@ -128,6 +128,20 @@ function mensajeCitaConfirmada(nombre, fecha, hora, consultorio, urlSitio) {
   };
 }
 
+function textoNotaWhatsApp(nota) {
+  const encabezado = nota.estatus === "presupuesto" ? "Presupuesto" : "Nota de venta";
+  const lineas = nota.items.map((it) => `• ${it.nombre} — $${it.precio}`).join("\n");
+  return (
+    `${encabezado} — ${NOMBRE_OPTICA}\n` +
+    `Folio #${nota.folio}\n` +
+    `Cliente: ${nota.nombreCliente}\n\n` +
+    `${lineas}\n\n` +
+    `Total: $${nota.total.toFixed(2)} MXN\n` +
+    `Abono: $${nota.abono.toFixed(2)} — Saldo: $${nota.saldo.toFixed(2)}\n\n` +
+    `¡Gracias por tu preferencia en ${NOMBRE_OPTICA}!`
+  );
+}
+
 function mensajeAgradecimiento(nombre) {
   return {
     email: {
@@ -1027,6 +1041,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
   const [formaPago, setFormaPago] = useState("efectivo");
   const [abono, setAbono] = useState(0);
   const [preview, setPreview] = useState(null);
+  const [telefonoManual, setTelefonoManual] = useState("");
   const [modoFechaPasada, setModoFechaPasada] = useState(false);
   const [fechaVentaManual, setFechaVentaManual] = useState(fechaISO(new Date()));
 
@@ -1050,6 +1065,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
     : [];
 
   const pedidosPortal = ventas.filter((v) => v.origen === "portal" && v.estatus === "presupuesto");
+  const presupuestosMostrador = ventas.filter((v) => v.origen !== "portal" && v.estatus === "presupuesto");
 
   function cargarPedidoPortal(pedido) {
     const p = pacientes.find((x) => x.id === pedido.pacienteId);
@@ -1180,6 +1196,38 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                 >
                   Cargar en el POS para cobrar
                 </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {presupuestosMostrador.length > 0 && (
+        <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 mb-4">
+          <h3 className="font-semibold text-sky-800 text-sm mb-2">
+            🧾 Presupuestos guardados ({presupuestosMostrador.length})
+          </h3>
+          <div className="space-y-2">
+            {presupuestosMostrador.map((v) => (
+              <div key={v.folio} className="bg-white rounded-lg border border-sky-200 p-2 flex items-center justify-between flex-wrap gap-2">
+                <div className="text-sm">
+                  <p className="font-medium">Folio #{v.folio} — {v.nombreCliente} — ${v.total.toFixed(2)} MXN</p>
+                  <p className="text-xs text-slate-500">
+                    {v.items.map((it) => it.nombre).join(", ")} · {new Date(v.fecha).toLocaleString("es-MX")}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setPreview(v)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600">
+                    Ver / imprimir / WhatsApp
+                  </button>
+                  <button
+                    onClick={() => cargarPedidoPortal(v)}
+                    className="text-xs px-3 py-1.5 rounded-lg text-white"
+                    style={{ background: SKY_DARK }}
+                  >
+                    Cargar en el POS para cobrar
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -1417,6 +1465,32 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                 bloqueó la ventana, usa los botones de abajo. Imprimir la nota es opcional.
               </p>
             )}
+            {(() => {
+              const p = preview.pacienteId ? pacientes.find((x) => x.id === preview.pacienteId) : null;
+              const telefono = p?.telefono || telefonoManual;
+              return (
+                <div className="mt-3 bg-slate-50 rounded-lg p-2">
+                  <p className="text-xs font-medium text-slate-500 uppercase mb-1">
+                    Enviar {preview.estatus === "presupuesto" ? "presupuesto" : "nota de venta"} por WhatsApp
+                  </p>
+                  {!p?.telefono && (
+                    <input
+                      value={telefonoManual}
+                      onChange={(e) => setTelefonoManual(e.target.value)}
+                      placeholder="Teléfono del cliente"
+                      className="w-full border rounded-lg px-2 py-1.5 text-sm mb-2"
+                    />
+                  )}
+                  <button
+                    onClick={() => telefono && abrirWhatsApp(telefono, textoNotaWhatsApp(preview))}
+                    disabled={!telefono}
+                    className="w-full py-2 rounded-lg bg-emerald-500 text-white text-sm disabled:opacity-40"
+                  >
+                    Enviar por WhatsApp
+                  </button>
+                </div>
+              );
+            })()}
             <div className="flex flex-wrap gap-2 mt-3">
               {preview.estatus === "venta" && preview.pacienteId && (() => {
                 const p = pacientes.find((x) => x.id === preview.pacienteId);
@@ -1428,7 +1502,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                         onClick={() => abrirWhatsApp(p.telefono, msj.whatsapp)}
                         className="flex-1 py-2 rounded-lg bg-emerald-500 text-white text-sm"
                       >
-                        Reenviar por WhatsApp
+                        Reenviar agradecimiento por WhatsApp
                       </button>
                     )}
                     {p?.mail && (
@@ -1436,7 +1510,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                         onClick={() => abrirEmail(p.mail, msj.email.asunto, msj.email.cuerpo)}
                         className="flex-1 py-2 rounded-lg bg-slate-600 text-white text-sm"
                       >
-                        Reenviar por correo
+                        Reenviar agradecimiento por correo
                       </button>
                     )}
                   </>
