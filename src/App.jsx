@@ -3252,6 +3252,21 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
   const [formaPagoCobro, setFormaPagoCobro] = useState("efectivo");
   const [mostrarProveedor, setMostrarProveedor] = useState(false);
   const [nuevoProveedor, setNuevoProveedor] = useState({ proveedor: "", concepto: "", monto: "" });
+  const [modoCorregirGastos, setModoCorregirGastos] = useState(false);
+  const [pidiendoPasswordGastos, setPidiendoPasswordGastos] = useState(false);
+  const [passwordGastos, setPasswordGastos] = useState("");
+  const [errorPasswordGastos, setErrorPasswordGastos] = useState("");
+
+  function intentarCorregirGastos() {
+    if (passwordGastos === "spektrum2026") {
+      setModoCorregirGastos(true);
+      setPidiendoPasswordGastos(false);
+      setPasswordGastos("");
+      setErrorPasswordGastos("");
+    } else {
+      setErrorPasswordGastos("Contraseña incorrecta.");
+    }
+  }
 
   const esDelDia = (isoFecha) => isoFecha.slice(0, 10) === fecha;
 
@@ -3461,11 +3476,22 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
         </div>
 
         <div className="bg-white border rounded-xl p-3">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
             <h4 className="font-semibold text-sm">Desglose — Pago a proveedores</h4>
-            <button onClick={() => setMostrarProveedor(!mostrarProveedor)} className="text-xs text-slate-600 underline">
-              + Registrar pago
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => setMostrarProveedor(!mostrarProveedor)} className="text-xs text-slate-600 underline">
+                + Registrar pago
+              </button>
+              {modoCorregirGastos ? (
+                <button onClick={() => setModoCorregirGastos(false)} className="text-xs px-2 py-1 rounded bg-slate-800 text-white">
+                  Bloquear de nuevo
+                </button>
+              ) : (
+                <button onClick={() => setPidiendoPasswordGastos(true)} className="text-xs px-2 py-1 rounded bg-red-600 text-white font-semibold">
+                  CORREGIR GASTOS
+                </button>
+              )}
+            </div>
           </div>
           {mostrarProveedor && (
             <div className="flex flex-wrap gap-1 mb-2 bg-slate-50 p-2 rounded-lg">
@@ -3491,48 +3517,64 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
           )}
           <table className="w-full text-xs">
             <tbody>
-              {pagosProvDelDia.map((p) => (
-                <tr key={p.id} className="border-t align-top">
-                  <td className="py-1 pr-1">
-                    <select
-                      value={p.proveedor}
-                      onChange={(e) => actualizarPagoProveedor(p.id, "proveedor", e.target.value)}
-                      className="border rounded px-1 py-0.5 text-xs w-24"
-                    >
-                      <option value={p.proveedor}>{p.proveedor}</option>
-                      {proveedores.filter((x) => x.nombre !== p.proveedor).map((x) => (
-                        <option key={x.id} value={x.nombre}>{x.nombre}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="py-1 pr-1">
-                    <input
-                      value={p.concepto}
-                      onChange={(e) => actualizarPagoProveedor(p.id, "concepto", e.target.value)}
-                      className="border rounded px-1 py-0.5 text-xs w-24"
-                    />
-                  </td>
-                  <td className="text-right py-1 pr-1">
-                    <input
-                      type="number"
-                      value={p.monto}
-                      onChange={(e) => actualizarPagoProveedor(p.id, "monto", e.target.value)}
-                      className="border rounded px-1 py-0.5 text-xs w-16 text-right"
-                    />
-                  </td>
-                  <td className="text-right py-1">
-                    <button onClick={() => eliminarPagoProveedor(p.id)} className="text-red-400 hover:text-red-600">
-                      <Trash2 size={13} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {pagosProvDelDia.map((p) =>
+                modoCorregirGastos ? (
+                  <tr key={p.id} className="border-t align-top">
+                    <td className="py-1 pr-1">
+                      <select
+                        value={p.proveedor}
+                        onChange={(e) => actualizarPagoProveedor(p.id, "proveedor", e.target.value)}
+                        className="border rounded px-1 py-0.5 text-xs w-24"
+                      >
+                        <option value={p.proveedor}>{p.proveedor}</option>
+                        {proveedores.filter((x) => x.nombre !== p.proveedor).map((x) => (
+                          <option key={x.id} value={x.nombre}>{x.nombre}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="py-1 pr-1">
+                      <input
+                        value={p.concepto}
+                        onChange={(e) => actualizarPagoProveedor(p.id, "concepto", e.target.value)}
+                        className="border rounded px-1 py-0.5 text-xs w-24"
+                      />
+                    </td>
+                    <td className="text-right py-1 pr-1">
+                      <input
+                        type="number"
+                        value={p.monto}
+                        onChange={(e) => actualizarPagoProveedor(p.id, "monto", e.target.value)}
+                        className="border rounded px-1 py-0.5 text-xs w-16 text-right"
+                      />
+                    </td>
+                    <td className="text-right py-1">
+                      <button onClick={() => eliminarPagoProveedor(p.id)} className="text-red-400 hover:text-red-600">
+                        <Trash2 size={13} />
+                      </button>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={p.id} className="border-t">
+                    <td className="py-1">{p.proveedor} — {p.concepto}</td>
+                    <td className="text-right py-1">${p.monto.toFixed(2)}</td>
+                  </tr>
+                )
+              )}
               {pagosProvDelDia.length === 0 && <tr><td className="text-slate-400 py-2">Sin pagos a proveedores este día.</td></tr>}
             </tbody>
           </table>
         </div>
       </div>
       </div>
+
+      <Modal open={pidiendoPasswordGastos} onClose={() => { setPidiendoPasswordGastos(false); setPasswordGastos(""); setErrorPasswordGastos(""); }} title="Corregir gastos">
+        <p className="text-sm text-slate-500 mb-3">Escribe la contraseña para poder editar o eliminar pagos a proveedores.</p>
+        <Field label="Contraseña" type="password" value={passwordGastos} onChange={(e) => setPasswordGastos(e.target.value)} />
+        {errorPasswordGastos && <p className="text-xs text-red-600 mb-2">{errorPasswordGastos}</p>}
+        <button onClick={intentarCorregirGastos} className="w-full py-2 rounded-lg text-white text-sm font-medium" style={{ background: SKY_DARK }}>
+          Desbloquear edición
+        </button>
+      </Modal>
 
       <Modal open={!!cobrando} onClose={() => setCobrando(null)} title="Cobrar saldo pendiente">
         <div className="space-y-3">
