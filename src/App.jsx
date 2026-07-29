@@ -4155,11 +4155,30 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario }) {
   const [categoria, setCategoria] = useState("Pacientes");
   const [progreso, setProgreso] = useState(null);
   const [resultado, setResultado] = useState(null);
+  const [vistaPrevia, setVistaPrevia] = useState(null); // { encabezados, filas, filasNorm }
   const fileRef = useRef(null);
+
+  function normalizarClave(str) {
+    return String(str)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // quita acentos
+      .toLowerCase()
+      .replace(/[.:]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function campo(filaNorm, ...alias) {
+    for (const a of alias) {
+      const clave = normalizarClave(a);
+      if (filaNorm[clave] !== undefined && filaNorm[clave] !== "") return filaNorm[clave];
+    }
+    return "";
+  }
 
   function procesarCSV(text) {
     const lineas = text.split(/\r?\n/).filter(Boolean);
-    const headers = lineas[0].split(",").map((h) => h.trim().toLowerCase());
+    const headers = lineas[0].split(",").map((h) => h.trim());
     return lineas.slice(1).map((linea) => {
       const valores = linea.split(",");
       const obj = {};
@@ -4169,11 +4188,11 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario }) {
   }
 
   function normalizarFilas(filas) {
-    // homogeniza encabezados a minúsculas para que nombre/telefono/precio/etc. funcionen igual
+    // homogeniza encabezados (acentos, mayúsculas, puntuación) para que coincidan aunque el archivo los escriba distinto
     return filas.map((fila) => {
       const obj = {};
       Object.entries(fila).forEach(([k, v]) => {
-        obj[String(k).trim().toLowerCase()] = typeof v === "string" ? v.trim() : v;
+        obj[normalizarClave(k)] = typeof v === "string" ? v.trim() : v;
       });
       return obj;
     });
@@ -4184,13 +4203,18 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario }) {
     if (!file) return;
     const esExcel = /\.(xlsx|xls)$/i.test(file.name);
     setProgreso(10);
+    setResultado(null);
 
-    const procesarFilas = (filas) => {
-      setProgreso(95);
-      const filasNorm = normalizarFilas(filas);
-      aplicarImportacion(filasNorm);
+    const mostrarVistaPrevia = (filas) => {
       setProgreso(100);
-      setTimeout(() => setProgreso(null), 1200);
+      setTimeout(() => setProgreso(null), 400);
+      if (filas.length === 0) {
+        setResultado({ tipo: categoria, cantidad: 0, error: "El archivo no tiene filas de datos." });
+        return;
+      }
+      const encabezados = Object.keys(filas[0]);
+      const filasNorm = normalizarFilas(filas);
+      setVistaPrevia({ encabezados, filas: filas.slice(0, 3), filasNorm, totalFilas: filas.length });
     };
 
     if (esExcel) {
@@ -4203,7 +4227,7 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario }) {
           const wb = XLSX.read(reader.result, { type: "array" });
           const hoja = wb.Sheets[wb.SheetNames[0]];
           const filas = XLSX.utils.sheet_to_json(hoja, { defval: "" });
-          procesarFilas(filas);
+          mostrarVistaPrevia(filas);
         } catch (err) {
           setResultado({ tipo: categoria, cantidad: 0, error: "No se pudo leer el Excel: " + err.message });
           setProgreso(null);
@@ -4217,10 +4241,17 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario }) {
       };
       reader.onload = () => {
         const filas = procesarCSV(reader.result);
-        procesarFilas(filas);
+        mostrarVistaPrevia(filas);
       };
       reader.readAsText(file);
     }
+  }
+
+  function confirmarImportacion() {
+    if (!vistaPrevia) return;
+    aplicarImportacion(vistaPrevia.filasNorm);
+    setVistaPrevia(null);
+    if (fileRef.current) fileRef.current.value = "";
   }
 
   function parsearFechaImportacion(valor) {
@@ -4246,67 +4277,82 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario }) {
   function aplicarImportacion(filas) {
     if (categoria === "Pacientes") {
       let lista = [...pacientes];
+      let sinNombre = 0;
       filas.forEach((f) => {
-        const nombre = f["nombre"] || f["name"] || "Sin nombre";
+        const nombreDetectado = campo(f, "nombre", "nombre completo", "nombre del paciente", "paciente", "name");
+        if (!nombreDetectado) sinNombre++;
+        const nombre = nombreDetectado || `Sin nombre (fila ${uid().slice(0, 4)})`;
         const claveNombre = nombre.trim().toLowerCase();
         const visita = {
           id: uid(),
-          fecha: parsearFechaImportacion(f["fecha"]),
-          total: f["total"] || "",
-          anticipo: f["anticipo"] || "",
-          saldo: f["saldo"] || "",
-          fechaPrometido: f["fecha prometido"] || f["fechaprometido"] || "",
+          fecha: parsearFechaImportacion(campo(f, "fecha")),
+          total: campo(f, "total"),
+          anticipo: campo(f, "anticipo"),
+          saldo: campo(f, "saldo"),
+          fechaPrometido: campo(f, "fecha prometido", "fechaprometido"),
           od: {
-            esf: f["od_esf"] || "", cil: f["od_cil"] || "", eje: f["od_eje"] || "",
-            di: f["od_di"] || "", add: f["od_add"] || "", obs: f["od_obs"] || "",
+            esf: campo(f, "od_esf", "od esf"), cil: campo(f, "od_cil", "od cil"), eje: campo(f, "od_eje", "od eje"),
+            di: campo(f, "od_di", "od di"), add: campo(f, "od_add", "od add"), obs: campo(f, "od_obs", "od obs"),
           },
           os: {
-            esf: f["os_esf"] || "", cil: f["os_cil"] || "", eje: f["os_eje"] || "",
-            di: f["os_di"] || "", add: f["os_add"] || "", obs: f["os_obs"] || "",
+            esf: campo(f, "os_esf", "os esf"), cil: campo(f, "os_cil", "os cil"), eje: campo(f, "os_eje", "os eje"),
+            di: campo(f, "os_di", "os di"), add: campo(f, "os_add", "os add"), obs: campo(f, "os_obs", "os obs"),
           },
-          materialReceta: f["material_receta"] || "",
-          cantidad: f["cantidad"] || "",
-          descripcion: f["descripcion"] || "",
-          precioMaterial: f["precio material"] || f["precio_material"] || "",
-          totalProducto: f["total producto"] || f["total_producto"] || "",
+          materialReceta: campo(f, "material_receta", "material receta"),
+          cantidad: campo(f, "cantidad"),
+          descripcion: campo(f, "descripcion", "descripción"),
+          precioMaterial: campo(f, "precio material", "precio_material"),
+          totalProducto: campo(f, "total producto", "total_producto"),
           origen: "importado",
         };
         const idx = lista.findIndex((p) => p.nombre.trim().toLowerCase() === claveNombre);
+        const domicilio = campo(f, "domicilio", "direccion", "dirección");
+        const colonia = campo(f, "colonia");
+        const cp = campo(f, "c.p.", "cp", "codigo postal", "código postal");
+        const mail = campo(f, "mail", "correo", "email");
+        const telefono = campo(f, "telefono", "teléfono", "tel", "celular", "whatsapp", "phone");
         if (idx === -1) {
           lista.push({
             id: uid(),
             folio: lista.length + 1,
             nombre,
-            domicilio: f["domicilio"] || "",
-            colonia: f["colonia"] || "",
-            cp: f["c.p."] || f["cp"] || "",
-            mail: f["mail"] || f["email"] || "",
-            telefono: f["telefono"] || f["phone"] || "",
+            domicilio,
+            colonia,
+            cp,
+            mail,
+            telefono,
             compras: [visita],
           });
         } else {
           const p = lista[idx];
           lista[idx] = {
             ...p,
-            domicilio: p.domicilio || f["domicilio"] || "",
-            colonia: p.colonia || f["colonia"] || "",
-            cp: p.cp || f["c.p."] || f["cp"] || "",
-            mail: p.mail || f["mail"] || f["email"] || "",
-            telefono: p.telefono || f["telefono"] || f["phone"] || "",
+            domicilio: p.domicilio || domicilio,
+            colonia: p.colonia || colonia,
+            cp: p.cp || cp,
+            mail: p.mail || mail,
+            telefono: p.telefono || telefono,
             compras: [...(p.compras || []), visita],
           };
         }
       });
       setPacientes(lista);
-      setResultado({ tipo: "Pacientes", cantidad: filas.length });
+      setResultado({
+        tipo: "Pacientes",
+        cantidad: filas.length,
+        aviso:
+          sinNombre > 0
+            ? `Aviso: ${sinNombre} fila(s) no traían un nombre reconocible y se guardaron como pacientes separados con nombre temporal. Revisa el encabezado de la columna "Nombre" en tu archivo.`
+            : "",
+      });
     } else {
       const key = { Armazones: "armazones", "Lentes graduados": "lentesGraduados", "Lentes de contacto": "lentesContacto", "Lentes solares": "lentesSolares" }[categoria];
       const listaInv = inventario[key] || [];
       const nuevos = filas.map((f, i) => ({
         id: uid(),
-        nombre: f.nombre || f.name || "Sin nombre",
-        precio: f.precio || f.price || "0",
-        existencias: f.existencias || f.stock || "0",
+        nombre: campo(f, "nombre", "name") || "Sin nombre",
+        precio: campo(f, "precio", "price") || "0",
+        existencias: campo(f, "existencias", "stock") || "0",
         sku: `${key.slice(0, 3).toUpperCase()}-${(listaInv.length + i + 1).toString().padStart(4, "0")}`,
       }));
       setInventario({ ...inventario, [key]: [...listaInv, ...nuevos] });
@@ -4342,12 +4388,51 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario }) {
         {resultado && !resultado.error && (
           <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700">
             Se importaron {resultado.cantidad} registros a "{resultado.tipo}".
+            {resultado.aviso && <p className="text-amber-700 mt-2">{resultado.aviso}</p>}
           </div>
         )}
         {resultado?.error && (
           <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{resultado.error}</div>
         )}
       </div>
+
+      {vistaPrevia && (
+        <div className="bg-white border rounded-xl p-4 mt-4">
+          <h3 className="font-semibold text-sm mb-2">Vista previa — confirma antes de importar</h3>
+          <p className="text-xs text-slate-500 mb-2">
+            Se detectaron {vistaPrevia.totalFilas} fila(s) con estas columnas. Revisa que "Nombre" tenga datos reales
+            (no vacío) antes de confirmar.
+          </p>
+          <div className="overflow-x-auto mb-3">
+            <table className="text-xs border-collapse">
+              <thead>
+                <tr style={{ background: BEIGE }}>
+                  {vistaPrevia.encabezados.map((h) => (
+                    <th key={h} className="border px-2 py-1 text-left whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {vistaPrevia.filas.map((fila, i) => (
+                  <tr key={i}>
+                    {vistaPrevia.encabezados.map((h) => (
+                      <td key={h} className="border px-2 py-1 whitespace-nowrap">{String(fila[h] ?? "")}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={confirmarImportacion} className="px-4 py-2 rounded-lg text-white text-sm" style={{ background: SKY_DARK }}>
+              Confirmar importación ({vistaPrevia.totalFilas} filas)
+            </button>
+            <button onClick={() => { setVistaPrevia(null); if (fileRef.current) fileRef.current.value = ""; }} className="px-4 py-2 rounded-lg bg-slate-100 text-sm">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
