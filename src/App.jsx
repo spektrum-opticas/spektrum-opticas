@@ -4311,6 +4311,14 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario }) {
         const cp = campo(f, "c.p.", "cp", "codigo postal", "código postal");
         const mail = campo(f, "mail", "correo", "email");
         const telefono = campo(f, "telefono", "teléfono", "tel", "celular", "whatsapp", "phone");
+
+        const tieneDatosVisita = [
+          visita.fecha, visita.total, visita.anticipo, visita.saldo, visita.fechaPrometido,
+          visita.od.esf, visita.od.cil, visita.od.eje, visita.od.di, visita.od.add, visita.od.obs,
+          visita.os.esf, visita.os.cil, visita.os.eje, visita.os.di, visita.os.add, visita.os.obs,
+          visita.materialReceta, visita.cantidad, visita.descripcion, visita.precioMaterial, visita.totalProducto,
+        ].some((v) => v !== "" && v !== undefined && v !== null);
+
         if (idx === -1) {
           lista.push({
             id: uid(),
@@ -4321,7 +4329,7 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario }) {
             cp,
             mail,
             telefono,
-            compras: [visita],
+            compras: tieneDatosVisita ? [visita] : [],
           });
         } else {
           const p = lista[idx];
@@ -4332,7 +4340,7 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario }) {
             cp: p.cp || cp,
             mail: p.mail || mail,
             telefono: p.telefono || telefono,
-            compras: [...(p.compras || []), visita],
+            compras: tieneDatosVisita ? [...(p.compras || []), visita] : p.compras || [],
           };
         }
       });
