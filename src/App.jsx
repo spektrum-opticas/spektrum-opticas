@@ -1105,6 +1105,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
   const [abono, setAbono] = useState(0);
   const [preview, setPreview] = useState(null);
   const [telefonoManual, setTelefonoManual] = useState("");
+  const [busquedaNota, setBusquedaNota] = useState("");
   const [modoFechaPasada, setModoFechaPasada] = useState(false);
   const [fechaVentaManual, setFechaVentaManual] = useState(fechaISO(new Date()));
 
@@ -1309,6 +1310,47 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
           </div>
         </div>
       )}
+
+      <div className="bg-white border rounded-xl p-3 mb-4">
+        <h3 className="font-semibold text-sm mb-2 flex items-center gap-1">
+          <Search size={16} /> Buscar nota de venta o presupuesto (para reenviar)
+        </h3>
+        <input
+          value={busquedaNota}
+          onChange={(e) => setBusquedaNota(e.target.value)}
+          placeholder="Folio o nombre del cliente..."
+          className="w-full border rounded-lg px-3 py-2 text-sm mb-2"
+        />
+        {busquedaNota.trim() && (
+          <div className="max-h-48 overflow-y-auto space-y-1">
+            {ventas
+              .filter((v) => {
+                const q = busquedaNota.trim().toLowerCase();
+                return String(v.folio).includes(q) || (v.nombreCliente || "").toLowerCase().includes(q);
+              })
+              .slice()
+              .reverse()
+              .map((v) => (
+                <div key={v.folio} className="flex items-center justify-between text-sm border-b py-1.5">
+                  <div>
+                    <span className="font-medium">#{v.folio} — {v.nombreCliente}</span>{" "}
+                    <span className="text-xs text-slate-400">
+                      ${v.total.toFixed(2)} · {v.estatus} · {new Date(v.fecha).toLocaleDateString("es-MX")}
+                    </span>
+                  </div>
+                  <button onClick={() => setPreview(v)} className="text-xs px-3 py-1 rounded-lg bg-slate-100 text-slate-600">
+                    Ver / reenviar
+                  </button>
+                </div>
+              ))}
+            {ventas.filter((v) => {
+              const q = busquedaNota.trim().toLowerCase();
+              return String(v.folio).includes(q) || (v.nombreCliente || "").toLowerCase().includes(q);
+            }).length === 0 && <p className="text-xs text-slate-400">Sin resultados.</p>}
+          </div>
+        )}
+      </div>
+
     <div className="grid grid-cols-3 gap-4">
       <div className="col-span-1 space-y-3">
         <div className="bg-white rounded-xl border p-3">
@@ -2475,7 +2517,7 @@ function ordenarVisitasDesc(compras) {
   });
 }
 
-function ResumenVisita({ v }) {
+function ResumenVisita({ v, paciente, config }) {
   return (
     <div className="border rounded-lg p-3 text-sm">
       <p className="text-xs text-slate-400 mb-1">
@@ -2518,6 +2560,24 @@ function ResumenVisita({ v }) {
           Total: ${v.total} · Anticipo: ${v.anticipo || 0} · Saldo: ${v.saldo || 0}
           {v.fechaPrometido && ` · Prometido: ${v.fechaPrometido}`}
         </p>
+      )}
+      {v.items && v.folio && (
+        <div className="flex gap-2 mt-2">
+          <button onClick={() => generarPDFNota(v, config)} className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600">
+            Descargar PDF
+          </button>
+          {paciente?.telefono && (
+            <button
+              onClick={async () => {
+                await generarPDFNota(v, config);
+                abrirWhatsApp(paciente.telefono, textoNotaWhatsApp(v) + "\n\n📎 Te comparto tu nota en PDF (adjunta el archivo aquí).");
+              }}
+              className="text-xs px-2 py-1 rounded bg-emerald-100 text-emerald-700"
+            >
+              Reenviar por WhatsApp
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -2616,7 +2676,7 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
         </div>
         <div className="space-y-2">
           {visitasOrdenadas.map((v) => (
-            <ResumenVisita key={v.id || v.folio} v={v} />
+            <ResumenVisita key={v.id || v.folio} v={v} paciente={datos} config={config} />
           ))}
           {visitasOrdenadas.length === 0 && <p className="text-xs text-slate-400">Sin visitas o compras registradas todavía.</p>}
         </div>
