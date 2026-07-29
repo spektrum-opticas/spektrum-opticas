@@ -12,8 +12,8 @@ import {
    equipo y el sistema ven los mismos datos).
    ============================================================ */
 
-const SKY = "#5EB6E8";
-const SKY_DARK = "#3A9BD1";
+const SKY = "#6B7280";
+const SKY_DARK = "#000000";
 const BEIGE = "#F3EAD8";
 const BEIGE_DARK = "#E4D4B5";
 
@@ -483,7 +483,7 @@ function Ribbon({ current, onSelect }) {
           onClick={() => onSelect(it.id)}
           className={`flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap text-sm font-medium transition-colors ${
             current === it.id
-              ? "bg-white text-sky-700 shadow"
+              ? "bg-white text-slate-700 shadow"
               : "text-white hover:bg-white/20"
           }`}
         >
@@ -501,7 +501,7 @@ function Header({ config }) {
       {config.logo ? (
         <img src={config.logo} alt="logo" style={{ height: 96 }} className="object-contain" />
       ) : (
-        <div className="h-24 w-24 rounded-full bg-sky-100 flex items-center justify-center text-sky-500 font-bold text-xl">
+        <div className="h-24 w-24 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xl">
           SO
         </div>
       )}
@@ -543,7 +543,7 @@ function Field({ label, ...props }) {
       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</span>
       <input
         {...props}
-        className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
+        className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
       />
     </label>
   );
@@ -560,7 +560,7 @@ const HORAS = Array.from({ length: 21 }, (_, i) => {
 
 const ESTATUS_COLORS = {
   proxima: "#94a3b8",
-  llego: "#3b82f6",
+  llego: "#4B5563",
   en_consulta: "#f59e0b",
   piso_ventas: "#8b5cf6",
   no_acudio: "#ef4444",
@@ -634,7 +634,7 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS }) {
               d.setDate(d.getDate() - 1);
               setFecha(fechaISO(d));
             }}
-            className="p-2 rounded-lg hover:bg-sky-100"
+            className="p-2 rounded-lg hover:bg-slate-100"
           >
             <ChevronLeft />
           </button>
@@ -650,7 +650,7 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS }) {
               d.setDate(d.getDate() + 1);
               setFecha(fechaISO(d));
             }}
-            className="p-2 rounded-lg hover:bg-sky-100"
+            className="p-2 rounded-lg hover:bg-slate-100"
           >
             <ChevronRight />
           </button>
@@ -717,7 +717,7 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS }) {
                           <div className="flex-1 flex gap-1 justify-end">
                             <button
                               onClick={() => setNuevaCitaSlot({ consultorio: col, hora })}
-                              className="text-[10px] px-1 rounded bg-sky-200 hover:bg-sky-300"
+                              className="text-[10px] px-1 rounded bg-slate-200 hover:bg-slate-300"
                             >
                               + Cita
                             </button>
@@ -801,7 +801,7 @@ function CitaBlock({ cita, onDragStart, onClickNombre, onEliminar, onEstatus, da
           e.stopPropagation();
           onClickNombre();
         }}
-        className="text-sky-700 font-medium hover:underline truncate flex-1 text-left"
+        className="text-slate-700 font-medium hover:underline truncate flex-1 text-left"
       >
         {cita.nombre}
       </button>
@@ -855,7 +855,7 @@ function NuevaCitaForm({ pacientes, setPacientes, onCrear }) {
                 setNombre(p.nombre);
                 setBusqueda(p.nombre);
               }}
-              className="block w-full text-left px-3 py-2 text-sm hover:bg-sky-50"
+              className="block w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
             >
               {p.nombre} — {p.telefono}
             </button>
@@ -1277,13 +1277,13 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
       )}
 
       {presupuestosMostrador.length > 0 && (
-        <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 mb-4">
-          <h3 className="font-semibold text-sky-800 text-sm mb-2">
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4">
+          <h3 className="font-semibold text-slate-800 text-sm mb-2">
             🧾 Presupuestos guardados ({presupuestosMostrador.length})
           </h3>
           <div className="space-y-2">
             {presupuestosMostrador.map((v) => (
-              <div key={v.folio} className="bg-white rounded-lg border border-sky-200 p-2 flex items-center justify-between flex-wrap gap-2">
+              <div key={v.folio} className="bg-white rounded-lg border border-slate-200 p-2 flex items-center justify-between flex-wrap gap-2">
                 <div className="text-sm">
                   <p className="font-medium">Folio #{v.folio} — {v.nombreCliente} — ${v.total.toFixed(2)} MXN</p>
                   <p className="text-xs text-slate-500">
@@ -1358,7 +1358,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
             <Users size={16} /> Cliente
           </h3>
           {clienteSel ? (
-            <div className="text-sm bg-sky-50 rounded p-2 flex justify-between items-center">
+            <div className="text-sm bg-slate-50 rounded p-2 flex justify-between items-center">
               <span>{clienteSel.nombre}</span>
               <button onClick={() => setClienteSel(null)} className="text-red-400">
                 <X size={14} />
@@ -1377,7 +1377,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                   <button
                     key={p.id}
                     onClick={() => setClienteSel(p)}
-                    className="block w-full text-left px-2 py-1.5 text-xs hover:bg-sky-50 rounded"
+                    className="block w-full text-left px-2 py-1.5 text-xs hover:bg-slate-50 rounded"
                   >
                     {p.nombre} — {p.telefono}
                   </button>
@@ -1442,7 +1442,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
               <button
                 key={a.sku}
                 onClick={() => agregarArticulo(a)}
-                className="text-left text-xs border rounded-lg px-2 py-1.5 hover:bg-sky-50 flex justify-between"
+                className="text-left text-xs border rounded-lg px-2 py-1.5 hover:bg-slate-50 flex justify-between"
               >
                 <span className="truncate">{a.nombre}</span>
                 <span className="text-slate-500">${a.precio}</span>
@@ -2185,7 +2185,7 @@ function InventarioView({ inventario, setInventario }) {
                 </td>
                 <td className="px-3 py-2 text-right print:hidden">
                   {esArmazon && (
-                    <button onClick={() => setEditando(a)} className="text-sky-600 hover:text-sky-800 mr-2 text-xs underline">
+                    <button onClick={() => setEditando(a)} className="text-slate-600 hover:text-slate-800 mr-2 text-xs underline">
                       Editar detalles
                     </button>
                   )}
@@ -2440,7 +2440,7 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, set
               <tr key={p.id} className="border-t align-top">
                 <td className="px-3 py-2">{p.folio}</td>
                 <td className="px-3 py-2 font-medium">
-                  <button onClick={() => setAbierto(p.id)} className="text-sky-700 hover:underline print:no-underline print:text-slate-800">
+                  <button onClick={() => setAbierto(p.id)} className="text-slate-700 hover:underline print:no-underline print:text-slate-800">
                     {p.nombre}
                   </button>
                 </td>
@@ -2668,7 +2668,7 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
       <div>
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-semibold text-slate-700">
-            Historial de visitas / compras — <span className="text-sky-700">Número de compras: {visitasOrdenadas.length}</span>
+            Historial de visitas / compras — <span className="text-slate-700">Número de compras: {visitasOrdenadas.length}</span>
           </h3>
           <button onClick={() => setAgregandoVisita(true)} className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600 flex items-center gap-1">
             <Plus size={14} /> Agregar visita manualmente
@@ -3070,14 +3070,14 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
                   {o.cancelada ? (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">Cancelada</span>
                   ) : o.fechaRecepcion ? (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">Recibida — lista para entregar</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Recibida — lista para entregar</span>
                   ) : (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600">Activa</span>
                   )}
                 </td>
                 <td className="px-3 py-2 text-right">
                   {o.cancelada ? (
-                    <button onClick={() => reactivarOrden(o.id)} className="text-xs text-sky-600 underline">Reactivar</button>
+                    <button onClick={() => reactivarOrden(o.id)} className="text-xs text-slate-600 underline">Reactivar</button>
                   ) : (
                     <button onClick={() => cancelarOrden(o.id)} className="text-xs text-red-500 underline">Cancelar</button>
                   )}
@@ -3109,7 +3109,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
             const paciente = pacientes.find((p) => p.id === o.pacienteId);
             return (
               <div key={`todas-${o.id}`} style={{ pageBreakAfter: "always" }}>
-                <div className="flex items-center gap-3 mb-4" style={{ borderBottom: "2px solid #5EB6E8", paddingBottom: 10 }}>
+                <div className="flex items-center gap-3 mb-4" style={{ borderBottom: `2px solid ${SKY}`, paddingBottom: 10 }}>
                   {config?.logo && <img src={config.logo} style={{ height: 70 }} alt="logo" />}
                   <div>
                     <p className="font-bold text-lg">Spektrum Ópticas</p>
@@ -3148,7 +3148,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
           const paciente = pacientes.find((p) => p.id === o.pacienteId);
           return (
             <div key={o.id} id={`orden-lab-${o.id}`}>
-              <div className="flex items-center gap-3 mb-4" style={{ borderBottom: "2px solid #5EB6E8", paddingBottom: 10 }}>
+              <div className="flex items-center gap-3 mb-4" style={{ borderBottom: `2px solid ${SKY}`, paddingBottom: 10 }}>
                 {config?.logo && <img src={config.logo} style={{ height: 70 }} alt="logo" />}
                 <div>
                   <p className="font-bold text-lg">Spektrum Ópticas</p>
@@ -3326,15 +3326,15 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
         </button>
       </div>
       <div className="flex items-center gap-2 mb-5 bg-white border rounded-xl px-3 py-2 w-fit">
-        <button onClick={() => cambiarDia(-1)} className="p-1.5 rounded-lg hover:bg-sky-100">
+        <button onClick={() => cambiarDia(-1)} className="p-1.5 rounded-lg hover:bg-slate-100">
           <ChevronLeft size={18} />
         </button>
         <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="border-none text-sm font-medium focus:outline-none" />
-        <button onClick={() => cambiarDia(1)} className="p-1.5 rounded-lg hover:bg-sky-100">
+        <button onClick={() => cambiarDia(1)} className="p-1.5 rounded-lg hover:bg-slate-100">
           <ChevronRight size={18} />
         </button>
         {fecha !== fechaISO(new Date()) && (
-          <button onClick={() => setFecha(fechaISO(new Date()))} className="text-xs text-sky-600 underline ml-1">
+          <button onClick={() => setFecha(fechaISO(new Date()))} className="text-xs text-slate-600 underline ml-1">
             Hoy
           </button>
         )}
@@ -3343,9 +3343,9 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
       <div id="corte-imprimible">
         <p className="hidden print:block font-bold mb-3">Corte Diario — {fecha}</p>
         <div className="flex gap-3 mb-6 overflow-x-auto pb-1 print:hidden">
-          <TotalBox titulo="Vendido del día" monto={totalVendido} color="#2563eb" subtitulo={`${ventasDelDia.length} nota(s)`} />
+          <TotalBox titulo="Vendido del día" monto={totalVendido} color="#111827" subtitulo={`${ventasDelDia.length} nota(s)`} />
           <TotalBox titulo="Total de tickets del día" monto={totalTicketsDia} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioDia.toFixed(2)}`} esConteo />
-          <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#0891b2" subtitulo={`${anticipos.length} pago(s)`} />
+          <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#6B7280" subtitulo={`${anticipos.length} pago(s)`} />
           <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
           <TotalBox titulo="Total cobrado hoy" monto={totalCobradoHoy} color="#047857" subtitulo="Anticipos + liquidaciones + contado" />
           <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
@@ -3452,7 +3452,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
         <div className="bg-white border rounded-xl p-3">
           <div className="flex items-center justify-between mb-2">
             <h4 className="font-semibold text-sm">Desglose — Pago a proveedores</h4>
-            <button onClick={() => setMostrarProveedor(!mostrarProveedor)} className="text-xs text-sky-600 underline">
+            <button onClick={() => setMostrarProveedor(!mostrarProveedor)} className="text-xs text-slate-600 underline">
               + Registrar pago
             </button>
           </div>
@@ -3584,15 +3584,15 @@ function CorteMensual({ ventas, pagosProveedores }) {
         </button>
       </div>
       <div className="flex items-center gap-2 mb-5 bg-white border rounded-xl px-3 py-2 w-fit">
-        <button onClick={() => cambiarMes(-1)} className="p-1.5 rounded-lg hover:bg-sky-100">
+        <button onClick={() => cambiarMes(-1)} className="p-1.5 rounded-lg hover:bg-slate-100">
           <ChevronLeft size={18} />
         </button>
         <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="border-none text-sm font-medium focus:outline-none" />
-        <button onClick={() => cambiarMes(1)} className="p-1.5 rounded-lg hover:bg-sky-100">
+        <button onClick={() => cambiarMes(1)} className="p-1.5 rounded-lg hover:bg-slate-100">
           <ChevronRight size={18} />
         </button>
         {mes !== mesISO(new Date()) && (
-          <button onClick={() => setMes(mesISO(new Date()))} className="text-xs text-sky-600 underline ml-1">
+          <button onClick={() => setMes(mesISO(new Date()))} className="text-xs text-slate-600 underline ml-1">
             Mes actual
           </button>
         )}
@@ -3601,9 +3601,9 @@ function CorteMensual({ ventas, pagosProveedores }) {
       <div id="corte-mes-imprimible">
         <p className="hidden print:block font-bold mb-3">Corte del mes — {mes}</p>
         <div className="flex gap-3 mb-6 overflow-x-auto pb-1 print:hidden">
-          <TotalBox titulo="Vendido del mes" monto={totalVendido} color="#2563eb" subtitulo={`${ventasDelMes.length} nota(s)`} />
+          <TotalBox titulo="Vendido del mes" monto={totalVendido} color="#111827" subtitulo={`${ventasDelMes.length} nota(s)`} />
           <TotalBox titulo="Total de tickets del mes" monto={totalTicketsMes} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioMes.toFixed(2)}`} esConteo />
-          <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#0891b2" subtitulo={`${anticipos.length} pago(s)`} />
+          <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#6B7280" subtitulo={`${anticipos.length} pago(s)`} />
           <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
           <TotalBox titulo="Total cobrado en el mes" monto={totalCobradoMes} color="#047857" subtitulo="Anticipos + liquidaciones + contado" />
           <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
@@ -3834,7 +3834,7 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
                     setFolioSel(v.folio);
                     setMarcados({});
                   }}
-                  className={`border-t cursor-pointer hover:bg-sky-50 ${folioSel === v.folio ? "bg-sky-50" : ""}`}
+                  className={`border-t cursor-pointer hover:bg-slate-50 ${folioSel === v.folio ? "bg-slate-50" : ""}`}
                 >
                   <td className="px-2 py-1">{v.folio}</td>
                   <td className="px-2 py-1">{v.nombreCliente}</td>
@@ -6039,9 +6039,9 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, ca
     <div className="space-y-4">
       <div className="bg-white border rounded-xl p-4 flex items-center gap-2 flex-wrap">
         <label className="text-xs font-medium text-slate-500 uppercase">Año</label>
-        <button onClick={() => setAnio(anio - 1)} className="p-1.5 rounded-lg hover:bg-sky-100"><ChevronLeft size={16} /></button>
+        <button onClick={() => setAnio(anio - 1)} className="p-1.5 rounded-lg hover:bg-slate-100"><ChevronLeft size={16} /></button>
         <span className="font-semibold text-lg">{anio}</span>
-        <button onClick={() => setAnio(anio + 1)} className="p-1.5 rounded-lg hover:bg-sky-100"><ChevronRight size={16} /></button>
+        <button onClick={() => setAnio(anio + 1)} className="p-1.5 rounded-lg hover:bg-slate-100"><ChevronRight size={16} /></button>
         <button
           onClick={() => imprimirElemento("dashboard-anual-imprimible")}
           className="ml-auto px-3 py-1.5 rounded-lg bg-slate-200 text-sm flex items-center gap-1"
@@ -6053,7 +6053,7 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, ca
       <div id="dashboard-anual-imprimible" className="dashboard-print-compact space-y-4">
       <p className="hidden print:block font-bold mb-1">Dashboard anual — {anio}</p>
       <div className="flex gap-3 overflow-x-auto pb-1">
-        <TotalBox titulo="Meta anual" monto={totalAnioMeta} color="#2563eb" />
+        <TotalBox titulo="Meta anual" monto={totalAnioMeta} color="#111827" />
         <TotalBox titulo="Vendido anual" monto={totalAnioVendido} color="#0f766e" subtitulo={`${pctAnio.toFixed(1)}% de la meta`} />
         <TotalBox titulo="Cobrado anual" monto={totalAnioCobrado} color="#059669" />
         <TotalBox titulo="Pago a proveedores anual" monto={totalAnioGastos} color="#7c3aed" />
@@ -6243,7 +6243,7 @@ export default function App() {
       <GlobalPrintStyles />
       {bannerGuardado}
       {guardandoAlgo && !bannerGuardado && (
-        <div className="bg-sky-50 border-b border-sky-200 px-4 py-1 text-xs text-sky-600">Guardando cambios…</div>
+        <div className="bg-slate-50 border-b border-slate-200 px-4 py-1 text-xs text-slate-600">Guardando cambios…</div>
       )}
       <div className="flex items-center justify-between bg-white border-b px-6 pt-2">
         <div className="flex-1">
