@@ -5111,7 +5111,49 @@ function TiendaHeader({ config, sesionCliente, sesionStaff, carritoCount, onAbri
 }
 
 /* ---------- Inicio de la tienda ---------- */
-function TiendaInicio({ config, onIrCategoria, onAgendar }) {
+function TarjetaArmazonCarrusel({ a, onVerProducto, onAgregarCarrito }) {
+  return (
+    <div className="border rounded-2xl p-3 hover:shadow-md transition-shadow shrink-0" style={{ width: 170 }}>
+      <button onClick={() => onVerProducto({ ...a, categoria: "armazones" })} className="w-full text-left">
+        <div className="rounded-xl mb-2 overflow-hidden" style={{ background: "#f4f4f4", height: 110 }}>
+          {a.imagen && <img src={a.imagen} alt={a.nombre} className="w-full h-full object-cover" />}
+        </div>
+        <p className="text-sm font-medium truncate">{a.marcaArmazon ? `${a.marcaArmazon}${a.modeloArmazon ? " · " + a.modeloArmazon : ""}` : a.nombre}</p>
+        <p className="text-sm text-slate-500">${a.precio} MXN</p>
+      </button>
+      <button
+        onClick={() => onAgregarCarrito({ ...a, categoria: "armazones" })}
+        className="w-full mt-2 py-1.5 rounded-full border border-black text-xs font-medium hover:bg-black hover:text-white transition-colors"
+      >
+        Agregar
+      </button>
+    </div>
+  );
+}
+
+function CarruselLineaArmazones({ titulo, articulos, onVerProducto, onAgregarCarrito }) {
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-8 py-4">
+      <h3 className="text-lg font-semibold mb-3">{titulo}</h3>
+      {articulos.length > 0 ? (
+        <div className="flex gap-3 overflow-x-auto pb-2">
+          {articulos.map((a) => (
+            <TarjetaArmazonCarrusel key={a.id} a={a} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-slate-400">Aún no hay armazones dados de alta en esta línea.</p>
+      )}
+    </div>
+  );
+}
+
+function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProducto, onAgregarCarrito }) {
+  const armazones = inventario?.armazones || [];
+  const premium = armazones.filter((a) => a.tipoLinea === "Armazón Línea Premium");
+  const media = armazones.filter((a) => a.tipoLinea === "Armazón Línea Estándar");
+  const economica = armazones.filter((a) => a.tipoLinea === "Armazón Línea Económica");
+
   return (
     <div>
       <div className="relative">
@@ -5142,6 +5184,11 @@ function TiendaInicio({ config, onIrCategoria, onAgendar }) {
           </div>
         </div>
       </div>
+
+      <CarruselLineaArmazones titulo="Línea Premium" articulos={premium} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
+      <CarruselLineaArmazones titulo="Línea Media" articulos={media} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
+      <CarruselLineaArmazones titulo="Línea Económica" articulos={economica} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
+
       <div className="max-w-5xl mx-auto px-6 py-10 grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
           { key: "armazones", label: "Armazones" },
@@ -5985,7 +6032,14 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
       )}
 
       {vista === "inicio" ? (
-        <TiendaInicio config={config} onIrCategoria={irCategoria} onAgendar={abrirExamen} />
+        <TiendaInicio
+          config={config}
+          inventario={inventario}
+          onIrCategoria={irCategoria}
+          onAgendar={abrirExamen}
+          onVerProducto={verProducto}
+          onAgregarCarrito={agregarCarrito}
+        />
       ) : vista === "producto" ? (
         <TiendaProductoPagina
           producto={productoVer}
