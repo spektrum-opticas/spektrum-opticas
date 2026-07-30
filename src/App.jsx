@@ -1726,7 +1726,13 @@ const LENTES_CONTACTO_DATA = {
   ],
 };
 
-function InventarioView({ inventario, setInventario }) {
+const MARCAS_ARMAZON_SEED = [
+  "SENMA", "MICHELE", "CARAMELO", "LADY BLACK", "DPTTI", "ELLIS", "ELEGANCIA", "JD", "ONOLA", "NOAH",
+  "B&F", "LADY LUCK", "MARINA", "G.M. SURNE", "VISUAL", "FORMOSA", "CHANEL", "ANUBIS", "GUCCI",
+  "DUST FOR LA MODA", "LIGTHEYEWEAR", "OPTIMAX", "FUNKY FRED",
+];
+
+function InventarioView({ inventario, setInventario, config, setConfig }) {
   const [cat, setCat] = useState("armazones");
   const [editando, setEditando] = useState(null);
   const [nuevo, setNuevo] = useState({
@@ -1748,12 +1754,36 @@ function InventarioView({ inventario, setInventario }) {
     imagen: "",
     descripcion: "",
     tallas: [],
-    recomendadoPara: "",
+    marcaArmazon: "",
+    modeloArmazon: "",
     clipOnCompatible: "",
-    anchoMica: "",
     acercaDe: "",
     galeriaExtra: [],
   });
+
+  const catalogoMarcas = {
+    ...Object.fromEntries(MARCAS_ARMAZON_SEED.map((m) => [m, []])),
+    ...(config?.catalogoArmazones || {}),
+  };
+  const marcasOrdenadas = Object.keys(catalogoMarcas).sort((a, b) => a.localeCompare(b));
+  const modelosDeMarca = (nuevo.marcaArmazon && catalogoMarcas[nuevo.marcaArmazon]) || [];
+
+  function agregarMarcaCatalogo(nombreMarca) {
+    const nombre = nombreMarca.trim().toUpperCase();
+    if (!nombre) return;
+    const actual = config?.catalogoArmazones || {};
+    if (actual[nombre]) return;
+    setConfig({ ...config, catalogoArmazones: { ...actual, [nombre]: catalogoMarcas[nombre] || [] } });
+  }
+
+  function agregarModeloCatalogo(marca, nombreModelo) {
+    const modelo = nombreModelo.trim();
+    if (!modelo || !marca) return;
+    const actual = config?.catalogoArmazones || {};
+    const modelosActuales = actual[marca] || catalogoMarcas[marca] || [];
+    if (modelosActuales.includes(modelo)) return;
+    setConfig({ ...config, catalogoArmazones: { ...actual, [marca]: [...modelosActuales, modelo] } });
+  }
 
   const lista = inventario[cat] || [];
   const esArmazon = cat === "armazones";
@@ -1793,7 +1823,7 @@ function InventarioView({ inventario, setInventario }) {
       nombre: "", precio: "", existencias: "", tipo: "", material: "", tratamiento: "", rango: "",
       tipoLinea: "", categoriaArmazon: "", tipoReemplazo: "", marcaContacto: "", cosmetico: false,
       marcaSolar: "", modeloSolar: "", colorSolar: "", imagen: "", descripcion: "",
-      tallas: [], recomendadoPara: "", clipOnCompatible: "", anchoMica: "", acercaDe: "", galeriaExtra: [],
+      tallas: [], marcaArmazon: "", modeloArmazon: "", clipOnCompatible: "", acercaDe: "", galeriaExtra: [],
     });
   }
 
@@ -1835,6 +1865,40 @@ function InventarioView({ inventario, setInventario }) {
     setInventario({ ...inventario, [cat]: lista.filter((a) => a.id !== id) });
   }
 
+  const [catalogoAbierto, setCatalogoAbierto] = useState(false);
+  const [bulkMarcas, setBulkMarcas] = useState("");
+  const [marcaParaModelos, setMarcaParaModelos] = useState("");
+  const [bulkModelos, setBulkModelos] = useState("");
+
+  function agregarMarcasEnLote() {
+    const nombres = bulkMarcas
+      .split(/[\n,]/)
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean);
+    if (nombres.length === 0) return;
+    const actual = config?.catalogoArmazones || {};
+    const nuevoCatalogo = { ...actual };
+    nombres.forEach((n) => {
+      if (!nuevoCatalogo[n]) nuevoCatalogo[n] = catalogoMarcas[n] || [];
+    });
+    setConfig({ ...config, catalogoArmazones: nuevoCatalogo });
+    setBulkMarcas("");
+  }
+
+  function agregarModelosEnLote() {
+    if (!marcaParaModelos) return;
+    const nombres = bulkModelos
+      .split(/[\n,]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (nombres.length === 0) return;
+    const actual = config?.catalogoArmazones || {};
+    const existentes = actual[marcaParaModelos] || catalogoMarcas[marcaParaModelos] || [];
+    const combinados = [...new Set([...existentes, ...nombres])];
+    setConfig({ ...config, catalogoArmazones: { ...actual, [marcaParaModelos]: combinados } });
+    setBulkModelos("");
+  }
+
   return (
     <div className="p-4">
       <div className="flex gap-2 mb-4 flex-wrap">
@@ -1851,6 +1915,65 @@ function InventarioView({ inventario, setInventario }) {
           </button>
         ))}
       </div>
+
+      {esArmazon && (
+        <div className="bg-white border rounded-xl p-3 mb-4">
+          <button onClick={() => setCatalogoAbierto(!catalogoAbierto)} className="text-sm font-semibold text-slate-700">
+            {catalogoAbierto ? "▾" : "▸"} Catálogo de marcas y modelos ({marcasOrdenadas.length} marcas)
+          </button>
+          {catalogoAbierto && (
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">Agregar marcas (una por línea o separadas por coma)</label>
+                <textarea
+                  value={bulkMarcas}
+                  onChange={(e) => setBulkMarcas(e.target.value)}
+                  rows={3}
+                  placeholder={"MARCA NUEVA 1\nMARCA NUEVA 2"}
+                  className="w-full border rounded-lg px-2 py-1.5 text-sm mb-2"
+                />
+                <button onClick={agregarMarcasEnLote} className="px-3 py-1.5 rounded-lg text-white text-xs" style={{ background: SKY_DARK }}>
+                  Agregar marcas
+                </button>
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">Agregar modelos a una marca (en lote)</label>
+                <select
+                  value={marcaParaModelos}
+                  onChange={(e) => setMarcaParaModelos(e.target.value)}
+                  className="w-full border rounded-lg px-2 py-1.5 text-sm mb-2"
+                >
+                  <option value="">Elige marca...</option>
+                  {marcasOrdenadas.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+                <textarea
+                  value={bulkModelos}
+                  onChange={(e) => setBulkModelos(e.target.value)}
+                  rows={3}
+                  disabled={!marcaParaModelos}
+                  placeholder={"Modelo 1\nModelo 2"}
+                  className="w-full border rounded-lg px-2 py-1.5 text-sm mb-2 disabled:bg-slate-100"
+                />
+                <button
+                  onClick={agregarModelosEnLote}
+                  disabled={!marcaParaModelos}
+                  className="px-3 py-1.5 rounded-lg text-white text-xs disabled:opacity-40"
+                  style={{ background: SKY_DARK }}
+                >
+                  Agregar modelos
+                </button>
+                {marcaParaModelos && (
+                  <p className="text-xs text-slate-400 mt-2">
+                    Modelos actuales: {(catalogoMarcas[marcaParaModelos] || []).join(", ") || "ninguno todavía"}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="bg-white border rounded-xl p-3 mb-4 flex flex-wrap gap-2 items-end">
         {esArmazon && (
@@ -1920,8 +2043,64 @@ function InventarioView({ inventario, setInventario }) {
               </div>
             </div>
             <div>
-              <label className="text-xs text-slate-500">Recomendado para (forma de rostro)</label>
-              <input value={nuevo.recomendadoPara} onChange={(e) => setNuevo({ ...nuevo, recomendadoPara: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm w-40" />
+              <label className="text-xs text-slate-500">Marca</label>
+              <div className="flex gap-1">
+                <select
+                  value={nuevo.marcaArmazon}
+                  onChange={(e) => setNuevo({ ...nuevo, marcaArmazon: e.target.value, modeloArmazon: "" })}
+                  className="block border rounded-lg px-2 py-1.5 text-sm w-36"
+                >
+                  <option value="">—</option>
+                  {marcasOrdenadas.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nueva = window.prompt("Nombre de la nueva marca:");
+                    if (nueva) {
+                      agregarMarcaCatalogo(nueva);
+                      setNuevo({ ...nuevo, marcaArmazon: nueva.trim().toUpperCase(), modeloArmazon: "" });
+                    }
+                  }}
+                  className="border rounded-lg px-2 text-sm"
+                  title="Agregar nueva marca"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Modelo</label>
+              <div className="flex gap-1">
+                <select
+                  value={nuevo.modeloArmazon}
+                  onChange={(e) => setNuevo({ ...nuevo, modeloArmazon: e.target.value })}
+                  disabled={!nuevo.marcaArmazon}
+                  className="block border rounded-lg px-2 py-1.5 text-sm w-36 disabled:bg-slate-100 disabled:opacity-60"
+                >
+                  <option value="">{nuevo.marcaArmazon ? "—" : "Elige marca primero"}</option>
+                  {modelosDeMarca.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!nuevo.marcaArmazon}
+                  onClick={() => {
+                    const nuevoModelo = window.prompt(`Nombre del nuevo modelo para ${nuevo.marcaArmazon}:`);
+                    if (nuevoModelo) {
+                      agregarModeloCatalogo(nuevo.marcaArmazon, nuevoModelo);
+                      setNuevo({ ...nuevo, modeloArmazon: nuevoModelo.trim() });
+                    }
+                  }}
+                  className="border rounded-lg px-2 text-sm disabled:opacity-40"
+                  title="Agregar nuevo modelo"
+                >
+                  +
+                </button>
+              </div>
             </div>
             <div>
               <label className="text-xs text-slate-500">Clip-on compatible</label>
@@ -1930,10 +2109,6 @@ function InventarioView({ inventario, setInventario }) {
                 <option>Sí</option>
                 <option>No</option>
               </select>
-            </div>
-            <div>
-              <label className="text-xs text-slate-500">Ancho de mica</label>
-              <input value={nuevo.anchoMica} onChange={(e) => setNuevo({ ...nuevo, anchoMica: e.target.value })} placeholder="ej. 47.0 mm" className="block border rounded-lg px-2 py-1.5 text-sm w-28" />
             </div>
             <div className="w-full">
               <label className="text-xs text-slate-500">Acerca de (descripción para la ficha)</label>
@@ -2214,13 +2389,15 @@ function InventarioView({ inventario, setInventario }) {
             setInventario({ ...inventario, [cat]: lista.map((x) => (x.id === actualizado.id ? actualizado : x)) });
             setEditando(null);
           }}
+          config={config}
+          setConfig={setConfig}
         />
       )}
     </div>
   );
 }
 
-function EditarArticuloModal({ articulo, onCerrar, onGuardar }) {
+function EditarArticuloModal({ articulo, onCerrar, onGuardar, config, setConfig }) {
   const [datos, setDatos] = useState({
     ...articulo,
     tallas: articulo.tallas || [],
@@ -2233,6 +2410,29 @@ function EditarArticuloModal({ articulo, onCerrar, onGuardar }) {
     : datos.categoriaArmazon?.includes("Metal")
     ? COLORES_METAL
     : [...new Set([...COLORES_PASTA, ...COLORES_METAL])];
+  const catalogoMarcas = {
+    ...Object.fromEntries(MARCAS_ARMAZON_SEED.map((m) => [m, []])),
+    ...(config?.catalogoArmazones || {}),
+  };
+  const marcasOrdenadas = Object.keys(catalogoMarcas).sort((a, b) => a.localeCompare(b));
+  const modelosDeMarca = (datos.marcaArmazon && catalogoMarcas[datos.marcaArmazon]) || [];
+
+  function agregarMarcaCatalogo(nombreMarca) {
+    const nombre = nombreMarca.trim().toUpperCase();
+    if (!nombre) return;
+    const actual = config?.catalogoArmazones || {};
+    if (actual[nombre]) return;
+    setConfig({ ...config, catalogoArmazones: { ...actual, [nombre]: catalogoMarcas[nombre] || [] } });
+  }
+
+  function agregarModeloCatalogo(marca, nombreModelo) {
+    const modelo = nombreModelo.trim();
+    if (!modelo || !marca) return;
+    const actual = config?.catalogoArmazones || {};
+    const modelosActuales = actual[marca] || catalogoMarcas[marca] || [];
+    if (modelosActuales.includes(modelo)) return;
+    setConfig({ ...config, catalogoArmazones: { ...actual, [marca]: [...modelosActuales, modelo] } });
+  }
 
   return (
     <Modal open={true} onClose={onCerrar} title={`Editar detalles — ${articulo.nombre}`} wide>
@@ -2263,7 +2463,64 @@ function EditarArticuloModal({ articulo, onCerrar, onGuardar }) {
             ))}
           </div>
         </div>
-        <Field label="Recomendado para (forma de rostro)" value={datos.recomendadoPara || ""} onChange={(e) => setDatos({ ...datos, recomendadoPara: e.target.value })} />
+        <div>
+          <label className="text-xs text-slate-500">Marca</label>
+          <div className="flex gap-1">
+            <select
+              value={datos.marcaArmazon || ""}
+              onChange={(e) => setDatos({ ...datos, marcaArmazon: e.target.value, modeloArmazon: "" })}
+              className="block border rounded-lg px-2 py-1.5 text-sm w-40"
+            >
+              <option value="">—</option>
+              {marcasOrdenadas.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                const nueva = window.prompt("Nombre de la nueva marca:");
+                if (nueva) {
+                  agregarMarcaCatalogo(nueva);
+                  setDatos({ ...datos, marcaArmazon: nueva.trim().toUpperCase(), modeloArmazon: "" });
+                }
+              }}
+              className="border rounded-lg px-2 text-sm"
+            >
+              +
+            </button>
+          </div>
+        </div>
+        <div>
+          <label className="text-xs text-slate-500">Modelo</label>
+          <div className="flex gap-1">
+            <select
+              value={datos.modeloArmazon || ""}
+              onChange={(e) => setDatos({ ...datos, modeloArmazon: e.target.value })}
+              disabled={!datos.marcaArmazon}
+              className="block border rounded-lg px-2 py-1.5 text-sm w-40 disabled:bg-slate-100 disabled:opacity-60"
+            >
+              <option value="">{datos.marcaArmazon ? "—" : "Elige marca primero"}</option>
+              {modelosDeMarca.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={!datos.marcaArmazon}
+              onClick={() => {
+                const nuevoModelo = window.prompt(`Nombre del nuevo modelo para ${datos.marcaArmazon}:`);
+                if (nuevoModelo) {
+                  agregarModeloCatalogo(datos.marcaArmazon, nuevoModelo);
+                  setDatos({ ...datos, modeloArmazon: nuevoModelo.trim() });
+                }
+              }}
+              className="border rounded-lg px-2 text-sm disabled:opacity-40"
+            >
+              +
+            </button>
+          </div>
+        </div>
         <label className="block mb-3">
           <span className="text-xs font-medium text-slate-500 uppercase">Clip-on compatible</span>
           <select value={datos.clipOnCompatible || ""} onChange={(e) => setDatos({ ...datos, clipOnCompatible: e.target.value })} className="mt-1 w-full border rounded-lg px-2 py-2 text-sm">
@@ -2272,7 +2529,6 @@ function EditarArticuloModal({ articulo, onCerrar, onGuardar }) {
             <option>No</option>
           </select>
         </label>
-        <Field label="Ancho de mica" value={datos.anchoMica || ""} onChange={(e) => setDatos({ ...datos, anchoMica: e.target.value })} placeholder="ej. 47.0 mm" />
         <label className="block mb-3">
           <span className="text-xs font-medium text-slate-500 uppercase">Acerca de (descripción para la ficha)</span>
           <textarea
@@ -5320,10 +5576,10 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onAgregarCar
   }
 
   const specsBase = [];
-  if (producto.recomendadoPara) specsBase.push(["Recomendado para", producto.recomendadoPara]);
+  if (producto.marcaArmazon) specsBase.push(["Marca", producto.marcaArmazon]);
+  if (producto.modeloArmazon) specsBase.push(["Modelo", producto.modeloArmazon]);
   if (materialMostrar) specsBase.push(["Material", materialMostrar]);
   if (producto.clipOnCompatible) specsBase.push(["Clip-on compatible", producto.clipOnCompatible]);
-  if (producto.anchoMica) specsBase.push(["Ancho de mica", producto.anchoMica]);
 
   const specsExtra = [];
   if (esArmazonProducto) {
@@ -6499,7 +6755,7 @@ export default function App() {
             setLaboratorio={setLaboratorio}
           />
         )}
-        {seccion === "inventario" && <InventarioView inventario={inventario} setInventario={setInventario} />}
+        {seccion === "inventario" && <InventarioView inventario={inventario} setInventario={setInventario} config={config} setConfig={setConfig} />}
         {seccion === "pacientes" && (
           <PacientesView pacientes={pacientes} setPacientes={setPacientes} agenda={agenda} setAgenda={setAgenda} ventas={ventas} setVentas={setVentas} config={config} />
         )}
