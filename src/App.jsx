@@ -1092,13 +1092,13 @@ function ExpedientePaciente({ paciente, pacientes, setPacientes, onVenta, onGuar
 /* ============================================================
    POS
    ============================================================ */
-function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, presetPacienteId, clearPreset, config, laboratorio, setLaboratorio }) {
+function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, presetPacienteId, clearPreset, config, laboratorio, setLaboratorio, sesion }) {
   const [busquedaCliente, setBusquedaCliente] = useState("");
   const [clienteSel, setClienteSel] = useState(null);
   const [busquedaArt, setBusquedaArt] = useState("");
   const [carrito, setCarrito] = useState([]);
-  const [vendedor, setVendedor] = useState("");
-  const [optometrista, setOptometrista] = useState("");
+  const [vendedor, setVendedor] = useState(sesion?.nombre || "");
+  const [optometrista, setOptometrista] = useState(sesion?.nombre || "");
   const [descuentoTipo, setDescuentoTipo] = useState("porcentaje");
   const [descuentoValor, setDescuentoValor] = useState(0);
   const [formaPago, setFormaPago] = useState("efectivo");
@@ -6807,6 +6807,7 @@ export default function App() {
             config={config}
             laboratorio={laboratorio}
             setLaboratorio={setLaboratorio}
+            sesion={sesion}
           />
         )}
         {seccion === "inventario" && <InventarioView inventario={inventario} setInventario={setInventario} config={config} setConfig={setConfig} />}
