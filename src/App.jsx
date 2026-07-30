@@ -5165,7 +5165,7 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
           </div>
         )}
         <div className="absolute inset-0 flex items-center">
-          <div style={{ position: "absolute", left: "80%", transform: "translateX(-50%)" }} className="max-w-xs sm:max-w-sm text-left px-4">
+          <div className="absolute -translate-x-1/2 left-1/2 sm:left-[80%] max-w-[85vw] sm:max-w-xs md:max-w-sm text-center sm:text-left px-4">
             {config?.logo ? (
               <img
                 src={config.logo}
@@ -5177,7 +5177,7 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
               <h1 className="text-4xl sm:text-5xl font-semibold mb-1">Spektrum Ópticas</h1>
             )}
             <p className="italic font-serif mb-5" style={{ fontSize: 28, lineHeight: 1.1 }}>Mi mirada. Mi estilo</p>
-            <div className="flex flex-col gap-4 max-w-[264px]">
+            <div className="flex flex-col gap-4 max-w-[264px] mx-auto sm:mx-0">
               <button onClick={onAgendar} className="px-8 py-4 rounded-full bg-white border border-black text-base font-medium">Agendar examen</button>
               <button onClick={() => onIrCategoria("armazones")} className="px-8 py-4 rounded-full bg-black text-white text-base font-medium">¡Yo quiero!</button>
             </div>
@@ -5366,7 +5366,7 @@ function TiendaFooter({ config, setConfig, onIrInicio, onIrCategoria, onAbrirCue
   );
 }
 
-function TiendaCategoria({ categoriaActiva, inventario, onVerProducto, onAgregarCarrito }) {
+function TiendaCategoria({ categoriaActiva, inventario, onVerProducto, onAgregarCarrito, onVolver }) {
   const [filtroTipo, setFiltroTipo] = useState("");
   const [filtroMaterial, setFiltroMaterial] = useState("");
   const [filtroTratamiento, setFiltroTratamiento] = useState("");
@@ -5399,7 +5399,10 @@ function TiendaCategoria({ categoriaActiva, inventario, onVerProducto, onAgregar
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-8 py-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-8 py-6 sm:py-8">
+      <button onClick={onVolver} className="flex items-center gap-1 text-sm font-medium mb-3 hover:underline">
+        <ChevronLeft size={16} /> Volver
+      </button>
       <p className="text-xs text-slate-400 mb-2">Inicio / {nombresCategoria[categoriaActiva]}</p>
       <div className="rounded-2xl overflow-hidden mb-6" style={{ background: "linear-gradient(135deg,#cfeaf5,#eaf6fb)", padding: "40px 24px" }}>
         <h1 className="text-2xl sm:text-3xl font-semibold">{nombresCategoria[categoriaActiva]}</h1>
@@ -5642,13 +5645,16 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onAgregarCar
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-8 py-6">
+      <button onClick={onVolver} className="flex items-center gap-1 text-sm font-medium mb-3 hover:underline">
+        <ChevronLeft size={16} /> Volver
+      </button>
       <p className="text-xs text-slate-400 mb-4">
-        <button onClick={onVolver} className="hover:underline">Inicio</button> / {categoriaLabel} / {producto.nombre}
+        Inicio / {categoriaLabel} / {producto.nombre}
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
         <div>
-          <div className="relative rounded-2xl overflow-hidden" style={{ background: "#f4f4f4", height: 420 }}>
+          <div className="relative rounded-2xl overflow-hidden h-64 sm:h-80 md:h-[420px]" style={{ background: "#f4f4f4" }}>
             {galeria.length > 0 ? (
               <img src={galeria[indiceFoto]} alt={producto.nombre} className="w-full h-full object-cover" />
             ) : (
@@ -5950,6 +5956,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
   const [recetaInfoAbierto, setRecetaInfoAbierto] = useState(false);
   const [sesionCliente, setSesionCliente] = useSesionCliente();
   const [mensajeFinal, setMensajeFinal] = useState("");
+  const [vistaOrigenProducto, setVistaOrigenProducto] = useState("inicio");
 
   function agregarCarrito(a) {
     setCarrito([...carrito, { ...a, uidLinea: uid() }]);
@@ -5962,6 +5969,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
   }
 
   function verProducto(p) {
+    setVistaOrigenProducto(vista);
     setProductoVer(p);
     setVista("producto");
     window.scrollTo(0, 0);
@@ -6048,7 +6056,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
               productoVer?.categoria
             ] || ""
           }
-          onVolver={() => setVista("inicio")}
+          onVolver={() => setVista(vistaOrigenProducto)}
           onAgregarCarrito={(p) => {
             agregarCarrito(p);
             setCarritoAbierto(true);
@@ -6060,6 +6068,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
           inventario={inventario}
           onVerProducto={verProducto}
           onAgregarCarrito={agregarCarrito}
+          onVolver={() => setVista("inicio")}
         />
       )}
 
