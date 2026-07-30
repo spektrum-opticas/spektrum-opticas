@@ -5156,7 +5156,38 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
 
   return (
     <div>
-      <div className="relative min-h-[480px] sm:min-h-0">
+      {/* Vista para celular: imagen centrada en la chica + logo/botones debajo, sin encimarse */}
+      <div className="sm:hidden">
+        {config?.imagenPrincipal ? (
+          <div className="w-full overflow-hidden" style={{ height: 220 }}>
+            <img
+              src={config.imagenPrincipal}
+              alt="Spektrum Ópticas"
+              className="w-full h-full object-cover"
+              style={{ objectPosition: "center 25%" }}
+            />
+          </div>
+        ) : (
+          <div className="w-full flex items-center justify-center" style={{ height: 220, background: "#f4f4f4" }}>
+            <p className="text-xs text-slate-300">Sube tu imagen principal desde Configuración</p>
+          </div>
+        )}
+        <div className="text-center px-4 py-6">
+          {config?.logo ? (
+            <img src={config.logo} alt="Spektrum Ópticas" style={{ mixBlendMode: "multiply" }} className="h-16 mx-auto mb-1" />
+          ) : (
+            <h1 className="text-2xl font-semibold mb-1">Spektrum Ópticas</h1>
+          )}
+          <p className="italic font-serif mb-4 text-lg" style={{ lineHeight: 1.1 }}>Mi mirada. Mi estilo</p>
+          <div className="flex flex-col gap-2 max-w-[220px] mx-auto">
+            <button onClick={onAgendar} className="px-5 py-2.5 rounded-full bg-white border border-black text-sm font-medium">Agendar examen</button>
+            <button onClick={() => onIrCategoria("armazones")} className="px-5 py-2.5 rounded-full bg-black text-white text-sm font-medium">¡Yo quiero!</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Vista para tablet/escritorio: logo y botones superpuestos sobre la imagen completa */}
+      <div className="hidden sm:block relative">
         {config?.imagenPrincipal ? (
           <img src={config.imagenPrincipal} alt="Spektrum Ópticas" className="w-full h-auto block" />
         ) : (
@@ -5165,21 +5196,21 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
           </div>
         )}
         <div className="absolute inset-0 flex items-center">
-          <div className="absolute -translate-x-1/2 left-1/2 sm:left-[80%] max-w-[85vw] sm:max-w-xs md:max-w-sm text-center sm:text-left px-4">
+          <div className="absolute -translate-x-1/2 left-[80%] max-w-xs md:max-w-sm text-left px-4">
             {config?.logo ? (
               <img
                 src={config.logo}
                 alt="Spektrum Ópticas"
                 style={{ mixBlendMode: "multiply" }}
-                className="mb-1 h-20 sm:h-36 md:h-[143px] mx-auto sm:mx-0"
+                className="mb-1 h-36 md:h-[143px]"
               />
             ) : (
-              <h1 className="text-2xl sm:text-4xl md:text-5xl font-semibold mb-1">Spektrum Ópticas</h1>
+              <h1 className="text-4xl md:text-5xl font-semibold mb-1">Spektrum Ópticas</h1>
             )}
-            <p className="italic font-serif mb-4 sm:mb-5 text-lg sm:text-2xl md:text-[28px]" style={{ lineHeight: 1.1 }}>Mi mirada. Mi estilo</p>
-            <div className="flex flex-col gap-2 sm:gap-4 max-w-[220px] sm:max-w-[264px] mx-auto sm:mx-0">
-              <button onClick={onAgendar} className="px-5 sm:px-8 py-2.5 sm:py-4 rounded-full bg-white border border-black text-sm sm:text-base font-medium">Agendar examen</button>
-              <button onClick={() => onIrCategoria("armazones")} className="px-5 sm:px-8 py-2.5 sm:py-4 rounded-full bg-black text-white text-sm sm:text-base font-medium">¡Yo quiero!</button>
+            <p className="italic font-serif mb-5 text-2xl md:text-[28px]" style={{ lineHeight: 1.1 }}>Mi mirada. Mi estilo</p>
+            <div className="flex flex-col gap-4 max-w-[264px]">
+              <button onClick={onAgendar} className="px-8 py-4 rounded-full bg-white border border-black text-base font-medium">Agendar examen</button>
+              <button onClick={() => onIrCategoria("armazones")} className="px-8 py-4 rounded-full bg-black text-white text-base font-medium">¡Yo quiero!</button>
             </div>
           </div>
         </div>
