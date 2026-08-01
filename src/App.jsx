@@ -6212,6 +6212,58 @@ function calcVendedor(v, pctMeta, montoAuto, ventasHechasAuto) {
   return { efectividad, comisionBase, comisionAjustada, ventasHechas };
 }
 
+function GraficaDonut({ segmentos, size = 150, grosor = 20, valorCentro, tituloCentro }) {
+  const radio = (size - grosor) / 2;
+  const circunferencia = 2 * Math.PI * radio;
+  const total = segmentos.reduce((s, x) => s + Math.max(0, x.valor), 0);
+  let acumulado = 0;
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size / 2} cy={size / 2} r={radio} fill="none" stroke="#e5e7eb" strokeWidth={grosor} />
+        {total > 0 &&
+          segmentos.map((seg, i) => {
+            const frac = Math.max(0, seg.valor) / total;
+            if (frac <= 0) return null;
+            const largo = frac * circunferencia;
+            const el = (
+              <circle
+                key={i}
+                cx={size / 2}
+                cy={size / 2}
+                r={radio}
+                fill="none"
+                stroke={seg.color}
+                strokeWidth={grosor}
+                strokeDasharray={`${largo} ${circunferencia - largo}`}
+                strokeDashoffset={-acumulado}
+                transform={`rotate(-90 ${size / 2} ${size / 2})`}
+              />
+            );
+            acumulado += largo;
+            return el;
+          })}
+        <text x="50%" y="47%" textAnchor="middle" fontSize="20" fontWeight="700" fill="#111827">
+          {valorCentro}
+        </text>
+        <text x="50%" y="62%" textAnchor="middle" fontSize="9" fill="#64748b">
+          {tituloCentro}
+        </text>
+      </svg>
+      <div className="mt-2 space-y-1">
+        {segmentos.map((seg, i) => (
+          <div key={i} className="flex items-center gap-2 text-xs">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: seg.color }} />
+            <span className="text-slate-600">{seg.label}:</span>
+            <span className="font-medium">{seg.textoValor}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
   const { optometristas, vendedores } = dashboard;
   const metasPorMes = dashboard.metasPorMes || {};
@@ -6421,6 +6473,36 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
           <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
             <div className="h-3 rounded-full transition-all" style={{ width: `${Math.min(100, pctProyectado)}%`, background: pctProyectado >= 100 ? "#059669" : "#f59e0b" }} />
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white border rounded-xl p-4">
+        <h3 className="font-semibold text-slate-700 mb-4">Resumen ejecutivo</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 justify-items-center">
+          <GraficaDonut
+            tituloCentro="de la meta"
+            valorCentro={`${Math.min(999, pctMeta).toFixed(0)}%`}
+            segmentos={[
+              { valor: Math.min(alcanzado, meta), color: "#111827", label: "Vendido", textoValor: `$${alcanzado.toFixed(2)}` },
+              { valor: Math.max(0, meta - alcanzado), color: "#e5e7eb", label: "Falta para la meta", textoValor: `$${Math.max(0, meta - alcanzado).toFixed(2)}` },
+            ]}
+          />
+          <GraficaDonut
+            tituloCentro="cobrado de lo vendido"
+            valorCentro={`${(datosMes.vendido > 0 ? (Math.min(datosMes.cobrado, datosMes.vendido) / datosMes.vendido) * 100 : 0).toFixed(0)}%`}
+            segmentos={[
+              { valor: Math.min(datosMes.cobrado, datosMes.vendido), color: "#059669", label: "Cobrado", textoValor: `$${Math.min(datosMes.cobrado, datosMes.vendido).toFixed(2)}` },
+              { valor: Math.max(0, datosMes.vendido - datosMes.cobrado), color: "#fca5a5", label: "Por cobrar", textoValor: `$${Math.max(0, datosMes.vendido - datosMes.cobrado).toFixed(2)}` },
+            ]}
+          />
+          <GraficaDonut
+            tituloCentro="proyectado de la meta"
+            valorCentro={`${Math.min(999, pctProyectado).toFixed(0)}%`}
+            segmentos={[
+              { valor: Math.min(proyectadoVendido, meta), color: "#f59e0b", label: "Proyectado", textoValor: `$${proyectadoVendido.toFixed(2)}` },
+              { valor: Math.max(0, meta - proyectadoVendido), color: "#e5e7eb", label: "Falta para la meta", textoValor: `$${Math.max(0, meta - proyectadoVendido).toFixed(2)}` },
+            ]}
+          />
         </div>
       </div>
 
