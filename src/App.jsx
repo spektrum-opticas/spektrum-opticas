@@ -5109,6 +5109,8 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
   const [clienteTelefono, setClienteTelefono] = useState("");
   const [clienteMail, setClienteMail] = useState("");
   const [clienteError, setClienteError] = useState("");
+  const [clienteModo, setClienteModo] = useState("login"); // login | registro
+  const [loginContacto, setLoginContacto] = useState("");
 
   useEffect(() => {
     if (open) setPaso(pasoInicial || "elegir");
@@ -5123,6 +5125,8 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
     setClienteTelefono("");
     setClienteMail("");
     setClienteError("");
+    setClienteModo("login");
+    setLoginContacto("");
   }
 
   function cerrar() {
@@ -5155,7 +5159,33 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
     cerrar();
   }
 
-  function entrarCliente() {
+  function buscarPacientePorContacto(valor) {
+    const v = valor.trim().toLowerCase();
+    if (!v) return null;
+    return pacientes.find(
+      (p) => (p.telefono && p.telefono.trim() === valor.trim()) || (p.mail && p.mail.trim().toLowerCase() === v)
+    );
+  }
+
+  function iniciarSesionCliente() {
+    setClienteError("");
+    if (!loginContacto.trim()) {
+      setClienteError("Escribe el teléfono o correo con el que te registraste.");
+      return;
+    }
+    const paciente = buscarPacientePorContacto(loginContacto);
+    if (!paciente) {
+      setClienteError("No encontramos ninguna cuenta con ese dato. ¿Aún no tienes cuenta? Créala abajo.");
+      return;
+    }
+    if (!paciente.cuentaActiva) {
+      setPacientes(pacientes.map((p) => (p.id === paciente.id ? { ...p, cuentaActiva: true } : p)));
+    }
+    onLoginCliente({ nombre: paciente.nombre, telefono: paciente.telefono, mail: paciente.mail, pacienteId: paciente.id });
+    cerrar();
+  }
+
+  function registrarCliente() {
     setClienteError("");
     const telefono = clienteTelefono.trim();
     const mail = clienteMail.trim();
@@ -5163,34 +5193,27 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
       setClienteError("Escribe tu nombre y al menos un dato de contacto: teléfono o correo.");
       return;
     }
-    let paciente = pacientes.find(
+    const yaExiste = pacientes.find(
       (p) => (telefono && p.telefono && p.telefono.trim() === telefono) || (mail && p.mail && p.mail.trim().toLowerCase() === mail.toLowerCase())
     );
-    const esNuevo = !paciente;
-    if (!paciente) {
-      paciente = {
-        id: uid(),
-        folio: pacientes.length + 1,
-        nombre: clienteNombre.trim(),
-        telefono,
-        mail,
-        compras: [],
-        cuentaActiva: true,
-      };
-      setPacientes([...pacientes, paciente]);
-    } else {
-      setPacientes(
-        pacientes.map((p) =>
-          p.id === paciente.id ? { ...p, telefono: p.telefono || telefono, mail: p.mail || mail, cuentaActiva: true } : p
-        )
-      );
+    if (yaExiste) {
+      setClienteError("Ya existe una cuenta con ese teléfono o correo. Usa 'Iniciar sesión' en su lugar.");
+      return;
     }
-    if (esNuevo) {
-      const msj = mensajeBienvenida(paciente.nombre);
-      if (telefono) abrirWhatsApp(telefono, msj.whatsapp);
-      if (mail) abrirEmail(mail, msj.email.asunto, msj.email.cuerpo);
-    }
-    onLoginCliente({ nombre: paciente.nombre, telefono: paciente.telefono || telefono, mail: paciente.mail || mail, pacienteId: paciente.id });
+    const paciente = {
+      id: uid(),
+      folio: pacientes.length + 1,
+      nombre: clienteNombre.trim(),
+      telefono,
+      mail,
+      compras: [],
+      cuentaActiva: true,
+    };
+    setPacientes([...pacientes, paciente]);
+    const msj = mensajeBienvenida(paciente.nombre);
+    if (telefono) abrirWhatsApp(telefono, msj.whatsapp);
+    if (mail) abrirEmail(mail, msj.email.asunto, msj.email.cuerpo);
+    onLoginCliente({ nombre: paciente.nombre, telefono: paciente.telefono, mail: paciente.mail, pacienteId: paciente.id });
     cerrar();
   }
 
@@ -5249,29 +5272,81 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
       {paso === "cliente" && (
         <div>
           <button onClick={() => setPaso("elegir")} className="text-xs text-slate-400 mb-3">← Volver</button>
-          <h2 className="text-xl font-semibold mb-1">Tu cuenta</h2>
-          <p className="text-sm text-slate-500 mb-4">
-            Con tu nombre y al menos un dato de contacto (teléfono o correo) guardamos tus pedidos, tu receta y tu
-            historial para la próxima vez.
-          </p>
-          <Field label="Nombre" value={clienteNombre} onChange={(e) => setClienteNombre(e.target.value)} />
-          <Field label="Teléfono (WhatsApp) — opcional si dejas tu correo" value={clienteTelefono} onChange={(e) => setClienteTelefono(e.target.value)} />
-          <Field label="Correo — opcional si dejas tu teléfono" value={clienteMail} onChange={(e) => setClienteMail(e.target.value)} />
-          {clienteError && <p className="text-xs text-red-600 mb-2">{clienteError}</p>}
-          <BotonNegro onClick={entrarCliente} className="mt-2">Entrar</BotonNegro>
-          <div className="flex items-center gap-2 my-3">
-            <div className="flex-1 h-px bg-slate-200" />
-            <span className="text-xs text-slate-400">o</span>
-            <div className="flex-1 h-px bg-slate-200" />
-          </div>
-          {config?.googleClientId ? (
-            <BotonGoogleReal clientId={config.googleClientId} onCredencial={entrarConGoogle} />
+
+          {clienteModo === "login" ? (
+            <>
+              <h2 className="text-xl font-semibold mb-1">Iniciar sesión</h2>
+              <p className="text-sm text-slate-500 mb-4">Escribe el teléfono o correo con el que ya tienes cuenta.</p>
+              <Field label="Teléfono o correo" value={loginContacto} onChange={(e) => setLoginContacto(e.target.value)} />
+              {clienteError && <p className="text-xs text-red-600 mb-2">{clienteError}</p>}
+              <BotonNegro onClick={iniciarSesionCliente} className="mt-2">Iniciar sesión</BotonNegro>
+
+              <div className="flex items-center gap-2 my-3">
+                <div className="flex-1 h-px bg-slate-200" />
+                <span className="text-xs text-slate-400">o</span>
+                <div className="flex-1 h-px bg-slate-200" />
+              </div>
+              {config?.googleClientId ? (
+                <BotonGoogleReal clientId={config.googleClientId} onCredencial={entrarConGoogle} />
+              ) : (
+                <BotonContorno onClick={() => setClienteError("El registro con Google todavía no está conectado — pide al administrador que configure el Client ID de Google en Configuración.")}>
+                  Continuar con Google
+                </BotonContorno>
+              )}
+
+              <p className="text-sm text-slate-500 mt-4 text-center">
+                ¿Aún no tienes cuenta?{" "}
+                <button
+                  onClick={() => {
+                    setClienteError("");
+                    setClienteModo("registro");
+                  }}
+                  className="underline font-medium text-black"
+                >
+                  Crear cuenta nueva
+                </button>
+              </p>
+            </>
           ) : (
-            <BotonContorno onClick={() => setClienteError("El registro con Google todavía no está conectado — pide al administrador que configure el Client ID de Google en Configuración.")}>
-              Continuar con Google
-            </BotonContorno>
+            <>
+              <h2 className="text-xl font-semibold mb-1">Crear cuenta nueva</h2>
+              <p className="text-sm text-slate-500 mb-4">
+                Con tu nombre y al menos un dato de contacto (teléfono o correo) guardamos tus pedidos, tu receta y tu
+                historial para la próxima vez.
+              </p>
+              <Field label="Nombre" value={clienteNombre} onChange={(e) => setClienteNombre(e.target.value)} />
+              <Field label="Teléfono (WhatsApp) — opcional si dejas tu correo" value={clienteTelefono} onChange={(e) => setClienteTelefono(e.target.value)} />
+              <Field label="Correo — opcional si dejas tu teléfono" value={clienteMail} onChange={(e) => setClienteMail(e.target.value)} />
+              {clienteError && <p className="text-xs text-red-600 mb-2">{clienteError}</p>}
+              <BotonNegro onClick={registrarCliente} className="mt-2">Crear cuenta</BotonNegro>
+
+              <div className="flex items-center gap-2 my-3">
+                <div className="flex-1 h-px bg-slate-200" />
+                <span className="text-xs text-slate-400">o</span>
+                <div className="flex-1 h-px bg-slate-200" />
+              </div>
+              {config?.googleClientId ? (
+                <BotonGoogleReal clientId={config.googleClientId} onCredencial={entrarConGoogle} />
+              ) : (
+                <BotonContorno onClick={() => setClienteError("El registro con Google todavía no está conectado — pide al administrador que configure el Client ID de Google en Configuración.")}>
+                  Continuar con Google
+                </BotonContorno>
+              )}
+
+              <p className="text-sm text-slate-500 mt-4 text-center">
+                ¿Ya tienes cuenta?{" "}
+                <button
+                  onClick={() => {
+                    setClienteError("");
+                    setClienteModo("login");
+                  }}
+                  className="underline font-medium text-black"
+                >
+                  Iniciar sesión
+                </button>
+              </p>
+            </>
           )}
-          <p className="text-xs text-slate-400 mt-3">Si ya tienes cuenta, solo captura el mismo teléfono para reconocerte.</p>
         </div>
       )}
     </DrawerLateral>
