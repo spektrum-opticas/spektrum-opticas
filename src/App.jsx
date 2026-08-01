@@ -76,6 +76,7 @@ const emptyConfig = () => ({
   redesSociales: { facebook: "", x: "", instagram: "", tiktok: "" },
   contenidoPaginas: {},
   suscriptores: [],
+  googleClientId: "",
 });
 
 function uid() {
@@ -805,6 +806,11 @@ function CitaBlock({ cita, onDragStart, onClickNombre, onEliminar, onEstatus, da
       >
         {cita.nombre}
       </button>
+      {cita.origen === "portal" && (
+        <span className="text-[9px] px-1 rounded bg-slate-800 text-white shrink-0" title="Agendada desde la tienda en línea">
+          Web
+        </span>
+      )}
       <select
         value={cita.estatus}
         onChange={(e) => onEstatus(e.target.value)}
@@ -2687,6 +2693,7 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, set
               <th className="text-left px-3 py-2">Teléfono</th>
               <th className="text-right px-3 py-2">Saldo</th>
               <th className="text-right px-3 py-2 print:hidden"># Compras</th>
+              <th className="text-left px-3 py-2 print:hidden">Cita</th>
               <th className="text-left px-3 py-2 print:hidden">Cuenta</th>
               <th className="px-3 py-2 print:hidden"></th>
             </tr>
@@ -2703,6 +2710,18 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, set
                 <td className="px-3 py-2">{p.telefono}</td>
                 <td className="px-3 py-2 text-right">${Number(p.saldo || 0).toFixed(2)}</td>
                 <td className="px-3 py-2 text-right print:hidden">{(p.compras || []).length}</td>
+                <td className="px-3 py-2 print:hidden">
+                  {(() => {
+                    const citaProxima = agenda.find((c) => c.pacienteId === p.id && c.estatus === "proxima");
+                    return citaProxima ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                        {citaProxima.fecha} {citaProxima.hora}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-300">—</span>
+                    );
+                  })()}
+                </td>
                 <td className="px-3 py-2 print:hidden">
                   {p.cuentaActiva ? (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Activa</span>
@@ -2734,7 +2753,7 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, set
             ))}
             {filtrados.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-center text-slate-400 py-6">
+                <td colSpan={8} className="text-center text-slate-400 py-6">
                   Sin pacientes registrados todavía.
                 </td>
               </tr>
@@ -4788,6 +4807,19 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
       </div>
 
       <div className="bg-white border rounded-xl p-4 space-y-3">
+        <h3 className="font-semibold text-slate-700 mb-1">Registro de clientes con Google</h3>
+        <p className="text-xs text-slate-500">
+          Pega aquí el "Client ID" que te da Google Cloud al crear tus credenciales OAuth. Mientras esto esté vacío,
+          el botón de Google en la tienda solo mostrará un aviso y los clientes seguirán pudiendo registrarse con
+          nombre y teléfono sin problema.
+        </p>
+        <Field label="Google Client ID" value={local.googleClientId || ""} onChange={(e) => setLocal({ ...local, googleClientId: e.target.value })} />
+        <button onClick={() => setConfig(local)} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
+          <Save size={16} /> Guardar Client ID
+        </button>
+      </div>
+
+      <div className="bg-white border rounded-xl p-4 space-y-3">
         <h3 className="font-semibold text-slate-700 mb-1">Contenido de páginas de la tienda (pie de página)</h3>
         <p className="text-xs text-slate-500">
           Mientras no llenes un campo, el visitante verá "Contenido próximamente" al abrir ese enlace.
@@ -4915,7 +4947,81 @@ function DrawerLateral({ open, onClose, children, title }) {
 }
 
 /* ---------- Drawer de acceso: empleado o cliente ---------- */
-function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLoginEmpleado, pacientes, setPacientes, onLoginCliente }) {
+function decodificarJWT(token) {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+}
+
+function BotonGoogleReal({ clientId, onCredencial }) {
+  const divRef = useRef(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelado = false;
+
+    function iniciar() {
+      if (cancelado) return;
+      if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+        setError("No se pudo cargar el botón de Google. Revisa tu conexión a internet.");
+        return;
+      }
+      try {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: (respuesta) => {
+            const datos = decodificarJWT(respuesta.credential);
+            if (datos) onCredencial({ nombre: datos.name || datos.email, mail: datos.email });
+            else setError("No se pudo leer tu cuenta de Google.");
+          },
+        });
+        if (divRef.current) {
+          window.google.accounts.id.renderButton(divRef.current, { theme: "outline", size: "large", width: 280 });
+        }
+      } catch {
+        setError("No se pudo iniciar el botón de Google. Revisa que el Client ID configurado sea correcto.");
+      }
+    }
+
+    if (window.google && window.google.accounts && window.google.accounts.id) {
+      iniciar();
+    } else {
+      let script = document.getElementById("google-identity-script");
+      if (!script) {
+        script = document.createElement("script");
+        script.src = "https://accounts.google.com/gsi/client";
+        script.id = "google-identity-script";
+        script.async = true;
+        script.defer = true;
+        document.body.appendChild(script);
+      }
+      script.addEventListener("load", iniciar);
+      return () => script.removeEventListener("load", iniciar);
+    }
+    return () => {
+      cancelado = true;
+    };
+  }, [clientId]);
+
+  return (
+    <div>
+      <div ref={divRef} />
+      {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+    </div>
+  );
+}
+
+function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLoginEmpleado, pacientes, setPacientes, onLoginCliente, config }) {
   const [paso, setPaso] = useState("elegir"); // elegir | empleado | cliente
   const [empUsuario, setEmpUsuario] = useState("");
   const [empPassword, setEmpPassword] = useState("");
@@ -4999,6 +5105,27 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
     cerrar();
   }
 
+  function entrarConGoogle(datosGoogle) {
+    const mailGoogle = (datosGoogle.mail || "").trim().toLowerCase();
+    let paciente = pacientes.find((p) => p.mail && p.mail.trim().toLowerCase() === mailGoogle);
+    if (!paciente) {
+      paciente = {
+        id: uid(),
+        folio: pacientes.length + 1,
+        nombre: datosGoogle.nombre,
+        telefono: "",
+        mail: datosGoogle.mail,
+        compras: [],
+        cuentaActiva: true,
+      };
+      setPacientes([...pacientes, paciente]);
+    } else {
+      setPacientes(pacientes.map((p) => (p.id === paciente.id ? { ...p, cuentaActiva: true } : p)));
+    }
+    onLoginCliente({ nombre: paciente.nombre, telefono: paciente.telefono, mail: paciente.mail, pacienteId: paciente.id });
+    cerrar();
+  }
+
   return (
     <DrawerLateral open={open} onClose={cerrar} title={paso === "elegir" ? "Ingresa a tu cuenta" : undefined}>
       {paso === "elegir" && (
@@ -5042,9 +5169,13 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
             <span className="text-xs text-slate-400">o</span>
             <div className="flex-1 h-px bg-slate-200" />
           </div>
-          <BotonContorno onClick={() => setClienteError("El registro con Google todavía no está conectado — por ahora usa tu nombre y teléfono.")}>
-            Continuar con Google
-          </BotonContorno>
+          {config?.googleClientId ? (
+            <BotonGoogleReal clientId={config.googleClientId} onCredencial={entrarConGoogle} />
+          ) : (
+            <BotonContorno onClick={() => setClienteError("El registro con Google todavía no está conectado — pide al administrador que configure el Client ID de Google en Configuración.")}>
+              Continuar con Google
+            </BotonContorno>
+          )}
           <p className="text-xs text-slate-400 mt-3">Si ya tienes cuenta, solo captura el mismo teléfono para reconocerte.</p>
         </div>
       )}
@@ -5876,8 +6007,11 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, onAbrirAcceso, 
     <DrawerLateral open={open} onClose={onClose} title="Confirmar pedido">
       {!sesionCliente ? (
         <div>
-          <p className="text-sm text-slate-500 mb-4">Necesitas iniciar sesión o registrarte para terminar tu pedido.</p>
-          <BotonNegro onClick={onAbrirAcceso}>Ingresar / Registrarme</BotonNegro>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+            <p className="text-sm font-semibold text-amber-800">Para comprar o crear una cita, primero crea una cuenta.</p>
+          </div>
+          <p className="text-sm text-slate-500 mb-4">Es rápido: solo necesitas tu nombre y tu teléfono.</p>
+          <BotonNegro onClick={onAbrirAcceso}>Crear cuenta / Ingresar</BotonNegro>
         </div>
       ) : (
         <div>
@@ -5942,8 +6076,11 @@ function TiendaAgendar({ open, onClose, agenda, setAgenda, pacientes, setPacient
     <DrawerLateral open={open} onClose={onClose} title="Agendar examen">
       {!sesionCliente ? (
         <div>
-          <p className="text-sm text-slate-500 mb-4">Necesitas iniciar sesión o registrarte para agendar tu cita.</p>
-          <BotonNegro onClick={onAbrirAcceso}>Ingresar / Registrarme</BotonNegro>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+            <p className="text-sm font-semibold text-amber-800">Para comprar o crear una cita, primero crea una cuenta.</p>
+          </div>
+          <p className="text-sm text-slate-500 mb-4">Es rápido: solo necesitas tu nombre y tu teléfono.</p>
+          <BotonNegro onClick={onAbrirAcceso}>Crear cuenta / Ingresar</BotonNegro>
         </div>
       ) : (
         <div>
@@ -5988,6 +6125,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
   const [sesionCliente, setSesionCliente] = useSesionCliente();
   const [mensajeFinal, setMensajeFinal] = useState("");
   const [vistaOrigenProducto, setVistaOrigenProducto] = useState("inicio");
+  const [accionPendienteTrasLogin, setAccionPendienteTrasLogin] = useState(null); // 'agendar' | 'checkout' | null
 
   function agregarCarrito(a) {
     setCarrito([...carrito, { ...a, uidLinea: uid() }]);
@@ -6013,6 +6151,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
 
   function abrirExamen() {
     if (!sesionCliente) {
+      setAccionPendienteTrasLogin("agendar");
       abrirAcceso("cliente");
       return;
     }
@@ -6128,7 +6267,10 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         onClose={() => setCheckoutAbierto(false)}
         carrito={carrito}
         sesionCliente={sesionCliente}
-        onAbrirAcceso={() => abrirAcceso("cliente")}
+        onAbrirAcceso={() => {
+          setAccionPendienteTrasLogin("checkout");
+          abrirAcceso("cliente");
+        }}
         onConfirmar={confirmarPedido}
       />
       <TiendaAgendar
@@ -6139,7 +6281,10 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         pacientes={pacientes}
         setPacientes={setPacientes}
         sesionCliente={sesionCliente}
-        onAbrirAcceso={() => abrirAcceso("cliente")}
+        onAbrirAcceso={() => {
+          setAccionPendienteTrasLogin("agendar");
+          abrirAcceso("cliente");
+        }}
         onListo={(msg) => setMensajeFinal(msg)}
       />
       <AccesoDrawer
@@ -6151,7 +6296,13 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         onLoginEmpleado={onLoginEmpleado}
         pacientes={pacientes}
         setPacientes={setPacientes}
-        onLoginCliente={setSesionCliente}
+        config={config}
+        onLoginCliente={(datos) => {
+          setSesionCliente(datos);
+          if (accionPendienteTrasLogin === "agendar") setAgendarAbierto(true);
+          if (accionPendienteTrasLogin === "checkout") setCheckoutAbierto(true);
+          setAccionPendienteTrasLogin(null);
+        }}
       />
       <DrawerLateral open={recetaInfoAbierto} onClose={() => setRecetaInfoAbierto(false)} title="Cómo subir tu receta">
         <p className="text-sm text-slate-600 mb-4">
