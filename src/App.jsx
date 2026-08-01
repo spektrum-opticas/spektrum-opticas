@@ -6665,6 +6665,8 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, ca
   const pctAnio = totalAnioMeta > 0 ? (totalAnioVendido / totalAnioMeta) * 100 : 0;
   const mesesConDatos = meses.filter((m) => m.origen !== "sin_datos");
   const promedioMensual = mesesConDatos.length > 0 ? totalAnioVendido / mesesConDatos.length : 0;
+  const proyectadoAnual = promedioMensual * 12;
+  const pctProyectadoAnual = totalAnioMeta > 0 ? (proyectadoAnual / totalAnioMeta) * 100 : 0;
 
   return (
     <div className="space-y-4">
@@ -6690,6 +6692,39 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, ca
         <TotalBox titulo="Pago a proveedores anual" monto={totalAnioGastos} color="#7c3aed" />
         <TotalBox titulo="Debe haber en caja" monto={debeHaberCajaAnual} color={debeHaberCajaAnual >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado anual − pago a proveedores" />
         <TotalBox titulo="Promedio mensual" monto={promedioMensual} color="#7c3aed" subtitulo={`${mesesConDatos.length} mes(es) con datos`} />
+      </div>
+
+      <div className="bg-white border rounded-xl p-4">
+        <h3 className="font-semibold text-slate-700 mb-4">Resumen ejecutivo</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 justify-items-center">
+          <GraficaDonut
+            tituloCentro="de la meta anual"
+            valorCentro={`${Math.min(999, pctAnio).toFixed(0)}%`}
+            segmentos={[
+              { valor: Math.min(totalAnioVendido, totalAnioMeta), color: "#111827", label: "Vendido", textoValor: `$${totalAnioVendido.toFixed(2)}` },
+              { valor: Math.max(0, totalAnioMeta - totalAnioVendido), color: "#e5e7eb", label: "Falta para la meta", textoValor: `$${Math.max(0, totalAnioMeta - totalAnioVendido).toFixed(2)}` },
+            ]}
+          />
+          <GraficaDonut
+            tituloCentro="cobrado de lo vendido"
+            valorCentro={`${(totalAnioVendido > 0 ? (Math.min(totalAnioCobrado, totalAnioVendido) / totalAnioVendido) * 100 : 0).toFixed(0)}%`}
+            segmentos={[
+              { valor: Math.min(totalAnioCobrado, totalAnioVendido), color: "#059669", label: "Cobrado", textoValor: `$${Math.min(totalAnioCobrado, totalAnioVendido).toFixed(2)}` },
+              { valor: Math.max(0, totalAnioVendido - totalAnioCobrado), color: "#fca5a5", label: "Por cobrar", textoValor: `$${Math.max(0, totalAnioVendido - totalAnioCobrado).toFixed(2)}` },
+            ]}
+          />
+          <GraficaDonut
+            tituloCentro="proyectado de la meta"
+            valorCentro={`${Math.min(999, pctProyectadoAnual).toFixed(0)}%`}
+            segmentos={[
+              { valor: Math.min(proyectadoAnual, totalAnioMeta), color: "#f59e0b", label: "Proyectado", textoValor: `$${proyectadoAnual.toFixed(2)}` },
+              { valor: Math.max(0, totalAnioMeta - proyectadoAnual), color: "#e5e7eb", label: "Falta para la meta", textoValor: `$${Math.max(0, totalAnioMeta - proyectadoAnual).toFixed(2)}` },
+            ]}
+          />
+        </div>
+        <p className="text-xs text-slate-400 mt-3">
+          El proyectado anual se calcula extendiendo el promedio mensual real (${promedioMensual.toFixed(2)}) a los 12 meses del año.
+        </p>
       </div>
 
       <div className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
