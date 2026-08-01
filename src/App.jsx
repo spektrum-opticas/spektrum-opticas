@@ -5388,7 +5388,7 @@ function TiendaHeader({ config, sesionCliente, sesionStaff, carritoCount, onAbri
           )}
           <button onClick={onAbrirAcceso} className="flex items-center gap-1 text-sm">
             <UserCog size={20} />
-            <span className="hidden sm:inline">{sesionCliente ? sesionCliente.nombre.split(" ")[0] : "Cuenta"}</span>
+            <span className="text-xs sm:text-sm max-w-[70px] sm:max-w-none truncate">{sesionCliente ? sesionCliente.nombre.split(" ")[0] : "Cuenta"}</span>
           </button>
           <button onClick={onAbrirCarrito} className="relative">
             <ShoppingCart size={20} />
@@ -6473,7 +6473,8 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         onLoginCliente={(datos) => {
           setSesionCliente(datos);
           if (accionPendienteTrasLogin === "agendar") setAgendarAbierto(true);
-          if (accionPendienteTrasLogin === "checkout") setCheckoutAbierto(true);
+          else if (accionPendienteTrasLogin === "checkout") setCheckoutAbierto(true);
+          else setMensajeFinal(`¡Listo, ${datos.nombre.split(" ")[0]}! Tu cuenta ya está activa.`);
           setAccionPendienteTrasLogin(null);
         }}
       />
