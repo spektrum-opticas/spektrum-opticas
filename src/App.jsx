@@ -241,6 +241,55 @@ function mensajeListos(nombre, direccion, horario) {
   };
 }
 
+function mensajeBienvenida(nombre) {
+  return {
+    email: {
+      asunto: `¡Bienvenido/a a ${NOMBRE_OPTICA}, ${nombre}! 🤓`,
+      cuerpo:
+        `Hola, ${nombre}:\n\n` +
+        `¡Tu cuenta en ${NOMBRE_OPTICA} quedó creada con éxito! Con ella puedes agendar tu examen de la vista, ` +
+        `comprar armazones, lentes graduados, de contacto y solares, y llevar el seguimiento de tus pedidos.\n\n` +
+        `Nos da mucho gusto tenerte con nosotros.\nEl equipo de ${NOMBRE_OPTICA}`,
+    },
+    whatsapp:
+      `¡Hola, ${nombre}! 👋 Tu cuenta en ${NOMBRE_OPTICA} quedó creada con éxito. ` +
+      `Ya puedes agendar tu examen de la vista o comprar tus lentes desde nuestra tienda en línea. ¡Bienvenido/a! 🤓`,
+  };
+}
+
+function mensajePedidoRecibido(nombre, folio) {
+  return {
+    email: {
+      asunto: `Recibimos tu pedido #${folio} — ${NOMBRE_OPTICA}`,
+      cuerpo:
+        `Hola, ${nombre}:\n\n` +
+        `Recibimos tu pedido con folio #${folio}. Nuestro equipo lo va a revisar y confirmar en breve; ` +
+        `te avisaremos por este mismo medio en cuanto quede confirmado.\n\n` +
+        `Gracias por tu preferencia.\nEl equipo de ${NOMBRE_OPTICA}`,
+    },
+    whatsapp:
+      `¡Hola, ${nombre}! 👋 Recibimos tu pedido #${folio} en ${NOMBRE_OPTICA}. ` +
+      `Lo vamos a revisar y te avisamos en cuanto quede confirmado. ¡Gracias por tu preferencia! 🤓`,
+  };
+}
+
+function mensajeEntregaFinal(nombre) {
+  return {
+    email: {
+      asunto: `¡Gracias por tu compra, ${nombre}! 🙌`,
+      cuerpo:
+        `Hola, ${nombre}:\n\n` +
+        `Queremos agradecerte por tu compra y por la confianza en ${NOMBRE_OPTICA} para el cuidado de tu salud visual. ` +
+        `Esperamos que disfrutes muchísimo tus nuevos lentes.\n\n` +
+        `Si tienes alguna duda o necesitas un ajuste, aquí estamos.\n\n` +
+        `Con cariño,\nEl equipo de ${NOMBRE_OPTICA}`,
+    },
+    whatsapp:
+      `¡Gracias por tu compra, ${nombre}! 🙌 Fue un gusto atenderte en ${NOMBRE_OPTICA}. ` +
+      `Esperamos que disfrutes muchísimo tus nuevos lentes. Si necesitas algún ajuste, aquí estamos. 🤓✨`,
+  };
+}
+
 function abrirWhatsApp(telefono, mensaje) {
   const numero = (telefono || "").replace(/\D/g, "");
   const url = `https://wa.me/${numero ? "52" + numero : ""}?text=${encodeURIComponent(mensaje)}`;
@@ -3196,6 +3245,19 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
     }
   }
 
+  function marcarEntregado(o) {
+    const hoy = fechaISO(new Date());
+    setLaboratorio(laboratorio.map((x) => (x.id === o.id ? { ...x, fechaEntrega: hoy } : x)));
+    const paciente = pacientes.find((p) => p.id === o.pacienteId);
+    const nombre = o.nombreCliente || paciente?.nombre || "cliente";
+    const msj = mensajeEntregaFinal(nombre);
+    if (paciente?.telefono) abrirWhatsApp(paciente.telefono, msj.whatsapp);
+    if (paciente?.mail) abrirEmail(paciente.mail, msj.email.asunto, msj.email.cuerpo);
+    if (!paciente?.telefono && !paciente?.mail) {
+      alert("Se marcó como entregado, pero este paciente no tiene teléfono ni correo guardado para agradecerle.");
+    }
+  }
+
   return (
     <div className="p-4">
       <div className="bg-white border rounded-xl p-3 mb-4 space-y-2">
@@ -3312,6 +3374,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
               <th className="text-left px-3 py-2">Envío a lab.</th>
               <th className="text-left px-3 py-2">Prometida</th>
               <th className="text-left px-3 py-2">Recibido del laboratorio</th>
+              <th className="text-left px-3 py-2">Entrega al cliente</th>
               <th className="text-left px-3 py-2">Estatus</th>
               <th className="px-3 py-2"></th>
             </tr>
@@ -3342,8 +3405,24 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
                   )}
                 </td>
                 <td className="px-3 py-2">
+                  {o.fechaEntrega ? (
+                    <span className="text-xs text-emerald-700">{o.fechaEntrega}</span>
+                  ) : (
+                    <button
+                      onClick={() => marcarEntregado(o)}
+                      disabled={!o.fechaRecepcion}
+                      className="text-xs px-2 py-1 rounded bg-slate-800 text-white disabled:opacity-30"
+                      title={!o.fechaRecepcion ? "Primero márcala como recibida del laboratorio" : ""}
+                    >
+                      Marcar entregado y agradecer
+                    </button>
+                  )}
+                </td>
+                <td className="px-3 py-2">
                   {o.cancelada ? (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">Cancelada</span>
+                  ) : o.fechaEntrega ? (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Entregada</span>
                   ) : o.fechaRecepcion ? (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Recibida — lista para entregar</span>
                   ) : (
@@ -5078,18 +5157,23 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
 
   function entrarCliente() {
     setClienteError("");
-    if (!clienteNombre.trim() || !clienteTelefono.trim()) {
-      setClienteError("Nombre y teléfono son obligatorios.");
+    const telefono = clienteTelefono.trim();
+    const mail = clienteMail.trim();
+    if (!clienteNombre.trim() || (!telefono && !mail)) {
+      setClienteError("Escribe tu nombre y al menos un dato de contacto: teléfono o correo.");
       return;
     }
-    let paciente = pacientes.find((p) => p.telefono && p.telefono.trim() === clienteTelefono.trim());
+    let paciente = pacientes.find(
+      (p) => (telefono && p.telefono && p.telefono.trim() === telefono) || (mail && p.mail && p.mail.trim().toLowerCase() === mail.toLowerCase())
+    );
+    const esNuevo = !paciente;
     if (!paciente) {
       paciente = {
         id: uid(),
         folio: pacientes.length + 1,
         nombre: clienteNombre.trim(),
-        telefono: clienteTelefono.trim(),
-        mail: clienteMail.trim(),
+        telefono,
+        mail,
         compras: [],
         cuentaActiva: true,
       };
@@ -5097,17 +5181,23 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
     } else {
       setPacientes(
         pacientes.map((p) =>
-          p.id === paciente.id ? { ...p, mail: p.mail || clienteMail.trim() || p.mail, cuentaActiva: true } : p
+          p.id === paciente.id ? { ...p, telefono: p.telefono || telefono, mail: p.mail || mail, cuentaActiva: true } : p
         )
       );
     }
-    onLoginCliente({ nombre: paciente.nombre, telefono: paciente.telefono, mail: paciente.mail || clienteMail, pacienteId: paciente.id });
+    if (esNuevo) {
+      const msj = mensajeBienvenida(paciente.nombre);
+      if (telefono) abrirWhatsApp(telefono, msj.whatsapp);
+      if (mail) abrirEmail(mail, msj.email.asunto, msj.email.cuerpo);
+    }
+    onLoginCliente({ nombre: paciente.nombre, telefono: paciente.telefono || telefono, mail: paciente.mail || mail, pacienteId: paciente.id });
     cerrar();
   }
 
   function entrarConGoogle(datosGoogle) {
     const mailGoogle = (datosGoogle.mail || "").trim().toLowerCase();
     let paciente = pacientes.find((p) => p.mail && p.mail.trim().toLowerCase() === mailGoogle);
+    const esNuevo = !paciente;
     if (!paciente) {
       paciente = {
         id: uid(),
@@ -5121,6 +5211,10 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
       setPacientes([...pacientes, paciente]);
     } else {
       setPacientes(pacientes.map((p) => (p.id === paciente.id ? { ...p, cuentaActiva: true } : p)));
+    }
+    if (esNuevo) {
+      const msj = mensajeBienvenida(paciente.nombre);
+      abrirEmail(paciente.mail, msj.email.asunto, msj.email.cuerpo);
     }
     onLoginCliente({ nombre: paciente.nombre, telefono: paciente.telefono, mail: paciente.mail, pacienteId: paciente.id });
     cerrar();
@@ -5157,11 +5251,12 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
           <button onClick={() => setPaso("elegir")} className="text-xs text-slate-400 mb-3">← Volver</button>
           <h2 className="text-xl font-semibold mb-1">Tu cuenta</h2>
           <p className="text-sm text-slate-500 mb-4">
-            Con tu nombre y teléfono guardamos tus pedidos, tu receta y tu historial para la próxima vez.
+            Con tu nombre y al menos un dato de contacto (teléfono o correo) guardamos tus pedidos, tu receta y tu
+            historial para la próxima vez.
           </p>
           <Field label="Nombre" value={clienteNombre} onChange={(e) => setClienteNombre(e.target.value)} />
-          <Field label="Teléfono (WhatsApp)" value={clienteTelefono} onChange={(e) => setClienteTelefono(e.target.value)} />
-          <Field label="Correo (opcional)" value={clienteMail} onChange={(e) => setClienteMail(e.target.value)} />
+          <Field label="Teléfono (WhatsApp) — opcional si dejas tu correo" value={clienteTelefono} onChange={(e) => setClienteTelefono(e.target.value)} />
+          <Field label="Correo — opcional si dejas tu teléfono" value={clienteMail} onChange={(e) => setClienteMail(e.target.value)} />
           {clienteError && <p className="text-xs text-red-600 mb-2">{clienteError}</p>}
           <BotonNegro onClick={entrarCliente} className="mt-2">Entrar</BotonNegro>
           <div className="flex items-center gap-2 my-3">
@@ -6182,6 +6277,9 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
       recetaArchivo: receta,
     };
     setVentas([...ventas, nota]);
+    const msj = mensajePedidoRecibido(nota.nombreCliente, folio);
+    if (sesionCliente.telefono) abrirWhatsApp(sesionCliente.telefono, msj.whatsapp);
+    if (sesionCliente.mail) abrirEmail(sesionCliente.mail, msj.email.asunto, msj.email.cuerpo);
     setCarrito([]);
     setCheckoutAbierto(false);
     setMensajeFinal(`¡Listo! Tu pedido quedó registrado con folio #${folio}. Te avisamos por WhatsApp o correo en cuanto esté confirmado.`);
