@@ -6312,8 +6312,11 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
   const streamRef = useRef(null);
   const rafRef = useRef(null);
   const imgRef = useRef(null);
+  const framesSinRostroRef = useRef(0);
   const [estado, setEstado] = useState("iniciando"); // iniciando | listo | error
   const [mensajeError, setMensajeError] = useState("");
+  const [sinRostro, setSinRostro] = useState(false);
+  const [errorDetector, setErrorDetector] = useState("");
 
   useEffect(() => {
     let cancelado = false;
@@ -6332,6 +6335,13 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
 
         try {
           const caras = await detectorRef.current.estimateFaces(video);
+          if (caras.length === 0) {
+            framesSinRostroRef.current += 1;
+            if (framesSinRostroRef.current > 40) setSinRostro(true);
+          } else {
+            framesSinRostroRef.current = 0;
+            setSinRostro(false);
+          }
           if (caras.length > 0 && imgRef.current?.complete) {
             const kp = caras[0].keypoints;
             const ojoIzq = kp[33];
@@ -6369,8 +6379,8 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
               ctx.restore();
             }
           }
-        } catch {
-          // se ignora un frame fallido, se sigue intentando
+        } catch (errLoop) {
+          setErrorDetector(String(errLoop?.message || errLoop));
         }
       }
       rafRef.current = requestAnimationFrame(loop);
@@ -6457,6 +6467,16 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
           className="absolute inset-0 w-full h-full rounded-xl"
           style={{ transform: "scaleX(-1)", pointerEvents: "none" }}
         />
+        {sinRostro && !errorDetector && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
+            No detectamos tu rostro — acércate a la cámara con buena iluminación de frente.
+          </div>
+        )}
+        {errorDetector && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-red-600/90 text-white text-xs px-3 py-1.5 rounded-full max-w-[90%] text-center">
+            Error al detectar el rostro: {errorDetector}
+          </div>
+        )}
       </div>
       <p className="text-slate-400 text-xs mt-4 max-w-sm text-center">
         {modo === "contacto"
