@@ -77,6 +77,8 @@ const emptyConfig = () => ({
   contenidoPaginas: {},
   suscriptores: [],
   googleClientId: "",
+  paypalClientId: "",
+  paypalModoProduccion: false,
 });
 
 function uid() {
@@ -4929,6 +4931,27 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
       </div>
 
       <div className="bg-white border rounded-xl p-4 space-y-3">
+        <h3 className="font-semibold text-slate-700 mb-1">Pago en línea con PayPal</h3>
+        <p className="text-xs text-slate-500">
+          Pega aquí el "Client ID" de tu app de PayPal Developer. Mientras esté en modo "Sandbox" son pagos de
+          prueba (no se cobra dinero real) — cuando quieras cobrar de verdad, crea el Client ID de producción
+          ("Live") en PayPal y pégalo aquí, marcando la casilla de abajo.
+        </p>
+        <Field label="PayPal Client ID" value={local.paypalClientId || ""} onChange={(e) => setLocal({ ...local, paypalClientId: e.target.value })} />
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={!!local.paypalModoProduccion}
+            onChange={(e) => setLocal({ ...local, paypalModoProduccion: e.target.checked })}
+          />
+          Este Client ID es de producción (Live) — cobros con dinero real
+        </label>
+        <button onClick={() => setConfig(local)} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
+          <Save size={16} /> Guardar PayPal
+        </button>
+      </div>
+
+      <div className="bg-white border rounded-xl p-4 space-y-3">
         <h3 className="font-semibold text-slate-700 mb-1">Contenido de páginas de la tienda (pie de página)</h3>
         <p className="text-xs text-slate-500">
           Mientras no llenes un campo, el visitante verá "Contenido próximamente" al abrir ese enlace.
@@ -6285,8 +6308,73 @@ function TiendaCarrito({ open, onClose, carrito, setCarrito, onIrCheckout }) {
 }
 
 /* ---------- Checkout (drawer) ---------- */
-function TiendaCheckout({ open, onClose, carrito, sesionCliente, onAbrirAcceso, onConfirmar }) {
+function BotonesPayPal({ clientId, total, onAprobado, onError }) {
+  const contenedorRef = useRef(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelado = false;
+
+    function renderizar() {
+      if (cancelado || !window.paypal || !contenedorRef.current) return;
+      contenedorRef.current.innerHTML = "";
+      try {
+        window.paypal
+          .Buttons({
+            style: { layout: "vertical", color: "black", shape: "pill", label: "pay" },
+            createOrder: (data, actions) =>
+              actions.order.create({
+                purchase_units: [{ amount: { value: Number(total).toFixed(2), currency_code: "MXN" } }],
+              }),
+            onApprove: async (data, actions) => {
+              const detalles = await actions.order.capture();
+              onAprobado(detalles);
+            },
+            onError: (err) => {
+              setError("Ocurrió un problema con PayPal. Intenta de nuevo.");
+              if (onError) onError(err);
+            },
+          })
+          .render(contenedorRef.current);
+      } catch {
+        setError("No se pudieron cargar los botones de PayPal.");
+      }
+    }
+
+    if (window.paypal) {
+      renderizar();
+    } else {
+      let script = document.getElementById("paypal-sdk-script");
+      if (!script) {
+        script = document.createElement("script");
+        script.id = "paypal-sdk-script";
+        script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=MXN`;
+        script.async = true;
+        document.body.appendChild(script);
+      }
+      script.addEventListener("load", renderizar);
+      script.addEventListener("error", () => setError("No se pudo cargar PayPal. Revisa tu conexión."));
+      return () => {
+        script.removeEventListener("load", renderizar);
+      };
+    }
+    return () => {
+      cancelado = true;
+    };
+  }, [clientId, total]);
+
+  return (
+    <div>
+      <div ref={contenedorRef} />
+      {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+    </div>
+  );
+}
+
+function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrirAcceso, onConfirmar }) {
   const [receta, setReceta] = useState(null);
+  const [formaPagoElegida, setFormaPagoElegida] = useState("entrega"); // entrega | linea
+  const [formaPagoEntrega, setFormaPagoEntrega] = useState("efectivo");
   const requiereReceta = carrito.some((c) => c.categoria === "lentesGraduados" || c.categoria === "lentesContacto");
   const total = carrito.reduce((s, c) => s + Number(c.precio || 0), 0);
 
@@ -6337,9 +6425,54 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, onAbrirAcceso, 
               Necesitas subir tu receta para pedir lentes graduados o de contacto en línea.
             </div>
           )}
-          <BotonNegro onClick={() => onConfirmar(receta)} disabled={carrito.length === 0 || faltaReceta}>
-            Confirmar pedido
-          </BotonNegro>
+
+          <div className="mb-4">
+            <p className="text-xs font-medium text-slate-500 uppercase mb-2">¿Cómo quieres pagar?</p>
+            <div className="flex gap-2 mb-3">
+              <button
+                onClick={() => setFormaPagoElegida("entrega")}
+                className={`flex-1 py-2 rounded-full text-xs font-medium border ${formaPagoElegida === "entrega" ? "bg-black text-white border-black" : "border-slate-300"}`}
+              >
+                Pagar al recoger
+              </button>
+              <button
+                onClick={() => setFormaPagoElegida("linea")}
+                disabled={!config?.paypalClientId}
+                className={`flex-1 py-2 rounded-full text-xs font-medium border disabled:opacity-40 ${formaPagoElegida === "linea" ? "bg-black text-white border-black" : "border-slate-300"}`}
+                title={!config?.paypalClientId ? "El pago en línea todavía no está configurado" : ""}
+              >
+                Pagar en línea ahora
+              </button>
+            </div>
+
+            {formaPagoElegida === "entrega" && (
+              <select value={formaPagoEntrega} onChange={(e) => setFormaPagoEntrega(e.target.value)} className="w-full border rounded-lg px-2 py-2 text-sm">
+                <option value="efectivo">Efectivo al recoger</option>
+                <option value="tarjeta">Tarjeta al recoger</option>
+                <option value="transferencia">Transferencia bancaria</option>
+              </select>
+            )}
+          </div>
+
+          {formaPagoElegida === "linea" && config?.paypalClientId ? (
+            <>
+              {!config?.paypalModoProduccion && (
+                <p className="text-xs text-amber-600 mb-2">Modo de pruebas: este cobro no usa dinero real todavía.</p>
+              )}
+              <BotonesPayPal
+                clientId={config.paypalClientId}
+                total={total}
+                onAprobado={(detalles) => onConfirmar(receta, { pagadoEnLinea: true, formaPago: "paypal", referenciaPago: detalles?.id })}
+              />
+            </>
+          ) : (
+            <BotonNegro
+              onClick={() => onConfirmar(receta, { pagadoEnLinea: false, formaPago: formaPagoEntrega })}
+              disabled={carrito.length === 0 || faltaReceta}
+            >
+              Confirmar pedido
+            </BotonNegro>
+          )}
         </div>
       )}
     </DrawerLateral>
@@ -6459,10 +6592,11 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
     abrirAcceso("cliente");
   }
 
-  function confirmarPedido(receta) {
+  function confirmarPedido(receta, infoPago) {
     let paciente = pacientes.find((p) => p.id === sesionCliente.pacienteId);
     const folio = (ventas[ventas.length - 1]?.folio || 0) + 1;
     const total = carrito.reduce((s, c) => s + Number(c.precio || 0), 0);
+    const pagadoEnLinea = infoPago?.pagadoEnLinea;
     const nota = {
       folio,
       fecha: new Date().toISOString(),
@@ -6470,21 +6604,26 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
       nombreCliente: paciente?.nombre || sesionCliente.nombre,
       items: carrito,
       total,
-      abono: 0,
-      saldo: total,
-      estatus: "presupuesto",
-      formaPago: "pendiente",
+      abono: pagadoEnLinea ? total : 0,
+      saldo: pagadoEnLinea ? 0 : total,
+      estatus: pagadoEnLinea ? "venta" : "presupuesto",
+      formaPago: infoPago?.formaPago || "pendiente",
+      referenciaPago: infoPago?.referenciaPago || "",
       vendedor: "Tienda en línea",
       origen: "portal",
       recetaArchivo: receta,
     };
     setVentas([...ventas, nota]);
-    const msj = mensajePedidoRecibido(nota.nombreCliente, folio);
+    const msj = pagadoEnLinea ? mensajeAgradecimiento(nota.nombreCliente) : mensajePedidoRecibido(nota.nombreCliente, folio);
     if (sesionCliente.telefono) abrirWhatsApp(sesionCliente.telefono, msj.whatsapp);
     if (sesionCliente.mail) abrirEmail(sesionCliente.mail, msj.email.asunto, msj.email.cuerpo);
     setCarrito([]);
     setCheckoutAbierto(false);
-    setMensajeFinal(`¡Listo! Tu pedido quedó registrado con folio #${folio}. Te avisamos por WhatsApp o correo en cuanto esté confirmado.`);
+    setMensajeFinal(
+      pagadoEnLinea
+        ? `¡Pago recibido! Tu pedido #${folio} quedó confirmado. Te avisamos por WhatsApp o correo cuando esté listo.`
+        : `¡Listo! Tu pedido quedó registrado con folio #${folio}. Te avisamos por WhatsApp o correo en cuanto esté confirmado.`
+    );
   }
 
   return (
@@ -6571,6 +6710,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         onClose={() => setCheckoutAbierto(false)}
         carrito={carrito}
         sesionCliente={sesionCliente}
+        config={config}
         onAbrirAcceso={() => {
           setAccionPendienteTrasLogin("checkout");
           abrirAcceso("cliente");
