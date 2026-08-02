@@ -6401,8 +6401,17 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
         if (cancelado) return;
         detectorRef.current = detector;
 
+        if (!imagenArmazon) {
+          throw new Error("Este producto no tiene ninguna foto subida en Inventario para poder probarlo.");
+        }
+
         const img = new Image();
-        img.src = imagenArmazon;
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = () => reject(new Error("No se pudo cargar la foto subida de este producto."));
+          img.src = imagenArmazon;
+        });
+        if (cancelado) return;
         imgRef.current = img;
 
         setEstado("listo");
