@@ -2614,8 +2614,88 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
         </button>
       </div>
 
-      <div id="inventario-imprimible" className="bg-white border rounded-xl overflow-hidden">
+      <div id="inventario-imprimible" className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
         <p className="hidden print:block font-bold px-3 pt-3">Inventario — {CATEGORIAS_INV.find((c) => c.key === cat)?.label}</p>
+        {esContacto ? (
+          <table className="w-full text-sm">
+            <thead style={{ background: BEIGE }}>
+              <tr>
+                <th className="text-left px-3 py-2 print:hidden">Imagen</th>
+                <th className="text-left px-3 py-2">SKU</th>
+                <th className="text-left px-3 py-2">Nombre (del Producto)</th>
+                <th className="text-left px-3 py-2">Marca</th>
+                <th className="text-left px-3 py-2">Características Principales</th>
+                <th className="text-left px-3 py-2">Rangos de graduación</th>
+                <th className="text-left px-3 py-2">Presentación</th>
+                <th className="text-left px-3 py-2">Tipo de Lente</th>
+                <th className="text-left px-3 py-2">Reemplazo</th>
+                <th className="text-right px-3 py-2">Precio</th>
+                <th className="text-right px-3 py-2">Existencias</th>
+                <th className="px-3 py-2 print:hidden"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {lista.map((a) => (
+                <tr key={a.id} className="border-t align-top">
+                  <td className="px-3 py-2 print:hidden">
+                    <label className="cursor-pointer block w-10 h-10">
+                      {a.imagen ? (
+                        <img src={a.imagen} alt="" className="w-10 h-10 rounded object-cover border" />
+                      ) : (
+                        <div className="w-10 h-10 rounded border border-dashed bg-slate-50 flex items-center justify-center text-slate-300 text-[9px] text-center">vacío</div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = () =>
+                            setInventario({ ...inventario, [cat]: lista.map((x) => (x.id === a.id ? { ...x, imagen: reader.result } : x)) });
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                    </label>
+                  </td>
+                  <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{a.sku}</td>
+                  <td className="px-3 py-2 font-medium whitespace-nowrap">{a.nombreProductoContacto || a.nombre}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{a.marcaContacto || "—"}</td>
+                  <td className="px-3 py-2 max-w-[220px] truncate" title={a.caracteristicas || ""}>{a.caracteristicas || "—"}</td>
+                  <td className="px-3 py-2 max-w-[220px] truncate whitespace-pre-line" title={a.rangos || ""}>{a.rangos || "—"}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{a.presentacion || "—"}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{a.tipoLente || "—"}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{a.reemplazo || "—"}</td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap">${a.precio}</td>
+                  <td className="px-3 py-2 text-right">
+                    <input
+                      type="number"
+                      value={a.existencias}
+                      onChange={(e) =>
+                        setInventario({ ...inventario, [cat]: lista.map((x) => (x.id === a.id ? { ...x, existencias: e.target.value } : x)) })
+                      }
+                      className="w-16 border rounded px-1 py-1 text-right text-sm print:hidden"
+                    />
+                    <span className="hidden print:inline">{a.existencias}</span>
+                  </td>
+                  <td className="px-3 py-2 text-right print:hidden">
+                    <button onClick={() => eliminar(a.id)} className="text-red-400 hover:text-red-600">
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {lista.length === 0 && (
+                <tr>
+                  <td colSpan={12} className="text-center text-slate-400 py-6">
+                    Sin artículos en esta categoría todavía.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        ) : (
         <table className="w-full text-sm">
           <thead style={{ background: BEIGE }}>
             <tr>
@@ -2689,6 +2769,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
             )}
           </tbody>
         </table>
+        )}
       </div>
 
       {editando && (
@@ -4760,7 +4841,7 @@ function AdministracionView({ usuarios, setUsuarios, proveedores, setProveedores
 /* ============================================================
    IMPORTAR DATOS
    ============================================================ */
-function ImportarView({ pacientes, setPacientes, inventario, setInventario }) {
+function ImportarView({ pacientes, setPacientes, inventario, setInventario, config, setConfig }) {
   const [categoria, setCategoria] = useState("Pacientes");
   const [progreso, setProgreso] = useState(null);
   const [resultado, setResultado] = useState(null);
@@ -4965,14 +5046,48 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario }) {
     } else {
       const key = { Armazones: "armazones", "Lentes graduados": "lentesGraduados", "Lentes de contacto": "lentesContacto", "Lentes solares": "lentesSolares" }[categoria];
       const listaInv = inventario[key] || [];
-      const nuevos = filas.map((f, i) => ({
-        id: uid(),
-        nombre: campo(f, "nombre", "name") || "Sin nombre",
-        precio: campo(f, "precio", "price") || "0",
-        existencias: campo(f, "existencias", "stock") || "0",
-        sku: `${key.slice(0, 3).toUpperCase()}-${(listaInv.length + i + 1).toString().padStart(4, "0")}`,
-      }));
+      const nuevos = filas.map((f, i) => {
+        const base = {
+          id: uid(),
+          nombre: campo(f, "nombre", "nombre del producto", "name") || "Sin nombre",
+          precio: campo(f, "precio", "price") || "0",
+          existencias: campo(f, "existencias", "stock") || "0",
+          sku: `${key.slice(0, 3).toUpperCase()}-${(listaInv.length + i + 1).toString().padStart(4, "0")}`,
+        };
+        if (key === "lentesContacto") {
+          return {
+            ...base,
+            marcaContacto: campo(f, "marca"),
+            nombreProductoContacto: base.nombre,
+            caracteristicas: campo(f, "caracteristicas principales", "caracteristicas", "características principales", "características"),
+            rangos: campo(f, "rangos de graduacion", "rangos de graduación", "rangos"),
+            presentacion: campo(f, "presentacion", "presentación"),
+            tipoLente: campo(f, "tipo de lente", "tipo lente"),
+            reemplazo: campo(f, "reemplazo"),
+          };
+        }
+        return base;
+      });
       setInventario({ ...inventario, [key]: [...listaInv, ...nuevos] });
+      if (key === "lentesContacto") {
+        const actual = config?.catalogoLentesContacto || [];
+        const combinados = [...actual];
+        nuevos.forEach((n) => {
+          if (n.marcaContacto && n.nombreProductoContacto && !combinados.some((p) => p.nombreProducto === n.nombreProductoContacto && p.marca === n.marcaContacto)) {
+            combinados.push({
+              nombreProducto: n.nombreProductoContacto,
+              marca: n.marcaContacto,
+              caracteristicas: n.caracteristicas,
+              rangos: n.rangos,
+              presentacion: n.presentacion,
+              tipoLente: n.tipoLente,
+              reemplazo: n.reemplazo,
+              precio: Number(n.precio) || 0,
+            });
+          }
+        });
+        setConfig({ ...config, catalogoLentesContacto: combinados });
+      }
       setResultado({ tipo: categoria, cantidad: nuevos.length });
     }
   }
@@ -7817,7 +7932,7 @@ export default function App() {
           <AdministracionView usuarios={usuarios} setUsuarios={setUsuarios} proveedores={proveedores} setProveedores={setProveedores} />
         )}
         {seccion === "importar" && (
-          <ImportarView pacientes={pacientes} setPacientes={setPacientes} inventario={inventario} setInventario={setInventario} />
+          <ImportarView pacientes={pacientes} setPacientes={setPacientes} inventario={inventario} setInventario={setInventario} config={config} setConfig={setConfig} />
         )}
         {seccion === "dashboard" && <DashboardView dashboard={dashboard} setDashboard={setDashboard} ventas={ventas} pagosProveedores={pagosProveedores} />}
         {seccion === "config" && (
