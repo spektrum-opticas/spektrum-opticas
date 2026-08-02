@@ -312,7 +312,7 @@ async function enviarCodigoPorCorreo(email, codigo, nombre) {
 }
 
 function abrirWhatsApp(telefono, mensaje) {
-  const numero = (telefono || "").replace(/\D/g, "");
+  const numero = String(telefono || "").replace(/\D/g, "");
   const url = `https://wa.me/${numero ? "52" + numero : ""}?text=${encodeURIComponent(mensaje)}`;
   window.open(url, "_blank");
 }
@@ -5194,7 +5194,9 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
     const v = valor.trim().toLowerCase();
     if (!v) return null;
     return pacientes.find(
-      (p) => (p.telefono && p.telefono.trim() === valor.trim()) || (p.mail && p.mail.trim().toLowerCase() === v)
+      (p) =>
+        (p.telefono && String(p.telefono).trim() === valor.trim()) ||
+        (p.mail && String(p.mail).trim().toLowerCase() === v)
     );
   }
 
@@ -5225,7 +5227,9 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
       return;
     }
     const yaExiste = pacientes.find(
-      (p) => (telefono && p.telefono && p.telefono.trim() === telefono) || (mail && p.mail && p.mail.trim().toLowerCase() === mail.toLowerCase())
+      (p) =>
+        (telefono && p.telefono && String(p.telefono).trim() === telefono) ||
+        (mail && p.mail && String(p.mail).trim().toLowerCase() === mail.toLowerCase())
     );
     if (yaExiste) {
       setClienteError("Ya existe una cuenta con ese teléfono o correo. Usa 'Iniciar sesión' en su lugar.");
@@ -5288,7 +5292,7 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
 
   function entrarConGoogle(datosGoogle) {
     const mailGoogle = (datosGoogle.mail || "").trim().toLowerCase();
-    let paciente = pacientes.find((p) => p.mail && p.mail.trim().toLowerCase() === mailGoogle);
+    let paciente = pacientes.find((p) => p.mail && String(p.mail).trim().toLowerCase() === mailGoogle);
     const esNuevo = !paciente;
     if (!paciente) {
       paciente = {
