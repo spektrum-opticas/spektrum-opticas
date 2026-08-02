@@ -608,6 +608,15 @@ function Modal({ open, onClose, title, children, wide }) {
   );
 }
 
+function enterActiva(fn) {
+  return (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      fn();
+    }
+  };
+}
+
 function Field({ label, ...props }) {
   return (
     <label className="block mb-3">
@@ -4985,7 +4994,7 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
 function useSesionCliente() {
   const [sesionCliente, setSesionClienteState] = useState(() => {
     try {
-      const raw = localStorage.getItem("spektrum_sesion_cliente");
+      const raw = sessionStorage.getItem("spektrum_sesion_cliente");
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;
@@ -4994,8 +5003,8 @@ function useSesionCliente() {
   const setSesionCliente = (s) => {
     setSesionClienteState(s);
     try {
-      if (s) localStorage.setItem("spektrum_sesion_cliente", JSON.stringify(s));
-      else localStorage.removeItem("spektrum_sesion_cliente");
+      if (s) sessionStorage.setItem("spektrum_sesion_cliente", JSON.stringify(s));
+      else sessionStorage.removeItem("spektrum_sesion_cliente");
     } catch {}
   };
   return [sesionCliente, setSesionCliente];
@@ -5222,8 +5231,8 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
     setClienteError("");
     const telefono = clienteTelefono.trim();
     const mail = clienteMail.trim();
-    if (!clienteNombre.trim() || (!telefono && !mail)) {
-      setClienteError("Escribe tu nombre y al menos un dato de contacto: teléfono o correo.");
+    if (!clienteNombre.trim() || !mail) {
+      setClienteError("Escribe tu nombre y tu correo — es obligatorio para poder verificar tu cuenta.");
       return;
     }
     const yaExiste = pacientes.find(
@@ -5236,15 +5245,8 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
       return;
     }
 
-    if (mail) {
-      // Requiere verificar el correo con un código antes de crear la cuenta
-      enviarCodigoAlCorreo(mail, clienteNombre.trim(), telefono);
-      return;
-    }
-
-    // Solo con teléfono: no hay forma de verificar de verdad sin un servicio de SMS/WhatsApp de paga,
-    // así que la cuenta se activa directo (igual que antes).
-    crearCuentaFinal({ nombre: clienteNombre.trim(), telefono, mail: "" });
+    // Requiere verificar el correo con un código antes de crear la cuenta
+    enviarCodigoAlCorreo(mail, clienteNombre.trim(), telefono);
   }
 
   function crearCuentaFinal({ nombre, telefono, mail }) {
@@ -5333,8 +5335,8 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
           <p className="text-sm text-slate-500 mb-4">
             {usuarios.length === 0 ? "Primer acceso — crea la cuenta de administrador." : "Usa tu usuario y contraseña asignados."}
           </p>
-          <Field label="Usuario" value={empUsuario} onChange={(e) => setEmpUsuario(e.target.value)} />
-          <Field label="Contraseña" type="password" value={empPassword} onChange={(e) => setEmpPassword(e.target.value)} />
+          <Field label="Usuario" value={empUsuario} onChange={(e) => setEmpUsuario(e.target.value)} onKeyDown={enterActiva(entrarEmpleado)} />
+          <Field label="Contraseña" type="password" value={empPassword} onChange={(e) => setEmpPassword(e.target.value)} onKeyDown={enterActiva(entrarEmpleado)} />
           {empError && <p className="text-xs text-red-600 mb-2">{empError}</p>}
           <BotonNegro onClick={entrarEmpleado} className="mt-2">
             {usuarios.length === 0 ? "Crear cuenta y entrar" : "Iniciar sesión"}
@@ -5350,7 +5352,7 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
             <>
               <h2 className="text-xl font-semibold mb-1">Iniciar sesión</h2>
               <p className="text-sm text-slate-500 mb-4">Escribe el teléfono o correo con el que ya tienes cuenta.</p>
-              <Field label="Teléfono o correo" value={loginContacto} onChange={(e) => setLoginContacto(e.target.value)} />
+              <Field label="Teléfono o correo" value={loginContacto} onChange={(e) => setLoginContacto(e.target.value)} onKeyDown={enterActiva(iniciarSesionCliente)} />
               {clienteError && <p className="text-xs text-red-600 mb-2">{clienteError}</p>}
               <BotonNegro onClick={iniciarSesionCliente} className="mt-2">Iniciar sesión</BotonNegro>
 
@@ -5386,7 +5388,7 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
               <p className="text-sm text-slate-500 mb-4">
                 Te enviamos un código de 6 dígitos a <b>{datosPendientes?.mail}</b>. Escríbelo aquí para activar tu cuenta.
               </p>
-              <Field label="Código de verificación" value={codigoIngresado} onChange={(e) => setCodigoIngresado(e.target.value)} />
+              <Field label="Código de verificación" value={codigoIngresado} onChange={(e) => setCodigoIngresado(e.target.value)} onKeyDown={enterActiva(verificarCodigoIngresado)} />
               {clienteError && <p className="text-xs text-red-600 mb-2">{clienteError}</p>}
               <BotonNegro onClick={verificarCodigoIngresado} className="mt-2">Verificar y crear cuenta</BotonNegro>
               <button
@@ -5410,13 +5412,12 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
             <>
               <h2 className="text-xl font-semibold mb-1">Crear cuenta nueva</h2>
               <p className="text-sm text-slate-500 mb-4">
-                Con tu nombre y al menos un dato de contacto (teléfono o correo) guardamos tus pedidos, tu receta y tu
-                historial para la próxima vez. Si dejas tu correo, te vamos a pedir confirmarlo con un código antes de
-                activar tu cuenta.
+                Con tu nombre y tu correo guardamos tus pedidos, tu receta y tu historial para la próxima vez. Te
+                vamos a pedir confirmar tu correo con un código antes de activar tu cuenta.
               </p>
-              <Field label="Nombre" value={clienteNombre} onChange={(e) => setClienteNombre(e.target.value)} />
-              <Field label="Teléfono (WhatsApp) — opcional si dejas tu correo" value={clienteTelefono} onChange={(e) => setClienteTelefono(e.target.value)} />
-              <Field label="Correo — opcional si dejas tu teléfono" value={clienteMail} onChange={(e) => setClienteMail(e.target.value)} />
+              <Field label="Nombre" value={clienteNombre} onChange={(e) => setClienteNombre(e.target.value)} onKeyDown={enterActiva(registrarCliente)} />
+              <Field label="Correo (obligatorio)" value={clienteMail} onChange={(e) => setClienteMail(e.target.value)} onKeyDown={enterActiva(registrarCliente)} />
+              <Field label="Teléfono (WhatsApp) — opcional" value={clienteTelefono} onChange={(e) => setClienteTelefono(e.target.value)} onKeyDown={enterActiva(registrarCliente)} />
               {clienteError && <p className="text-xs text-red-600 mb-2">{clienteError}</p>}
               <BotonNegro onClick={registrarCliente} disabled={enviandoCodigo} className="mt-2">
                 {enviandoCodigo ? "Enviando código…" : "Crear cuenta"}
@@ -5456,7 +5457,8 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
 }
 
 /* ---------- Header de la tienda ---------- */
-function TiendaHeader({ config, sesionCliente, sesionStaff, carritoCount, onAbrirCarrito, onAbrirAcceso, onIrCategoria, onIrInicio, onVolverPanel, categoriaActiva }) {
+function TiendaHeader({ config, sesionCliente, sesionStaff, carritoCount, onAbrirCarrito, onAbrirAcceso, onIrCategoria, onIrInicio, onVolverPanel, categoriaActiva, onCerrarSesionCliente }) {
+  const [menuCuentaAbierto, setMenuCuentaAbierto] = useState(false);
   const categorias = [
     { key: "armazones", label: "Armazones" },
     { key: "lentesGraduados", label: "Lentes graduados" },
@@ -5488,10 +5490,32 @@ function TiendaHeader({ config, sesionCliente, sesionStaff, carritoCount, onAbri
               Volver al panel
             </button>
           )}
-          <button onClick={onAbrirAcceso} className="flex items-center gap-1 text-sm">
-            <UserCog size={20} />
-            <span className="text-xs sm:text-sm max-w-[70px] sm:max-w-none truncate">{sesionCliente ? sesionCliente.nombre.split(" ")[0] : "Cuenta"}</span>
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => (sesionCliente ? setMenuCuentaAbierto(!menuCuentaAbierto) : onAbrirAcceso())}
+              className="flex items-center gap-1 text-sm"
+            >
+              <UserCog size={20} />
+              <span className="text-xs sm:text-sm max-w-[70px] sm:max-w-none truncate">{sesionCliente ? sesionCliente.nombre.split(" ")[0] : "Cuenta"}</span>
+            </button>
+            {menuCuentaAbierto && sesionCliente && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuCuentaAbierto(false)} />
+                <div className="absolute right-0 top-full mt-2 bg-white border rounded-xl shadow-lg py-2 z-50" style={{ minWidth: 180 }}>
+                  <p className="px-4 py-1.5 text-xs text-slate-400 truncate">{sesionCliente.nombre}</p>
+                  <button
+                    onClick={() => {
+                      setMenuCuentaAbierto(false);
+                      if (window.confirm("¿Cerrar sesión?")) onCerrarSesionCliente();
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50"
+                  >
+                    Cerrar sesión
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <button onClick={onAbrirCarrito} className="relative">
             <ShoppingCart size={20} />
             {carritoCount > 0 && (
@@ -5768,6 +5792,7 @@ function TiendaFooter({ config, setConfig, onIrInicio, onIrCategoria, onAbrirCue
             <input
               value={correoNewsletter}
               onChange={(e) => setCorreoNewsletter(e.target.value)}
+              onKeyDown={enterActiva(suscribir)}
               placeholder="tu@correo.com"
               className="flex-1 rounded-full px-4 py-2 text-sm text-black"
             />
@@ -6475,6 +6500,10 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         onIrInicio={() => setVista("inicio")}
         onVolverPanel={onVolverPanel}
         categoriaActiva={vista === "categoria" ? categoriaActiva : null}
+        onCerrarSesionCliente={() => {
+          setSesionCliente(null);
+          setMensajeFinal("Cerraste sesión correctamente.");
+        }}
       />
 
       {mensajeFinal && (
