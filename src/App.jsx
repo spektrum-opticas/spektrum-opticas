@@ -290,6 +290,27 @@ function mensajeEntregaFinal(nombre) {
   };
 }
 
+function generarCodigoVerificacion() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+async function enviarCodigoPorCorreo(email, codigo, nombre) {
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/enviar-codigo`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+      },
+      body: JSON.stringify({ email, codigo, nombre }),
+    });
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
 function abrirWhatsApp(telefono, mensaje) {
   const numero = (telefono || "").replace(/\D/g, "");
   const url = `https://wa.me/${numero ? "52" + numero : ""}?text=${encodeURIComponent(mensaje)}`;
@@ -5111,6 +5132,11 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
   const [clienteError, setClienteError] = useState("");
   const [clienteModo, setClienteModo] = useState("login"); // login | registro
   const [loginContacto, setLoginContacto] = useState("");
+  const [verificando, setVerificando] = useState(false);
+  const [codigoEsperado, setCodigoEsperado] = useState("");
+  const [codigoIngresado, setCodigoIngresado] = useState("");
+  const [enviandoCodigo, setEnviandoCodigo] = useState(false);
+  const [datosPendientes, setDatosPendientes] = useState(null); // { nombre, telefono, mail }
 
   useEffect(() => {
     if (open) setPaso(pasoInicial || "elegir");
@@ -5127,6 +5153,11 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
     setClienteError("");
     setClienteModo("login");
     setLoginContacto("");
+    setVerificando(false);
+    setCodigoEsperado("");
+    setCodigoIngresado("");
+    setEnviandoCodigo(false);
+    setDatosPendientes(null);
   }
 
   function cerrar() {
@@ -5200,10 +5231,23 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
       setClienteError("Ya existe una cuenta con ese teléfono o correo. Usa 'Iniciar sesión' en su lugar.");
       return;
     }
+
+    if (mail) {
+      // Requiere verificar el correo con un código antes de crear la cuenta
+      enviarCodigoAlCorreo(mail, clienteNombre.trim(), telefono);
+      return;
+    }
+
+    // Solo con teléfono: no hay forma de verificar de verdad sin un servicio de SMS/WhatsApp de paga,
+    // así que la cuenta se activa directo (igual que antes).
+    crearCuentaFinal({ nombre: clienteNombre.trim(), telefono, mail: "" });
+  }
+
+  function crearCuentaFinal({ nombre, telefono, mail }) {
     const paciente = {
       id: uid(),
       folio: pacientes.length + 1,
-      nombre: clienteNombre.trim(),
+      nombre,
       telefono,
       mail,
       compras: [],
@@ -5212,10 +5256,35 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
     setPacientes([...pacientes, paciente]);
     const msj = mensajeBienvenida(paciente.nombre);
     if (telefono) abrirWhatsApp(telefono, msj.whatsapp);
-    if (mail) abrirEmail(mail, msj.email.asunto, msj.email.cuerpo);
     onLoginCliente({ nombre: paciente.nombre, telefono: paciente.telefono, mail: paciente.mail, pacienteId: paciente.id });
     cerrar();
   }
+
+  async function enviarCodigoAlCorreo(mail, nombre, telefono) {
+    setEnviandoCodigo(true);
+    setClienteError("");
+    const codigo = generarCodigoVerificacion();
+    const enviado = await enviarCodigoPorCorreo(mail, codigo, nombre);
+    setEnviandoCodigo(false);
+    if (!enviado) {
+      setClienteError("No se pudo enviar el código de verificación. Intenta de nuevo en un momento.");
+      return;
+    }
+    setCodigoEsperado(codigo);
+    setDatosPendientes({ nombre, telefono, mail });
+    setCodigoIngresado("");
+    setVerificando(true);
+  }
+
+  function verificarCodigoIngresado() {
+    setClienteError("");
+    if (codigoIngresado.trim() !== codigoEsperado) {
+      setClienteError("El código no es correcto. Revisa tu correo e inténtalo de nuevo.");
+      return;
+    }
+    crearCuentaFinal(datosPendientes);
+  }
+
 
   function entrarConGoogle(datosGoogle) {
     const mailGoogle = (datosGoogle.mail || "").trim().toLowerCase();
@@ -5307,18 +5376,47 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
                 </button>
               </p>
             </>
+          ) : verificando ? (
+            <>
+              <h2 className="text-xl font-semibold mb-1">Verifica tu correo</h2>
+              <p className="text-sm text-slate-500 mb-4">
+                Te enviamos un código de 6 dígitos a <b>{datosPendientes?.mail}</b>. Escríbelo aquí para activar tu cuenta.
+              </p>
+              <Field label="Código de verificación" value={codigoIngresado} onChange={(e) => setCodigoIngresado(e.target.value)} />
+              {clienteError && <p className="text-xs text-red-600 mb-2">{clienteError}</p>}
+              <BotonNegro onClick={verificarCodigoIngresado} className="mt-2">Verificar y crear cuenta</BotonNegro>
+              <button
+                onClick={() => enviarCodigoAlCorreo(datosPendientes.mail, datosPendientes.nombre, datosPendientes.telefono)}
+                disabled={enviandoCodigo}
+                className="text-sm text-slate-500 underline mt-3 block mx-auto disabled:opacity-40"
+              >
+                {enviandoCodigo ? "Reenviando…" : "Reenviar código"}
+              </button>
+              <button
+                onClick={() => {
+                  setVerificando(false);
+                  setClienteError("");
+                }}
+                className="text-xs text-slate-400 mt-4 block mx-auto"
+              >
+                ← Corregir mis datos
+              </button>
+            </>
           ) : (
             <>
               <h2 className="text-xl font-semibold mb-1">Crear cuenta nueva</h2>
               <p className="text-sm text-slate-500 mb-4">
                 Con tu nombre y al menos un dato de contacto (teléfono o correo) guardamos tus pedidos, tu receta y tu
-                historial para la próxima vez.
+                historial para la próxima vez. Si dejas tu correo, te vamos a pedir confirmarlo con un código antes de
+                activar tu cuenta.
               </p>
               <Field label="Nombre" value={clienteNombre} onChange={(e) => setClienteNombre(e.target.value)} />
               <Field label="Teléfono (WhatsApp) — opcional si dejas tu correo" value={clienteTelefono} onChange={(e) => setClienteTelefono(e.target.value)} />
               <Field label="Correo — opcional si dejas tu teléfono" value={clienteMail} onChange={(e) => setClienteMail(e.target.value)} />
               {clienteError && <p className="text-xs text-red-600 mb-2">{clienteError}</p>}
-              <BotonNegro onClick={registrarCliente} className="mt-2">Crear cuenta</BotonNegro>
+              <BotonNegro onClick={registrarCliente} disabled={enviandoCodigo} className="mt-2">
+                {enviandoCodigo ? "Enviando código…" : "Crear cuenta"}
+              </BotonNegro>
 
               <div className="flex items-center gap-2 my-3">
                 <div className="flex-1 h-px bg-slate-200" />
