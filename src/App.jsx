@@ -6305,7 +6305,7 @@ function materialArmazonDesde(categoriaArmazon) {
 }
 
 /* ---------- Probador virtual (cámara + detección de rostro en tiempo real) ---------- */
-function ProbadorVirtual({ imagenArmazon, onCerrar }) {
+function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const detectorRef = useRef(null);
@@ -6322,28 +6322,43 @@ function ProbadorVirtual({ imagenArmazon, onCerrar }) {
       if (cancelado) return;
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      if (video && canvas && detectorRef.current && video.readyState >= 2) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+      if (video && canvas && detectorRef.current && video.readyState >= 2 && video.videoWidth > 0) {
+        if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+        }
         const ctx = canvas.getContext("2d");
-        ctx.save();
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-        ctx.restore();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         try {
           const caras = await detectorRef.current.estimateFaces(video);
-          if (caras.length > 0) {
+          if (caras.length > 0 && imgRef.current?.complete) {
             const kp = caras[0].keypoints;
             const ojoIzq = kp[33];
             const ojoDer = kp[263];
-            if (ojoIzq && ojoDer && imgRef.current?.complete) {
-              const xIzq = canvas.width - ojoIzq.x;
-              const xDer = canvas.width - ojoDer.x;
-              const cx = (xIzq + xDer) / 2;
+
+            if (modo === "contacto") {
+              // Lente de contacto cosmético: se coloca un pequeño círculo del color/imagen sobre cada iris
+              const irisIzq = kp[468] || ojoIzq;
+              const irisDer = kp[473] || ojoDer;
+              const dist = ojoIzq && ojoDer ? Math.hypot(ojoDer.x - ojoIzq.x, ojoDer.y - ojoIzq.y) : 60;
+              const radio = dist * 0.16;
+              [irisIzq, irisDer].forEach((p) => {
+                if (!p) return;
+                ctx.save();
+                ctx.globalAlpha = 0.55;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, radio, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.drawImage(imgRef.current, p.x - radio, p.y - radio, radio * 2, radio * 2);
+                ctx.restore();
+              });
+            } else if (ojoIzq && ojoDer) {
+              // Armazón: se coloca la imagen del producto abarcando ambos ojos
+              const cx = (ojoIzq.x + ojoDer.x) / 2;
               const cy = (ojoIzq.y + ojoDer.y) / 2;
-              const dist = Math.hypot(xDer - xIzq, ojoDer.y - ojoIzq.y);
-              const angulo = Math.atan2(ojoDer.y - ojoIzq.y, xDer - xIzq);
+              const dist = Math.hypot(ojoDer.x - ojoIzq.x, ojoDer.y - ojoIzq.y);
+              const angulo = Math.atan2(ojoDer.y - ojoIzq.y, ojoDer.x - ojoIzq.x);
               const ancho = dist * 2.3;
               const alto = ancho * (imgRef.current.height / imgRef.current.width);
               ctx.save();
@@ -6381,7 +6396,7 @@ function ProbadorVirtual({ imagenArmazon, onCerrar }) {
         const faceLandmarksDetection = await import("@tensorflow-models/face-landmarks-detection");
         const detector = await faceLandmarksDetection.createDetector(
           faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
-          { runtime: "tfjs", refineLandmarks: false, maxFaces: 1 }
+          { runtime: "tfjs", refineLandmarks: modo === "contacto", maxFaces: 1 }
         );
         if (cancelado) return;
         detectorRef.current = detector;
@@ -6404,7 +6419,7 @@ function ProbadorVirtual({ imagenArmazon, onCerrar }) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
     };
-  }, [imagenArmazon]);
+  }, [imagenArmazon, modo]);
 
   return (
     <div className="fixed inset-0 z-[60] bg-black flex flex-col items-center justify-center p-4">
@@ -6419,12 +6434,25 @@ function ProbadorVirtual({ imagenArmazon, onCerrar }) {
           <p className="text-xs text-slate-400 mt-2">Revisa que le hayas dado permiso de cámara a esta página.</p>
         </div>
       )}
-      <div className="relative" style={{ maxWidth: "100%", maxHeight: "75vh" }}>
-        <video ref={videoRef} playsInline muted className="hidden" />
-        <canvas ref={canvasRef} className="max-w-full max-h-[75vh] rounded-xl" style={{ display: estado === "listo" ? "block" : "none" }} />
+      <div className="relative" style={{ maxWidth: "100%", maxHeight: "75vh", display: estado === "listo" ? "block" : "none" }}>
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          autoPlay
+          className="max-w-full max-h-[75vh] rounded-xl block"
+          style={{ transform: "scaleX(-1)" }}
+        />
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 w-full h-full rounded-xl"
+          style={{ transform: "scaleX(-1)", pointerEvents: "none" }}
+        />
       </div>
       <p className="text-slate-400 text-xs mt-4 max-w-sm text-center">
-        Prueba virtual en tiempo real usando tu cámara. Para mejores resultados, sube fotos del armazón de frente y con fondo simple desde Inventario.
+        {modo === "contacto"
+          ? "Prueba virtual del color de tus lentes de contacto en tiempo real usando tu cámara."
+          : "Prueba virtual en tiempo real usando tu cámara. Para mejores resultados, sube fotos del armazón de frente y con fondo simple desde Inventario."}
       </p>
     </div>
   );
@@ -6470,6 +6498,9 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onAgregarCar
     if (producto.rango) specsExtra.push(["Rango de graduación", producto.rango]);
   }
 
+  const esCosmeticoContacto = esContactoProducto && producto.tipoLente === "Cosmético / Color";
+  const puedeProbarse = esArmazonProducto || esCosmeticoContacto;
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-8 py-6">
       <button onClick={onVolver} className="flex items-center gap-1 text-sm font-medium mb-3 hover:underline">
@@ -6487,18 +6518,20 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onAgregarCar
             ) : (
               <div className="w-full h-full flex items-center justify-center text-xs text-slate-300">Sin fotos todavía</div>
             )}
-            <button
-              onClick={() => {
-                if (galeria.length === 0) {
-                  window.alert("Este armazón todavía no tiene foto — sube una desde Inventario para poder probártelo.");
-                  return;
-                }
-                setProbadorAbierto(true);
-              }}
-              className="absolute bottom-4 right-4 flex items-center gap-1 bg-white rounded-full px-3 py-1.5 text-xs font-medium shadow"
-            >
-              <Eye size={14} /> Pruébatelos
-            </button>
+            {puedeProbarse && (
+              <button
+                onClick={() => {
+                  if (galeria.length === 0) {
+                    window.alert("Este producto todavía no tiene foto — sube una desde Inventario para poder probártelo.");
+                    return;
+                  }
+                  setProbadorAbierto(true);
+                }}
+                className="absolute bottom-4 right-4 flex items-center gap-1 bg-white rounded-full px-3 py-1.5 text-xs font-medium shadow"
+              >
+                <Eye size={14} /> Pruébatelos
+              </button>
+            )}
           </div>
           {galeria.length > 1 && (
             <div className="flex items-center justify-between mt-3">
@@ -6576,7 +6609,7 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onAgregarCar
         <h2 className="text-2xl font-semibold mb-4">Acerca de {producto.nombre}</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <p className="text-sm text-slate-600">
-            {producto.acercaDe || "Aún no se ha escrito la descripción de este producto — se puede agregar desde Inventario."}
+            {producto.acercaDe || (esContactoProducto && producto.caracteristicas) || "Aún no se ha escrito la descripción de este producto — se puede agregar desde Inventario."}
           </p>
           <div>
             <table className="w-full text-sm">
@@ -6613,7 +6646,11 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onAgregarCar
       </div>
 
       {probadorAbierto && (
-        <ProbadorVirtual imagenArmazon={galeria[indiceFoto] || producto.imagen} onCerrar={() => setProbadorAbierto(false)} />
+        <ProbadorVirtual
+          imagenArmazon={galeria[indiceFoto] || producto.imagen}
+          modo={esCosmeticoContacto ? "contacto" : "armazon"}
+          onCerrar={() => setProbadorAbierto(false)}
+        />
       )}
     </div>
   );
