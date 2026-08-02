@@ -1784,34 +1784,113 @@ const RANGOS_POR_MATERIAL = {
   "Hi Index": ["Rango 2", "Rango 3"],
 };
 
-const LENTES_CONTACTO_DATA = {
-  Mensual: [
-    { marca: "Biofinity (CooperVision)", cosmetico: false },
-    { marca: "Air Optix (Alcon)", cosmetico: false },
-    { marca: "Acuvue Vita (Johnson & Johnson)", cosmetico: false },
-    { marca: "Ultra (Bausch + Lomb)", cosmetico: false },
-    { marca: "SofLens Esférico (Bausch + Lomb)", cosmetico: false },
-    { marca: "PureVision 2 (Bausch + Lomb)", cosmetico: false },
-    { marca: "Biomedics (CooperVision)", cosmetico: false },
-    { marca: "Hidrosoft Monthly (Maxvue / Max Hydrosoft)", cosmetico: false },
-    { marca: "SofLens StarColors II (Bausch + Lomb)", cosmetico: true },
-    { marca: "Air Optix Colors (Alcon)", cosmetico: true },
-    { marca: "Lunare Tricolor (Bausch + Lomb)", cosmetico: true },
-    { marca: "FreshLook ColorBlends (Alcon)", cosmetico: true },
-  ],
-  Anual: [
-    { marca: "Optima 38 (Bausch + Lomb)", cosmetico: false },
-    { marca: "Contalux", cosmetico: false },
-    { marca: "Hidrosoft UV Soft Esférico (Hidrosoft de México)", cosmetico: false },
-    { marca: "Hidrosoft UV Soft Tórico (Hidrosoft de México)", cosmetico: false },
-    { marca: "Lenticon One Year / GM Advance (Laboratorios Grin)", cosmetico: false },
-    { marca: "Lenticon Ex Torica (Laboratorios Grin)", cosmetico: false },
-    { marca: "Lenticon Pupila Negra (Laboratorios Grin)", cosmetico: false },
-    { marca: "Meetone", cosmetico: true },
-    { marca: "Freshgo", cosmetico: true },
-    { marca: "Mill Creek", cosmetico: true },
-  ],
-};
+const PRODUCTOS_CONTACTO_SEED = [
+  {
+    nombreProducto: "SofLens 59",
+    marca: "Bausch & Lomb",
+    caracteristicas:
+      "Cualidades: Lente mensual de alta resistencia a la acumulación de depósitos y proteínas. Ofrece una visión clara con una inversión muy baja, ideal para usuarios principiantes",
+    rangos: "Miopía: -0.50 D a -9.00 D\nHipermetropía: +0.50 D a +6.00 D",
+    presentacion: "6 lentes",
+    tipoLente: "Esférico",
+    reemplazo: "Mensual",
+    precio: 420,
+  },
+  {
+    nombreProducto: "Acuvue Oasys con Hydraclear Plus",
+    marca: "Johnson & Johnson",
+    caracteristicas:
+      "Cualidades: Lente quincenal ultra cómodo que imita las lágrimas naturales para combatir la resequedad ocular en oficinas o climas secos. Cuenta con uno de los filtros de protección UV más altos del mercado.",
+    rangos:
+      "Miopía: -0.50 D a -12.00 D (pasos de 0.50 D después de -6.00 D)\nHipermetropía: +0.50 D a +8.00 D (pasos de 0.50 D después de +6.00 D)",
+    presentacion: "6 lentes",
+    tipoLente: "Esférico",
+    reemplazo: "Quincenal",
+    precio: 675,
+  },
+  {
+    nombreProducto: "Biofinity",
+    marca: "Cooper Vision",
+    caracteristicas:
+      "Cualidades: Fabricado con hidrogel de silicona natural sin aditivos ni humectantes artificiales. Su altísima transmisión de oxígeno mantiene los ojos blancos y saludables durante jornadas de uso muy prolongadas.",
+    rangos:
+      "Miopía: -0.25 D a -12.00 D\nHipermetropía: +0.25 D a +8.00 D\n(Nota: Existe la gama XR bajo pedido especial que cubre desde -20.00 D hasta +15.00 D)",
+    presentacion: "6 lentes",
+    tipoLente: "Esférico",
+    reemplazo: "Mensual",
+    precio: 570,
+  },
+  {
+    nombreProducto: "Biofinity Toric",
+    marca: "Cooper Vision",
+    caracteristicas:
+      "Cualidades: El lente líder para corregir el astigmatismo. Su diseño optimizado garantiza que el lente se mantenga perfectamente estable en el ojo al parpadear, evitando la visión borrosa o los mareos.",
+    rangos:
+      "Esfera (Miopía/Hipermetropía): -10.00 D a +6.00 D\nCilindro (Astigmatismo): -0.75 D, -1.25 D, -1.75 D, -2.25 D\nEje: 10° a 180° (en pasos de 10°)",
+    presentacion: "6 lentes",
+    tipoLente: "Tórico (Astigmatismo)",
+    reemplazo: "Mensual",
+    precio: 1075,
+  },
+  {
+    nombreProducto: "Air Optix Colors",
+    marca: "Alcon",
+    caracteristicas:
+      "Cualidades: Lentes de color mensuales que aportan una mirada natural y profunda. Al estar hechos de hidrogel de silicona, dejan pasar hasta 5 veces más oxígeno que los pupilentes de color económicos tradicionales.",
+    rangos:
+      "Estéticos / Cosméticos: 0.00 (Neutros)\nMiopía: -0.25 D a -6.00 D (y hasta -8.00 D en pasos de 0.50 D)\nHipermetropía: +0.25 D a +6.00 D",
+    presentacion: "2 lentes",
+    tipoLente: "Cosmético / Color",
+    reemplazo: "Mensual",
+    precio: 775,
+  },
+  {
+    nombreProducto: "Ultra Monthly",
+    marca: "Bausch & Lomb",
+    caracteristicas:
+      "Cualidades: Diseñado específicamente para usuarios de pantallas digitales (computadoras y celulares). Su tecnología retiene el 95% de la humedad del lente hasta por 16 horas continuas de uso.",
+    rangos: "Miopía: -0.25 D a -12.00 D\nHipermetropía: +0.25 D a +6.00 D",
+    presentacion: "6 lentes",
+    tipoLente: "Esférico",
+    reemplazo: "Mensual",
+    precio: 750,
+  },
+  {
+    nombreProducto: "SofLens 66 Toric",
+    marca: "Bausch & Lomb",
+    caracteristicas:
+      "Cualidades: Lente mensual para astigmatismo con un diseño hidrofílico clásico muy probado. Su excelente estabilidad geométrica proporciona una agudeza visual nítida en pacientes con astigmatismos elevados.",
+    rangos:
+      "Esfera (Miopía): 0.00 D a -9.00 D\nCilindro (Astigmatismo): -0.75 D, -1.25 D, -1.75 D, -2.25 D, -2.75 D\nEje: 10° a 180° (en pasos de 10°)",
+    presentacion: "6 lentes",
+    tipoLente: "Tórico (Astigmatismo)",
+    reemplazo: "Mensual",
+    precio: 900,
+  },
+  {
+    nombreProducto: "UV Soft Esférico",
+    marca: "Hidrosoft",
+    caracteristicas:
+      "Cualidades: Lente de duración anual torneado a la medida en laboratorio. Ofrece un material no iónico de gran resistencia al desgaste diario y protección contra los rayos UV. Muy rentable a largo plazo.",
+    rangos: "Miopía / Hipermetropía: -10.00 D a +10.00 D (rango estándar; se pueden pedir graduaciones más altas sobre diseño)",
+    presentacion: "1 lente (Vial)",
+    tipoLente: "Esférico",
+    reemplazo: "Anual",
+    precio: 1500,
+  },
+  {
+    nombreProducto: "UV Soft Tórico",
+    marca: "Hidrosoft",
+    caracteristicas:
+      "Cualidades: Lente anual personalizado para astigmatismos complejos, altos o combinados. Al fabricarse de forma individual, permite ajustar el eje grado por grado para un enfoque milimétrico e impecable.",
+    rangos:
+      "Esfera: -10.00 D a +10.00 D\nCilindro (Astigmatismo): -0.75 D a -5.00 D (o mayor según el caso)\nEje: 1° a 180° (ajustable de 1° en 1°)",
+    presentacion: "1 lente (Vial)",
+    tipoLente: "Tórico (Astigmatismo)",
+    reemplazo: "Anual",
+    precio: 3400,
+  },
+];
 
 const MARCAS_ARMAZON_SEED = [
   "SENMA", "MICHELE", "CARAMELO", "LADY BLACK", "DPTTI", "ELLIS", "ELEGANCIA", "JD", "ONOLA", "NOAH",
@@ -1834,6 +1913,13 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
     categoriaArmazon: "",
     tipoReemplazo: "",
     marcaContacto: "",
+    nombreProductoContacto: "",
+    caracteristicasContacto: "",
+    rangosContacto: "",
+    presentacionContacto: "",
+    tipoLenteContacto: "",
+    reemplazoContacto: "",
+    modoManualContacto: false,
     cosmetico: false,
     marcaSolar: "",
     modeloSolar: "",
@@ -1847,6 +1933,16 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
     acercaDe: "",
     galeriaExtra: [],
   });
+
+  const catalogoContacto = [...PRODUCTOS_CONTACTO_SEED, ...(config?.catalogoLentesContacto || [])];
+  const marcasContactoOrdenadas = [...new Set(catalogoContacto.map((p) => p.marca))].sort((a, b) => a.localeCompare(b));
+  const productosDeMarcaContacto = nuevo.marcaContacto ? catalogoContacto.filter((p) => p.marca === nuevo.marcaContacto) : [];
+
+  function agregarProductoContactoCatalogo(producto) {
+    const actual = config?.catalogoLentesContacto || [];
+    if (actual.some((p) => p.nombreProducto === producto.nombreProducto && p.marca === producto.marca)) return;
+    setConfig({ ...config, catalogoLentesContacto: [...actual, producto] });
+  }
 
   const catalogoMarcas = {
     ...Object.fromEntries(MARCAS_ARMAZON_SEED.map((m) => [m, []])),
@@ -1897,7 +1993,6 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
     : [];
 
   const rangosDisponibles = nuevo.material ? RANGOS_POR_MATERIAL[nuevo.material] || [] : [];
-  const marcasDisponibles = nuevo.tipoReemplazo ? LENTES_CONTACTO_DATA[nuevo.tipoReemplazo] || [] : [];
 
   function siguienteSKU() {
     const prefijo = cat.slice(0, 3).toUpperCase();
@@ -1908,7 +2003,9 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
   function limpiarNuevo() {
     setNuevo({
       nombre: "", precio: "", existencias: "", tipo: "", material: "", tratamiento: "", rango: "",
-      tipoLinea: "", categoriaArmazon: "", tipoReemplazo: "", marcaContacto: "", cosmetico: false,
+      tipoLinea: "", categoriaArmazon: "", tipoReemplazo: "", marcaContacto: "",
+      nombreProductoContacto: "", caracteristicasContacto: "", rangosContacto: "", presentacionContacto: "",
+      tipoLenteContacto: "", reemplazoContacto: "", modoManualContacto: false, cosmetico: false,
       marcaSolar: "", modeloSolar: "", colorSolar: "", imagen: "", descripcion: "",
       tallas: [], marcaArmazon: "", modeloArmazon: "", clipOnCompatible: "", acercaDe: "", galeriaExtra: [],
     });
@@ -1933,10 +2030,27 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
       nombreFinal = `${nuevo.material} · ${nuevo.tipo} · ${nuevo.tratamiento} · ${nuevo.rango}`;
       extra = { rangoDescripcion: RANGOS_RX[nuevo.rango] };
     } else if (esContacto) {
-      if (!nuevo.tipoReemplazo || !nuevo.marcaContacto) return;
-      const info = marcasDisponibles.find((m) => m.marca === nuevo.marcaContacto);
-      nombreFinal = nuevo.marcaContacto;
-      extra = { cosmetico: !!info?.cosmetico };
+      if (!nuevo.marcaContacto || !nuevo.nombreProductoContacto) return;
+      nombreFinal = nuevo.nombreProductoContacto;
+      extra = {
+        caracteristicas: nuevo.caracteristicasContacto,
+        rangos: nuevo.rangosContacto,
+        presentacion: nuevo.presentacionContacto,
+        tipoLente: nuevo.tipoLenteContacto,
+        reemplazo: nuevo.reemplazoContacto,
+      };
+      if (nuevo.modoManualContacto) {
+        agregarProductoContactoCatalogo({
+          nombreProducto: nuevo.nombreProductoContacto,
+          marca: nuevo.marcaContacto,
+          caracteristicas: nuevo.caracteristicasContacto,
+          rangos: nuevo.rangosContacto,
+          presentacion: nuevo.presentacionContacto,
+          tipoLente: nuevo.tipoLenteContacto,
+          reemplazo: nuevo.reemplazoContacto,
+          precio: Number(nuevo.precio) || 0,
+        });
+      }
     } else if (esSolar) {
       if (!nuevo.marcaSolar || !nuevo.modeloSolar || !nuevo.colorSolar) return;
       nombreFinal = `${nuevo.marcaSolar} · ${nuevo.modeloSolar} · ${nuevo.colorSolar}`;
@@ -2263,35 +2377,144 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
         {esContacto && (
           <>
             <div>
-              <label className="text-xs text-slate-500">Tipo de reemplazo</label>
-              <select
-                value={nuevo.tipoReemplazo}
-                onChange={(e) => setNuevo({ ...nuevo, tipoReemplazo: e.target.value, marcaContacto: "" })}
-                className="block border rounded-lg px-2 py-1.5 text-sm"
-              >
-                <option value="">—</option>
-                <option>Mensual</option>
-                <option>Anual</option>
-              </select>
-            </div>
-            <div>
               <label className="text-xs text-slate-500">Marca</label>
-              <select
-                value={nuevo.marcaContacto}
-                onChange={(e) => setNuevo({ ...nuevo, marcaContacto: e.target.value })}
-                disabled={!nuevo.tipoReemplazo}
-                className="block border rounded-lg px-2 py-1.5 text-sm w-64 disabled:bg-slate-100 disabled:opacity-60"
-              >
-                <option value="">{nuevo.tipoReemplazo ? "—" : "Elige tipo de reemplazo primero"}</option>
-                {marcasDisponibles.map((m) => (
-                  <option key={m.marca} value={m.marca}>
-                    {m.marca}{m.cosmetico ? " (Cosmético)" : ""}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-1">
+                <select
+                  value={nuevo.marcaContacto}
+                  onChange={(e) => setNuevo({ ...nuevo, marcaContacto: e.target.value, nombreProductoContacto: "" })}
+                  className="block border rounded-lg px-2 py-1.5 text-sm w-48"
+                >
+                  <option value="">—</option>
+                  {marcasContactoOrdenadas.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nueva = window.prompt("Nombre de la nueva marca:");
+                    if (nueva) setNuevo({ ...nuevo, marcaContacto: nueva.trim(), nombreProductoContacto: "", modoManualContacto: true });
+                  }}
+                  className="border rounded-lg px-2 text-sm"
+                  title="Agregar nueva marca"
+                >
+                  +
+                </button>
+              </div>
             </div>
+
+            <div>
+              <label className="text-xs text-slate-500">Nombre del producto</label>
+              <div className="flex gap-1">
+                <select
+                  value={nuevo.modoManualContacto ? "" : nuevo.nombreProductoContacto}
+                  disabled={!nuevo.marcaContacto}
+                  onChange={(e) => {
+                    const producto = productosDeMarcaContacto.find((p) => p.nombreProducto === e.target.value);
+                    if (producto) {
+                      setNuevo({
+                        ...nuevo,
+                        nombreProductoContacto: producto.nombreProducto,
+                        caracteristicasContacto: producto.caracteristicas,
+                        rangosContacto: producto.rangos,
+                        presentacionContacto: producto.presentacion,
+                        tipoLenteContacto: producto.tipoLente,
+                        reemplazoContacto: producto.reemplazo,
+                        precio: producto.precio,
+                        modoManualContacto: false,
+                      });
+                    }
+                  }}
+                  className="block border rounded-lg px-2 py-1.5 text-sm w-56 disabled:bg-slate-100 disabled:opacity-60"
+                >
+                  <option value="">{nuevo.marcaContacto ? "—" : "Elige marca primero"}</option>
+                  {productosDeMarcaContacto.map((p) => (
+                    <option key={p.nombreProducto} value={p.nombreProducto}>{p.nombreProducto}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!nuevo.marcaContacto}
+                  onClick={() => {
+                    const nuevoNombre = window.prompt("Nombre del nuevo producto:");
+                    if (nuevoNombre) {
+                      setNuevo({
+                        ...nuevo,
+                        nombreProductoContacto: nuevoNombre.trim(),
+                        caracteristicasContacto: "",
+                        rangosContacto: "",
+                        presentacionContacto: "",
+                        tipoLenteContacto: "",
+                        reemplazoContacto: "",
+                        precio: "",
+                        modoManualContacto: true,
+                      });
+                    }
+                  }}
+                  className="border rounded-lg px-2 text-sm disabled:opacity-40"
+                  title="Agregar producto nuevo manualmente"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {nuevo.modoManualContacto && (
+              <div className="bg-slate-50 rounded-lg p-2 w-full space-y-2">
+                <p className="text-xs text-amber-700">Producto nuevo — completa sus características (se guardará en el catálogo para la próxima vez).</p>
+                <textarea
+                  value={nuevo.caracteristicasContacto}
+                  onChange={(e) => setNuevo({ ...nuevo, caracteristicasContacto: e.target.value })}
+                  placeholder="Características principales"
+                  rows={2}
+                  className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                />
+                <textarea
+                  value={nuevo.rangosContacto}
+                  onChange={(e) => setNuevo({ ...nuevo, rangosContacto: e.target.value })}
+                  placeholder="Rangos de graduación"
+                  rows={2}
+                  className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                />
+                <div className="flex gap-2 flex-wrap">
+                  <input
+                    value={nuevo.presentacionContacto}
+                    onChange={(e) => setNuevo({ ...nuevo, presentacionContacto: e.target.value })}
+                    placeholder="Presentación (ej. 6 lentes)"
+                    className="border rounded-lg px-2 py-1.5 text-sm w-40"
+                  />
+                  <select
+                    value={nuevo.tipoLenteContacto}
+                    onChange={(e) => setNuevo({ ...nuevo, tipoLenteContacto: e.target.value })}
+                    className="border rounded-lg px-2 py-1.5 text-sm"
+                  >
+                    <option value="">Tipo de lente</option>
+                    <option>Esférico</option>
+                    <option>Tórico (Astigmatismo)</option>
+                    <option>Cosmético / Color</option>
+                  </select>
+                  <select
+                    value={nuevo.reemplazoContacto}
+                    onChange={(e) => setNuevo({ ...nuevo, reemplazoContacto: e.target.value })}
+                    className="border rounded-lg px-2 py-1.5 text-sm"
+                  >
+                    <option value="">Reemplazo</option>
+                    <option>Quincenal</option>
+                    <option>Mensual</option>
+                    <option>Anual</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {!nuevo.modoManualContacto && nuevo.nombreProductoContacto && (
+              <div className="text-xs text-slate-500 w-full bg-slate-50 rounded-lg p-2">
+                <p><b>Presentación:</b> {nuevo.presentacionContacto} · <b>Tipo:</b> {nuevo.tipoLenteContacto} · <b>Reemplazo:</b> {nuevo.reemplazoContacto}</p>
+              </div>
+            )}
           </>
         )}
+
 
         {esSolar && (
           <>
@@ -2432,7 +2655,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                 </td>
                 <td className="px-3 py-2 text-slate-500">{a.sku}</td>
                 <td className="px-3 py-2">{a.nombre}</td>
-                <td className="px-3 py-2 text-slate-500 max-w-[260px]">{a.rangoDescripcion || a.descripcion || "—"}</td>
+                <td className="px-3 py-2 text-slate-500 max-w-[260px] truncate" title={a.caracteristicas || ""}>{a.rangoDescripcion || a.caracteristicas || a.descripcion || "—"}</td>
                 <td className="px-3 py-2 text-right">${a.precio}</td>
                 <td className="px-3 py-2 text-right">
                   <input
@@ -5865,8 +6088,8 @@ function TiendaCategoria({ categoriaActiva, inventario, onVerProducto, onAgregar
     }
     if (categoriaActiva === "lentesContacto") {
       return (
-        (!filtroReemplazo || a.tipoReemplazo === filtroReemplazo) &&
-        (!filtroCosmetico || (filtroCosmetico === "si" ? a.cosmetico : !a.cosmetico))
+        (!filtroReemplazo || a.reemplazo === filtroReemplazo) &&
+        (!filtroCosmetico || a.tipoLente === filtroCosmetico)
       );
     }
     return true;
@@ -5909,13 +6132,14 @@ function TiendaCategoria({ categoriaActiva, inventario, onVerProducto, onAgregar
       {categoriaActiva === "lentesContacto" && (
         <div className="flex gap-2 mb-4 flex-wrap">
           <select value={filtroReemplazo} onChange={(e) => setFiltroReemplazo(e.target.value)} className="border rounded-full px-3 py-1.5 text-xs">
-            <option value="">Tipo de reemplazo (todos)</option>
-            <option>Mensual</option><option>Anual</option>
+            <option value="">Reemplazo (todos)</option>
+            <option>Quincenal</option><option>Mensual</option><option>Anual</option>
           </select>
           <select value={filtroCosmetico} onChange={(e) => setFiltroCosmetico(e.target.value)} className="border rounded-full px-3 py-1.5 text-xs">
-            <option value="">Uso cosmético (todos)</option>
-            <option value="si">Cosmético</option>
-            <option value="no">No cosmético</option>
+            <option value="">Tipo de lente (todos)</option>
+            <option>Esférico</option>
+            <option>Tórico (Astigmatismo)</option>
+            <option>Cosmético / Color</option>
           </select>
         </div>
       )}
@@ -6107,22 +6331,28 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onAgregarCar
     setIndiceFoto((i) => (i + delta + galeria.length) % galeria.length);
   }
 
+  const esContactoProducto = producto.categoria === "lentesContacto";
   const specsBase = [];
   if (producto.marcaArmazon) specsBase.push(["Marca", producto.marcaArmazon]);
   if (producto.modeloArmazon) specsBase.push(["Modelo", producto.modeloArmazon]);
+  if (esContactoProducto && producto.marcaContacto) specsBase.push(["Marca", producto.marcaContacto]);
   if (materialMostrar) specsBase.push(["Material", materialMostrar]);
   if (producto.clipOnCompatible) specsBase.push(["Clip-on compatible", producto.clipOnCompatible]);
+  if (esContactoProducto && producto.tipoLente) specsBase.push(["Tipo de lente", producto.tipoLente]);
+  if (esContactoProducto && producto.reemplazo) specsBase.push(["Reemplazo", producto.reemplazo]);
+  if (esContactoProducto && producto.presentacion) specsBase.push(["Presentación", producto.presentacion]);
 
   const specsExtra = [];
   if (esArmazonProducto) {
     if (producto.tipoLinea) specsExtra.push(["Línea", producto.tipoLinea]);
     if (producto.categoriaArmazon) specsExtra.push(["Categoría", producto.categoriaArmazon]);
+  } else if (esContactoProducto) {
+    if (producto.caracteristicas) specsExtra.push(["Características principales", producto.caracteristicas]);
+    if (producto.rangos) specsExtra.push(["Rangos de graduación", producto.rangos]);
   } else {
     if (producto.tipo) specsExtra.push(["Tipo", producto.tipo]);
     if (producto.tratamiento) specsExtra.push(["Tratamiento", producto.tratamiento]);
     if (producto.rango) specsExtra.push(["Rango de graduación", producto.rango]);
-    if (producto.tipoReemplazo) specsExtra.push(["Tipo de reemplazo", producto.tipoReemplazo]);
-    if (producto.cosmetico !== undefined) specsExtra.push(["Uso cosmético", producto.cosmetico ? "Sí" : "No"]);
   }
 
   return (
