@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import {
   Calendar, ShoppingCart, Package, Users, FlaskConical, FileBarChart,
   UserCog, Upload, Settings, Printer, Trash2, X, Search, Plus,
-  ChevronLeft, ChevronRight, Save, LogOut, Eye
+  ChevronLeft, ChevronRight, Save, LogOut, Eye, Truck
 } from "lucide-react";
 
 /* ============================================================
@@ -313,6 +313,34 @@ async function enviarCodigoPorCorreo(email, codigo, nombre) {
   }
 }
 
+async function enviarCorreoAutomatico(email, asunto, cuerpoHtml) {
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/enviar-correo`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+      },
+      body: JSON.stringify({ email, asunto, cuerpoHtml }),
+    });
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
+function mensajeListoParaEntrega(nombre) {
+  const cuerpo =
+    `Nos es grato informarle que sus lentes están listos para su entrega, por lo que le invitamos a pasar por ellos, ` +
+    `en días y horas hábiles. Estamos agradecidos con su preferencia.`;
+  return {
+    asunto: `Sus lentes están listos para su entrega — ${NOMBRE_OPTICA}`,
+    cuerpoHtml: `<p>Estimado(a) ${nombre}:</p><p>${cuerpo}</p><p>${NOMBRE_OPTICA}</p>`,
+    whatsapp: `Estimado(a) ${nombre}: ${cuerpo}`,
+  };
+}
+
 function abrirWhatsApp(telefono, mensaje) {
   const numero = String(telefono || "").replace(/\D/g, "");
   const url = `https://wa.me/${numero ? "52" + numero : ""}?text=${encodeURIComponent(mensaje)}`;
@@ -522,6 +550,7 @@ function Icon({ name, size = 20 }) {
     package: Package,
     users: Users,
     lab: FlaskConical,
+    truck: Truck,
     report: FileBarChart,
     usercog: UserCog,
     upload: Upload,
@@ -539,6 +568,7 @@ function Ribbon({ current, onSelect }) {
     { id: "inventario", label: "Inventario", icon: "package" },
     { id: "pacientes", label: "Pacientes", icon: "users" },
     { id: "laboratorio", label: "Laboratorio", icon: "lab" },
+    { id: "entregas", label: "Entregas y Cobranza", icon: "truck" },
     { id: "reportes", label: "Reportes", icon: "report" },
     { id: "importar", label: "Importar datos", icon: "upload" },
     { id: "dashboard", label: "Dashboard", icon: "report" },
@@ -3566,7 +3596,7 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
 /* ============================================================
    LABORATORIO
    ============================================================ */
-function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, config, ventas, onIrCobrarFolio }) {
+function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, config }) {
   const [fechaImprimir, setFechaImprimir] = useState(fechaISO(new Date()));
   const [nueva, setNueva] = useState({
     pacienteId: "",
@@ -3656,18 +3686,6 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
     }
   }
 
-  function marcarEntregado(o) {
-    const hoy = fechaISO(new Date());
-    setLaboratorio(laboratorio.map((x) => (x.id === o.id ? { ...x, fechaEntrega: hoy } : x)));
-    const paciente = pacientes.find((p) => p.id === o.pacienteId);
-    const nombre = o.nombreCliente || paciente?.nombre || "cliente";
-    const msj = mensajeEntregaFinal(nombre);
-    if (paciente?.telefono) abrirWhatsApp(paciente.telefono, msj.whatsapp);
-    if (paciente?.mail) abrirEmail(paciente.mail, msj.email.asunto, msj.email.cuerpo);
-    if (!paciente?.telefono && !paciente?.mail) {
-      alert("Se marcó como entregado, pero este paciente no tiene teléfono ni correo guardado para agradecerle.");
-    }
-  }
 
   return (
     <div className="p-4">
@@ -3785,9 +3803,6 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
               <th className="text-left px-3 py-2">Envío a lab.</th>
               <th className="text-left px-3 py-2">Prometida</th>
               <th className="text-left px-3 py-2">Recibido del laboratorio</th>
-              <th className="text-left px-3 py-2">Entrega al cliente</th>
-              <th className="text-left px-3 py-2">Estatus</th>
-              <th className="text-left px-3 py-2">Pagado</th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
@@ -3816,54 +3831,6 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
                     </button>
                   )}
                 </td>
-                <td className="px-3 py-2">
-                  {o.fechaEntrega ? (
-                    <span className="text-xs text-emerald-700">{o.fechaEntrega}</span>
-                  ) : (
-                    <button
-                      onClick={() => marcarEntregado(o)}
-                      disabled={!o.fechaRecepcion}
-                      className="text-xs px-2 py-1 rounded bg-slate-800 text-white disabled:opacity-30"
-                      title={!o.fechaRecepcion ? "Primero márcala como recibida del laboratorio" : ""}
-                    >
-                      Marcar entregado y agradecer
-                    </button>
-                  )}
-                </td>
-                <td className="px-3 py-2">
-                  {o.cancelada ? (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">Cancelada</span>
-                  ) : o.fechaEntrega ? (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Entregada</span>
-                  ) : o.fechaRecepcion ? (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Recibida — lista para entregar</span>
-                  ) : (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600">Activa</span>
-                  )}
-                </td>
-                <td className="px-3 py-2">
-                  {(() => {
-                    const venta = ventas.find((v) => v.folio === o.folioVenta);
-                    if (!venta) return <span className="text-xs text-slate-300">—</span>;
-                    const pagado = venta.saldo <= 0;
-                    return pagado ? (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Sí</span>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">
-                          No — ${venta.saldo.toFixed(2)}
-                        </span>
-                        <button
-                          onClick={() => onIrCobrarFolio(o.folioVenta)}
-                          className="text-xs px-2 py-0.5 rounded-full text-white"
-                          style={{ background: SKY_DARK }}
-                        >
-                          Pagar
-                        </button>
-                      </div>
-                    );
-                  })()}
-                </td>
                 <td className="px-3 py-2 text-right">
                   {o.cancelada ? (
                     <button onClick={() => reactivarOrden(o.id)} className="text-xs text-slate-600 underline">Reactivar</button>
@@ -3877,7 +3844,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
             ))}
             {laboratorio.length === 0 && (
               <tr>
-                <td colSpan={11} className="text-center text-slate-400 py-6">Sin órdenes de laboratorio todavía.</td>
+                <td colSpan={8} className="text-center text-slate-400 py-6">Sin órdenes de laboratorio todavía.</td>
               </tr>
             )}
           </tbody>
@@ -3970,6 +3937,161 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ENTREGAS Y COBRANZA
+   ============================================================ */
+function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, onIrCobrarFolio, config }) {
+  function estatusDe(o) {
+    if (o.fechaRecepcion) return "recibido_laboratorio";
+    if (o.fechaEnvio) return "enviado_laboratorio";
+    return "recibido_pos";
+  }
+
+  function cambiarEstatus(o, nuevoEstatus) {
+    const hoy = fechaISO(new Date());
+    if (nuevoEstatus === "recibido_pos") {
+      setLaboratorio(laboratorio.map((x) => (x.id === o.id ? { ...x, fechaEnvio: "", fechaRecepcion: "" } : x)));
+    } else if (nuevoEstatus === "enviado_laboratorio") {
+      setLaboratorio(laboratorio.map((x) => (x.id === o.id ? { ...x, fechaEnvio: x.fechaEnvio || hoy, fechaRecepcion: "" } : x)));
+    } else if (nuevoEstatus === "recibido_laboratorio") {
+      setLaboratorio(laboratorio.map((x) => (x.id === o.id ? { ...x, fechaEnvio: x.fechaEnvio || hoy, fechaRecepcion: hoy } : x)));
+    }
+  }
+
+  async function avisarCliente(o) {
+    const paciente = pacientes.find((p) => p.id === o.pacienteId);
+    const nombre = o.nombreCliente || paciente?.nombre || "cliente";
+    const msj = mensajeListoParaEntrega(nombre);
+    if (paciente?.mail) {
+      const enviado = await enviarCorreoAutomatico(paciente.mail, msj.asunto, msj.cuerpoHtml);
+      if (enviado) {
+        alert(`Se envió el correo automáticamente a ${paciente.mail}.`);
+      } else {
+        alert("No se pudo enviar el correo automático (revisa que la función 'enviar-correo' esté desplegada en Supabase). Se intentará abrir tu correo para enviarlo manualmente.");
+        abrirEmail(paciente.mail, msj.asunto, msj.cuerpoHtml.replace(/<[^>]+>/g, ""));
+      }
+    } else if (paciente?.telefono) {
+      abrirWhatsApp(paciente.telefono, msj.whatsapp);
+    } else {
+      alert("Este paciente no tiene correo ni teléfono guardado para avisarle.");
+    }
+  }
+
+  function marcarEntregado(o) {
+    const hoy = fechaISO(new Date());
+    setLaboratorio(laboratorio.map((x) => (x.id === o.id ? { ...x, fechaEntrega: hoy } : x)));
+    const paciente = pacientes.find((p) => p.id === o.pacienteId);
+    const nombre = o.nombreCliente || paciente?.nombre || "cliente";
+    const msj = mensajeEntregaFinal(nombre);
+    if (paciente?.telefono) abrirWhatsApp(paciente.telefono, msj.whatsapp);
+    if (paciente?.mail) abrirEmail(paciente.mail, msj.email.asunto, msj.email.cuerpo);
+    if (!paciente?.telefono && !paciente?.mail) {
+      alert("Se marcó como entregado, pero este paciente no tiene teléfono ni correo guardado para agradecerle.");
+    }
+  }
+
+  const activas = laboratorio.filter((o) => !o.cancelada);
+
+  return (
+    <div className="p-4">
+      <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
+        <Truck size={20} /> Entregas y Cobranza
+      </h2>
+
+      <div className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead style={{ background: BEIGE }}>
+            <tr>
+              <th className="text-left px-3 py-2">Paciente</th>
+              <th className="text-left px-3 py-2">Estatus</th>
+              <th className="text-left px-3 py-2">Trabajos listos para entregar</th>
+              <th className="text-left px-3 py-2">Entrega al cliente</th>
+              <th className="text-left px-3 py-2">Pagado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {activas.map((o) => {
+              const estatus = estatusDe(o);
+              return (
+                <tr key={o.id} className="border-t align-top">
+                  <td className="px-3 py-2">{o.nombreCliente || pacientes.find((p) => p.id === o.pacienteId)?.nombre || "—"}</td>
+                  <td className="px-3 py-2">
+                    <select
+                      value={estatus}
+                      onChange={(e) => cambiarEstatus(o, e.target.value)}
+                      className="border rounded-lg px-2 py-1.5 text-xs"
+                    >
+                      <option value="recibido_pos">Recibido del POS</option>
+                      <option value="enviado_laboratorio">Enviado a laboratorio</option>
+                      <option value="recibido_laboratorio">Recibido del laboratorio</option>
+                    </select>
+                  </td>
+                  <td className="px-3 py-2">
+                    {estatus === "recibido_laboratorio" ? (
+                      <div>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 block mb-1 w-fit">
+                          Trabajos listos para entregar
+                        </span>
+                        <button onClick={() => avisarCliente(o)} className="text-xs px-2 py-1 rounded bg-emerald-500 text-white">
+                          Avisar al cliente
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-300">—</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {o.fechaEntrega ? (
+                      <span className="text-xs text-emerald-700">{o.fechaEntrega}</span>
+                    ) : (
+                      <button
+                        onClick={() => marcarEntregado(o)}
+                        disabled={estatus !== "recibido_laboratorio"}
+                        className="text-xs px-2 py-1 rounded bg-slate-800 text-white disabled:opacity-30"
+                        title={estatus !== "recibido_laboratorio" ? "Primero márcala como recibida del laboratorio" : ""}
+                      >
+                        Marcar entregado y agradecer
+                      </button>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {(() => {
+                      const venta = ventas.find((v) => v.folio === o.folioVenta);
+                      if (!venta) return <span className="text-xs text-slate-300">—</span>;
+                      const pagado = venta.saldo <= 0;
+                      return pagado ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Sí</span>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">
+                            No — ${venta.saldo.toFixed(2)}
+                          </span>
+                          <button
+                            onClick={() => onIrCobrarFolio(o.folioVenta)}
+                            className="text-xs px-2 py-0.5 rounded-full text-white"
+                            style={{ background: SKY_DARK }}
+                          >
+                            Pagar
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </td>
+                </tr>
+              );
+            })}
+            {activas.length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-center text-slate-400 py-6">Sin órdenes activas todavía.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -8087,7 +8209,15 @@ export default function App() {
             pacientes={pacientes}
             inventario={inventario}
             config={config}
+          />
+        )}
+        {seccion === "entregas" && (
+          <EntregasCobranzaView
+            laboratorio={laboratorio}
+            setLaboratorio={setLaboratorio}
+            pacientes={pacientes}
             ventas={ventas}
+            config={config}
             onIrCobrarFolio={(folio) => {
               setPresetCobroFolio(folio);
               setSeccion("pos");
