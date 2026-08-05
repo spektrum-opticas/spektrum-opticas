@@ -689,7 +689,7 @@ function fechaISO(d) {
   return d.toISOString().slice(0, 10);
 }
 
-function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS }) {
+function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS, laboratorio, setLaboratorio }) {
   const [fecha, setFecha] = useState(fechaISO(new Date()));
   const [expediente, setExpediente] = useState(null); // paciente abierto
   const [draggingId, setDraggingId] = useState(null);
@@ -871,6 +871,8 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS }) {
             paciente={paciente}
             pacientes={pacientes}
             setPacientes={setPacientes}
+            laboratorio={laboratorio}
+            setLaboratorio={setLaboratorio}
             onVenta={() => {
               setExpediente(null);
               goToPOS(paciente.id);
@@ -999,7 +1001,7 @@ function NuevaCitaForm({ pacientes, setPacientes, onCrear }) {
   );
 }
 
-function ExpedientePaciente({ paciente, pacientes, setPacientes, onVenta, onGuardarSalir, onEliminar }) {
+function ExpedientePaciente({ paciente, pacientes, setPacientes, laboratorio, setLaboratorio, onVenta, onGuardarSalir, onEliminar }) {
   const [datos, setDatos] = useState(paciente);
   const [anamnesisA, setAnamnesisA] = useState(paciente.anamnesisA || {
     "Visión borrosa lejos": false, "Visión borrosa cerca": false, "Ardor": false, "Irritación": false,
@@ -1038,6 +1040,20 @@ function ExpedientePaciente({ paciente, pacientes, setPacientes, onVenta, onGuar
     };
     actualizado.compras = [...(datos.compras || []), visita];
     setPacientes(pacientes.map((p) => (p.id === paciente.id ? actualizado : p)));
+
+    // Si este paciente tenía órdenes de laboratorio esperando su receta, se desbloquean con la receta recién capturada
+    if (laboratorio && setLaboratorio && (visita.od?.esf || visita.os?.esf)) {
+      const tieneAlgo = visita.od.esf || visita.od.cil || visita.os.esf || visita.os.cil;
+      if (tieneAlgo) {
+        setLaboratorio(
+          laboratorio.map((o) =>
+            o.pacienteId === paciente.id && o.pendienteReceta && !o.od && !o.os
+              ? { ...o, od: visita.od, os: visita.os, descripcion: o.descripcion || visita.descripcion, pendienteReceta: false }
+              : o
+          )
+        );
+      }
+    }
   }
 
   const camposReceta = ["ESF", "CIL", "EJE", "DNP", "ADD", "ACO", "PRISMA", "BASE"];
@@ -4159,18 +4175,21 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
   const [fechaEntregaManual, setFechaEntregaManual] = useState({});
 
   function estatusDe(o) {
+    if (o.pendienteReceta && !o.od && !o.os) return "pendiente_receta";
     if (o.fechaRecepcion) return "recibido_laboratorio";
     if (o.fechaEnvio) return "enviado_laboratorio";
     return "recibido_pos";
   }
 
   const ETIQUETA_ESTATUS = {
+    pendiente_receta: "Pendiente de receta",
     recibido_pos: "Recibido del POS",
     enviado_laboratorio: "En laboratorio",
     recibido_laboratorio: "Recibido del laboratorio",
   };
 
   const ETIQUETA_PROCESO = {
+    pendiente_receta: "Pendiente de receta",
     recibido_pos: "En proceso",
     enviado_laboratorio: "En laboratorio",
     recibido_laboratorio: "Recibido del laboratorio",
@@ -4183,6 +4202,10 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
   }
 
   function cambiarEstatus(o, nuevoEstatus) {
+    if (o.pendienteReceta && !o.od && !o.os && (nuevoEstatus === "enviado_laboratorio" || nuevoEstatus === "recibido_laboratorio")) {
+      alert("Falta receta, contactar al cliente");
+      return;
+    }
     const hoy = fechaISO(new Date());
     if (nuevoEstatus === "recibido_pos") {
       setLaboratorio(laboratorio.map((x) => (x.id === o.id ? { ...x, fechaEnvio: "", fechaRecepcion: "" } : x)));
@@ -4191,6 +4214,17 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
     } else if (nuevoEstatus === "recibido_laboratorio") {
       setLaboratorio(laboratorio.map((x) => (x.id === o.id ? { ...x, fechaEnvio: x.fechaEnvio || hoy, fechaRecepcion: hoy } : x)));
     }
+  }
+
+  function avisarFaltaReceta(o) {
+    const paciente = pacientes.find((p) => p.id === o.pacienteId);
+    const nombre = o.nombreCliente || paciente?.nombre || "cliente";
+    const cuerpo =
+      `Nos comunicamos porque tu pedido en ${NOMBRE_OPTICA} está pendiente de tu receta vigente (no la recibimos, no es legible, le faltan datos, ` +
+      `o el archivo subido no corresponde a una receta). Por favor agenda tu examen de la vista gratis, o envíanos una receta vigente y legible para continuar con la elaboración de tus lentes.`;
+    if (paciente?.telefono) abrirWhatsApp(paciente.telefono, `Hola, ${nombre}. ${cuerpo}`);
+    else if (paciente?.mail) abrirEmail(paciente.mail, `Necesitamos tu receta — ${NOMBRE_OPTICA}`, `Hola, ${nombre}:\n\n${cuerpo}`);
+    else alert("Este paciente no tiene teléfono ni correo guardado para contactarlo.");
   }
 
   async function avisarCliente(o) {
@@ -4286,6 +4320,18 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
                   <td className="px-3 py-2">
                     {entregado ? (
                       <span className="text-xs font-bold text-slate-800">Entregado</span>
+                    ) : estatus === "pendiente_receta" ? (
+                      <div>
+                        <span className="text-xs font-bold text-red-600 block mb-1">Pendiente de receta</span>
+                        <button onClick={() => avisarFaltaReceta(o)} className="text-xs px-2 py-1 rounded bg-red-600 text-white">
+                          Avisar al cliente
+                        </button>
+                        {o.recetaImagenCliente && (
+                          <a href={o.recetaImagenCliente} target="_blank" rel="noreferrer" className="text-xs text-slate-500 underline block mt-1">
+                            Ver imagen subida
+                          </a>
+                        )}
+                      </div>
                     ) : (
                       <select
                         value={estatus}
@@ -7533,7 +7579,7 @@ function TiendaAgendar({ open, onClose, agenda, setAgenda, pacientes, setPacient
 }
 
 /* ---------- Orquestador principal de la tienda ---------- */
-function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas, inventario, config, setConfig, usuarios, setUsuarios, onLoginEmpleado, sesionStaff, onVolverPanel }) {
+function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas, laboratorio, setLaboratorio, inventario, config, setConfig, usuarios, setUsuarios, onLoginEmpleado, sesionStaff, onVolverPanel }) {
   const [vista, setVista] = useState("inicio"); // inicio | categoria | producto
   const [categoriaActiva, setCategoriaActiva] = useState("armazones");
   const [carrito, setCarrito] = useState([]);
@@ -7610,14 +7656,53 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         : [],
     };
     setVentas([...ventas, nota]);
+
+    let huboPendienteReceta = false;
+    if (pagadoEnLinea) {
+      const armazon = carrito.find((it) => it.categoria === "armazones");
+      const material = carrito.find((it) => it.categoria === "lentesGraduados" || it.categoria === "lentesContacto");
+      if (armazon || material) {
+        const historial = ordenarVisitasDesc(paciente?.compras || []);
+        const visitaReceta = historial.find((v) => v.od || v.os);
+        const pendienteReceta = !visitaReceta;
+        huboPendienteReceta = pendienteReceta;
+        setLaboratorio([
+          ...laboratorio,
+          {
+            id: uid(),
+            pacienteId: sesionCliente.pacienteId,
+            nombreCliente: nota.nombreCliente,
+            folioVenta: folio,
+            od: visitaReceta?.od || null,
+            os: visitaReceta?.os || null,
+            descripcion: visitaReceta?.descripcion || "",
+            material: material?.nombre || visitaReceta?.materialReceta || "—",
+            armazon: armazon?.nombre || "—",
+            fechaVenta: ahora,
+            fechaEnvio: "",
+            fechaPrometida: visitaReceta?.fechaPrometido || "",
+            fechaRecepcion: "",
+            origen: "portal",
+            pendienteReceta,
+            recetaImagenCliente: receta?.dataUrl || "",
+          },
+        ]);
+      }
+    }
+
     const msj = pagadoEnLinea ? mensajeAgradecimiento(nota.nombreCliente) : mensajePedidoRecibido(nota.nombreCliente, folio);
-    if (sesionCliente.telefono) abrirWhatsApp(sesionCliente.telefono, msj.whatsapp);
-    if (sesionCliente.mail) abrirEmail(sesionCliente.mail, msj.email.asunto, msj.email.cuerpo);
+    const notaExtra = huboPendienteReceta
+      ? "\n\nPara poder elaborar tus lentes, necesitamos tu receta vigente. Si no la subiste o no es legible, agenda tu examen de la vista gratis en nuestra tienda en línea y con gusto te la generamos."
+      : "";
+    if (sesionCliente.telefono) abrirWhatsApp(sesionCliente.telefono, msj.whatsapp + notaExtra);
+    if (sesionCliente.mail) abrirEmail(sesionCliente.mail, msj.email.asunto, msj.email.cuerpo + notaExtra);
     setCarrito([]);
     setCheckoutAbierto(false);
     setMensajeFinal(
       pagadoEnLinea
-        ? `¡Pago recibido! Tu pedido #${folio} quedó confirmado. Te avisamos por WhatsApp o correo cuando esté listo.`
+        ? huboPendienteReceta
+          ? `¡Pago recibido! Tu pedido #${folio} quedó confirmado, pero necesitamos tu receta vigente para poder elaborarlo — agenda tu examen de la vista gratis o contáctanos si ya la tienes.`
+          : `¡Pago recibido! Tu pedido #${folio} quedó confirmado. Te avisamos por WhatsApp o correo cuando esté listo.`
         : `¡Listo! Tu pedido quedó registrado con folio #${folio}. Te avisamos por WhatsApp o correo en cuanto esté confirmado.`
     );
   }
@@ -8484,6 +8569,8 @@ export default function App() {
           setAgenda={setAgenda}
           ventas={ventas}
           setVentas={setVentas}
+          laboratorio={laboratorio}
+          setLaboratorio={setLaboratorio}
           inventario={inventario}
           config={config}
           setConfig={setConfig}
@@ -8539,6 +8626,8 @@ export default function App() {
             setAgenda={setAgenda}
             pacientes={pacientes}
             setPacientes={setPacientes}
+            laboratorio={laboratorio}
+            setLaboratorio={setLaboratorio}
             goToPOS={(id) => {
               setPresetPacienteId(id);
               setSeccion("pos");
