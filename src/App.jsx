@@ -4156,12 +4156,25 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
   const [cobrandoFolio, setCobrandoFolio] = useState(null);
   const [modoAbono, setModoAbono] = useState(false);
   const [verHistorialFolio, setVerHistorialFolio] = useState(null);
+  const [fechaEntregaManual, setFechaEntregaManual] = useState({});
 
   function estatusDe(o) {
     if (o.fechaRecepcion) return "recibido_laboratorio";
     if (o.fechaEnvio) return "enviado_laboratorio";
     return "recibido_pos";
   }
+
+  const ETIQUETA_ESTATUS = {
+    recibido_pos: "Recibido del POS",
+    enviado_laboratorio: "En laboratorio",
+    recibido_laboratorio: "Recibido del laboratorio",
+  };
+
+  const ETIQUETA_PROCESO = {
+    recibido_pos: "En proceso",
+    enviado_laboratorio: "En laboratorio",
+    recibido_laboratorio: "Recibido del laboratorio",
+  };
 
   function estaVencido(o, estatus) {
     if (estatus !== "recibido_laboratorio" || o.fechaEntrega) return false;
@@ -4199,9 +4212,9 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
     }
   }
 
-  function marcarEntregado(o) {
-    const hoy = fechaISO(new Date());
-    setLaboratorio(laboratorio.map((x) => (x.id === o.id ? { ...x, fechaEntrega: hoy } : x)));
+  function marcarEntregado(o, fechaElegida) {
+    const fecha = fechaElegida || fechaISO(new Date());
+    setLaboratorio(laboratorio.map((x) => (x.id === o.id ? { ...x, fechaEntrega: fecha } : x)));
     const paciente = pacientes.find((p) => p.id === o.pacienteId);
     const nombre = o.nombreCliente || paciente?.nombre || "cliente";
     const msj = mensajeEntregaFinal(nombre);
@@ -4213,15 +4226,24 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
   }
 
   function registrarCobro(folio, monto, formaPagoElegida) {
+    let saldoQuedo = 0;
     setVentas(
       ventas.map((v) => {
         if (v.folio !== folio) return v;
         const nuevoAbono = v.abono + monto;
         const nuevoSaldo = Math.max(0, v.saldo - monto);
+        saldoQuedo = nuevoSaldo;
         const pago = { fecha: new Date().toISOString(), monto, formaPago: formaPagoElegida, tipo: nuevoSaldo <= 0 ? "liquidacion" : "abono" };
         return { ...v, abono: nuevoAbono, saldo: nuevoSaldo, pagos: [...(v.pagos || []), pago] };
       })
     );
+    // Si el pago deja el saldo en $0, la entrega se marca sola (el cliente ya pagó todo, se asume que se lleva su pedido)
+    if (saldoQuedo <= 0) {
+      const orden = laboratorio.find((o) => o.folioVenta === folio);
+      if (orden && !orden.fechaEntrega) {
+        marcarEntregado(orden);
+      }
+    }
   }
 
   const activas = laboratorio.filter((o) => !o.cancelada);
@@ -4238,6 +4260,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
         <table className="w-full text-sm">
           <thead style={{ background: BEIGE }}>
             <tr>
+              <th className="text-left px-3 py-2">Folio</th>
               <th className="text-left px-3 py-2">Paciente</th>
               <th className="text-left px-3 py-2">Estatus</th>
               <th className="text-left px-3 py-2">Apartados</th>
@@ -4252,19 +4275,28 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
               const vencido = estaVencido(o, estatus);
               const venta = ventas.find((v) => v.folio === o.folioVenta);
               const esApartado = venta && venta.abono > 0 && venta.saldo > 0;
+              const entregado = !!o.fechaEntrega;
+              const puedeAvisar = estatus === "recibido_laboratorio" && !entregado;
+              const pagado = venta && venta.saldo <= 0;
+
               return (
                 <tr key={o.id} className="border-t align-top">
+                  <td className="px-3 py-2 text-slate-500">{o.folioVenta || "—"}</td>
                   <td className="px-3 py-2">{o.nombreCliente || pacientes.find((p) => p.id === o.pacienteId)?.nombre || "—"}</td>
                   <td className="px-3 py-2">
-                    <select
-                      value={estatus}
-                      onChange={(e) => cambiarEstatus(o, e.target.value)}
-                      className="border rounded-lg px-2 py-1.5 text-xs"
-                    >
-                      <option value="recibido_pos">Recibido del POS</option>
-                      <option value="enviado_laboratorio">Enviado a laboratorio</option>
-                      <option value="recibido_laboratorio">Recibido del laboratorio</option>
-                    </select>
+                    {entregado ? (
+                      <span className="text-xs font-bold text-slate-800">Entregado</span>
+                    ) : (
+                      <select
+                        value={estatus}
+                        onChange={(e) => cambiarEstatus(o, e.target.value)}
+                        className="border rounded-lg px-2 py-1.5 text-xs"
+                      >
+                        <option value="recibido_pos">Recibido del POS</option>
+                        <option value="enviado_laboratorio">En laboratorio</option>
+                        <option value="recibido_laboratorio">Recibido del laboratorio</option>
+                      </select>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     {venta && venta.saldo > 0 ? (
@@ -4294,40 +4326,49 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
                     )}
                   </td>
                   <td className="px-3 py-2">
-                    {estatus === "recibido_laboratorio" ? (
-                      vencido ? (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-2">
-                          <p className="text-xs text-red-700 font-semibold mb-1">Marcar como entregados</p>
-                          <button onClick={() => marcarEntregado(o)} className="text-xs px-2 py-1 rounded bg-red-600 text-white">
-                            Marcar entregado
-                          </button>
-                        </div>
-                      ) : (
-                        <div>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 block mb-1 w-fit">
-                            Trabajos listos para entregar
-                          </span>
-                          <button onClick={() => avisarCliente(o)} className="text-xs px-2 py-1 rounded bg-emerald-500 text-white">
-                            Avisar al cliente
-                          </button>
-                        </div>
-                      )
+                    {vencido ? (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-2 mb-1">
+                        <p className="text-xs text-red-700 font-semibold mb-1">Marcar como entregados</p>
+                        <button onClick={() => marcarEntregado(o)} className="text-xs px-2 py-1 rounded bg-red-600 text-white">
+                          Marcar entregado
+                        </button>
+                      </div>
                     ) : (
-                      <span className="text-xs text-slate-300">—</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 block mb-1 w-fit">
+                        {ETIQUETA_PROCESO[estatus]}
+                      </span>
                     )}
+                    <button
+                      onClick={() => avisarCliente(o)}
+                      disabled={!puedeAvisar}
+                      className={`text-xs px-2 py-1 rounded text-white ${puedeAvisar ? "bg-emerald-500" : "bg-slate-300 cursor-not-allowed"}`}
+                      title={!puedeAvisar ? (entregado ? "Ya se entregó este trabajo" : "Aún no está recibido del laboratorio") : ""}
+                    >
+                      Avisar al cliente
+                    </button>
                   </td>
                   <td className="px-3 py-2">
-                    {o.fechaEntrega ? (
-                      <span className="text-xs text-emerald-700">{o.fechaEntrega}</span>
+                    {entregado ? (
+                      <span className="text-xs text-emerald-700 font-medium">{o.fechaEntrega}</span>
+                    ) : pagado && estatus === "recibido_laboratorio" ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="date"
+                          value={fechaEntregaManual[o.id] || fechaISO(new Date())}
+                          onChange={(e) => setFechaEntregaManual({ ...fechaEntregaManual, [o.id]: e.target.value })}
+                          className="border rounded px-1 py-1 text-xs"
+                        />
+                        <button
+                          onClick={() => marcarEntregado(o, fechaEntregaManual[o.id] || fechaISO(new Date()))}
+                          className="text-xs px-2 py-1 rounded bg-slate-800 text-white"
+                        >
+                          Confirmar entrega
+                        </button>
+                      </div>
                     ) : (
-                      <button
-                        onClick={() => marcarEntregado(o)}
-                        disabled={estatus !== "recibido_laboratorio"}
-                        className="text-xs px-2 py-1 rounded bg-slate-800 text-white disabled:opacity-30"
-                        title={estatus !== "recibido_laboratorio" ? "Primero márcala como recibida del laboratorio" : ""}
-                      >
-                        Marcar entregado y agradecer
-                      </button>
+                      <span className="text-xs text-slate-300" title="Se marcará sola cuando se liquide el saldo, o aquí mismo una vez pagada">
+                        {venta && venta.saldo > 0 ? "Pendiente de pago" : "—"}
+                      </span>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -4355,7 +4396,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
             })}
             {activas.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center text-slate-400 py-6">Sin órdenes activas todavía.</td>
+                <td colSpan={7} className="text-center text-slate-400 py-6">Sin órdenes activas todavía.</td>
               </tr>
             )}
           </tbody>
