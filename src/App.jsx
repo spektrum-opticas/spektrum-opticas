@@ -3612,7 +3612,8 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
 /* ============================================================
    LABORATORIO
    ============================================================ */
-function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, config }) {
+function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes, inventario, config }) {
+  const [verExpediente, setVerExpediente] = useState(null);
   const [fechaImprimir, setFechaImprimir] = useState(fechaISO(new Date()));
   const [nueva, setNueva] = useState({
     pacienteId: "",
@@ -3811,6 +3812,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
         <table className="w-full text-sm">
           <thead style={{ background: BEIGE }}>
             <tr>
+              <th className="text-left px-3 py-2">Folio</th>
               <th className="text-left px-3 py-2">Paciente</th>
               <th className="text-left px-3 py-2">Receta</th>
               <th className="text-left px-3 py-2">Material</th>
@@ -3823,9 +3825,21 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
             </tr>
           </thead>
           <tbody>
-            {laboratorio.map((o) => (
+            {laboratorio.map((o) => {
+              const bloqueada = !!o.fechaRecepcion;
+              return (
               <tr key={o.id} className={`border-t align-top ${o.cancelada ? "opacity-50" : ""}`}>
-                <td className="px-3 py-2">{o.nombreCliente || pacientes.find((p) => p.id === o.pacienteId)?.nombre || "—"}</td>
+                <td className="px-3 py-2 text-slate-500">{o.folioVenta || "—"}</td>
+                <td className="px-3 py-2">
+                  <button
+                    onClick={() => setVerExpediente(o.pacienteId)}
+                    disabled={!o.pacienteId}
+                    className="text-left hover:underline hover:text-sky-700 disabled:no-underline disabled:text-slate-800 disabled:cursor-default"
+                    title={o.pacienteId ? "Ver expediente del paciente" : ""}
+                  >
+                    {o.nombreCliente || pacientes.find((p) => p.id === o.pacienteId)?.nombre || "—"}
+                  </button>
+                </td>
                 <td className="px-3 py-2 max-w-[220px] truncate" title={`${lineaOjo(recetaParaImprimir(o).od, "O.D.")} | ${lineaOjo(recetaParaImprimir(o).os, "O.S.")}`}>
                   {recetaParaImprimir(o).od || recetaParaImprimir(o).os ? `${lineaOjo(recetaParaImprimir(o).od, "O.D.")} | ${lineaOjo(recetaParaImprimir(o).os, "O.S.")}` : "—"}
                 </td>
@@ -3833,10 +3847,18 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
                 <td className="px-3 py-2">{o.armazon || "—"}</td>
                 <td className="px-3 py-2">{o.fechaVenta ? new Date(o.fechaVenta).toLocaleDateString("es-MX") : "—"}</td>
                 <td className="px-3 py-2">
-                  <input type="date" value={o.fechaEnvio || ""} onChange={(e) => actualizarFecha(o.id, "fechaEnvio", e.target.value)} className="border rounded px-1 py-0.5 text-xs" />
+                  {bloqueada ? (
+                    <span className="text-xs">{o.fechaEnvio || "—"}</span>
+                  ) : (
+                    <input type="date" value={o.fechaEnvio || ""} onChange={(e) => actualizarFecha(o.id, "fechaEnvio", e.target.value)} className="border rounded px-1 py-0.5 text-xs" />
+                  )}
                 </td>
                 <td className="px-3 py-2">
-                  <input type="date" value={o.fechaPrometida || ""} onChange={(e) => actualizarFecha(o.id, "fechaPrometida", e.target.value)} className="border rounded px-1 py-0.5 text-xs" />
+                  {bloqueada ? (
+                    <span className="text-xs">{o.fechaPrometida || "—"}</span>
+                  ) : (
+                    <input type="date" value={o.fechaPrometida || ""} onChange={(e) => actualizarFecha(o.id, "fechaPrometida", e.target.value)} className="border rounded px-1 py-0.5 text-xs" />
+                  )}
                 </td>
                 <td className="px-3 py-2">
                   {o.fechaRecepcion ? (
@@ -3848,19 +3870,22 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
                   )}
                 </td>
                 <td className="px-3 py-2 text-right">
-                  {o.cancelada ? (
+                  {bloqueada ? (
+                    <span className="text-xs text-slate-400" title="Esta orden ya se recibió del laboratorio y quedó bloqueada">Bloqueada</span>
+                  ) : o.cancelada ? (
                     <button onClick={() => reactivarOrden(o.id)} className="text-xs text-slate-600 underline">Reactivar</button>
                   ) : (
                     <button onClick={() => cancelarOrden(o.id)} className="text-xs text-red-500 underline">Cancelar</button>
                   )}
-                  <button onClick={() => eliminarOrden(o.id)} className="text-xs text-red-700 underline ml-2">Eliminar</button>
+                  {!bloqueada && <button onClick={() => eliminarOrden(o.id)} className="text-xs text-red-700 underline ml-2">Eliminar</button>}
                   <button onClick={() => imprimirElemento(`orden-lab-${o.id}`)} className="text-xs text-slate-600 underline ml-2">Imprimir orden</button>
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {laboratorio.length === 0 && (
               <tr>
-                <td colSpan={8} className="text-center text-slate-400 py-6">Sin órdenes de laboratorio todavía.</td>
+                <td colSpan={9} className="text-center text-slate-400 py-6">Sin órdenes de laboratorio todavía.</td>
               </tr>
             )}
           </tbody>
@@ -3954,6 +3979,26 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
           );
         })}
       </div>
+
+      <Modal open={!!verExpediente} onClose={() => setVerExpediente(null)} title="Expediente del paciente" wide>
+        {(() => {
+          const pacienteVer = pacientes.find((p) => p.id === verExpediente);
+          if (!pacienteVer) return <p className="text-sm text-slate-400">No se encontró el expediente de este paciente.</p>;
+          return (
+            <ExpedientePacienteCompleto
+              paciente={pacienteVer}
+              pacientes={pacientes}
+              setPacientes={setPacientes}
+              onEliminar={() => {
+                setPacientes(pacientes.filter((p) => p.id !== pacienteVer.id));
+                setVerExpediente(null);
+              }}
+              onCerrar={() => setVerExpediente(null)}
+              config={config}
+            />
+          );
+        })()}
+      </Modal>
     </div>
   );
 }
@@ -4168,7 +4213,8 @@ function HistorialAbonosModal({ venta, config, onCerrar }) {
   );
 }
 
-function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, setVentas, config }) {
+function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacientes, ventas, setVentas, config }) {
+  const [verExpediente, setVerExpediente] = useState(null);
   const [cobrandoFolio, setCobrandoFolio] = useState(null);
   const [modoAbono, setModoAbono] = useState(false);
   const [verHistorialFolio, setVerHistorialFolio] = useState(null);
@@ -4316,7 +4362,16 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
               return (
                 <tr key={o.id} className="border-t align-top">
                   <td className="px-3 py-2 text-slate-500">{o.folioVenta || "—"}</td>
-                  <td className="px-3 py-2">{o.nombreCliente || pacientes.find((p) => p.id === o.pacienteId)?.nombre || "—"}</td>
+                  <td className="px-3 py-2">
+                    <button
+                      onClick={() => setVerExpediente(o.pacienteId)}
+                      disabled={!o.pacienteId}
+                      className="text-left hover:underline hover:text-sky-700 disabled:no-underline disabled:text-slate-800 disabled:cursor-default"
+                      title={o.pacienteId ? "Ver expediente del paciente" : ""}
+                    >
+                      {o.nombreCliente || pacientes.find((p) => p.id === o.pacienteId)?.nombre || "—"}
+                    </button>
+                  </td>
                   <td className="px-3 py-2">
                     {entregado ? (
                       <span className="text-xs font-bold text-slate-800">Entregado</span>
@@ -4462,6 +4517,26 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
       {ventaHistorial && (
         <HistorialAbonosModal venta={ventaHistorial} config={config} onCerrar={() => setVerHistorialFolio(null)} />
       )}
+
+      <Modal open={!!verExpediente} onClose={() => setVerExpediente(null)} title="Expediente del paciente" wide>
+        {(() => {
+          const pacienteVer = pacientes.find((p) => p.id === verExpediente);
+          if (!pacienteVer) return <p className="text-sm text-slate-400">No se encontró el expediente de este paciente.</p>;
+          return (
+            <ExpedientePacienteCompleto
+              paciente={pacienteVer}
+              pacientes={pacientes}
+              setPacientes={setPacientes}
+              onEliminar={() => {
+                setPacientes(pacientes.filter((p) => p.id !== pacienteVer.id));
+                setVerExpediente(null);
+              }}
+              onCerrar={() => setVerExpediente(null)}
+              config={config}
+            />
+          );
+        })()}
+      </Modal>
     </div>
   );
 }
@@ -8660,6 +8735,7 @@ export default function App() {
             laboratorio={laboratorio}
             setLaboratorio={setLaboratorio}
             pacientes={pacientes}
+            setPacientes={setPacientes}
             inventario={inventario}
             config={config}
           />
@@ -8669,6 +8745,7 @@ export default function App() {
             laboratorio={laboratorio}
             setLaboratorio={setLaboratorio}
             pacientes={pacientes}
+            setPacientes={setPacientes}
             ventas={ventas}
             setVentas={setVentas}
             config={config}
