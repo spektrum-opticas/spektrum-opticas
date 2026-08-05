@@ -4661,7 +4661,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
 /* ============================================================
    REPORTES
    ============================================================ */
-function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes, laboratorio, pagosProveedores, setPagosProveedores, proveedores }) {
+function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes, laboratorio, pagosProveedores, setPagosProveedores, proveedores, sesion }) {
   const [modo, setModo] = useState("corte");
   const canceladas = ventas.filter((v) => v.estatus === "cancelada" || v.estatus === "devolucion");
 
@@ -4687,6 +4687,7 @@ function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes,
           pagosProveedores={pagosProveedores}
           setPagosProveedores={setPagosProveedores}
           proveedores={proveedores}
+          sesion={sesion}
         />
       ) : modo === "mes" ? (
         <CorteMensual ventas={ventas} pagosProveedores={pagosProveedores} proveedores={proveedores} />
@@ -4717,7 +4718,7 @@ function TotalBox({ titulo, monto, color, subtitulo, esConteo }) {
   );
 }
 
-function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosProveedores, proveedores }) {
+function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosProveedores, proveedores, sesion }) {
   const [fecha, setFecha] = useState(fechaISO(new Date()));
   const [cobrando, setCobrando] = useState(null); // folio de nota a cobrar saldo
   const [montoCobro, setMontoCobro] = useState("");
@@ -4767,7 +4768,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
   const totalTicketsDia = ventasDelDia.length;
   const ticketPromedioDia = totalTicketsDia > 0 ? totalVendido / totalTicketsDia : 0;
 
-  const pagosProvDelDia = pagosProveedores.filter((p) => esDelDia(p.fecha));
+  const pagosProvDelDia = pagosProveedores.filter((p) => esDelDia(p.fecha) && !p.esAjusteMayor);
   const totalProveedores = pagosProvDelDia.reduce((s, p) => s + Number(p.monto || 0), 0);
   const debeHaberCaja = totalCobradoHoy - totalProveedores;
 
@@ -4795,9 +4796,20 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
 
   function registrarPagoProveedor() {
     if (!nuevoProveedor.proveedor || !nuevoProveedor.monto) return;
+    const esAjusteMayor = nuevoProveedor.proveedor === "__AJUSTE_MAYOR__";
+    if (esAjusteMayor && !window.confirm("¿Está seguro de continuar con la operación? Este ajuste mayor NO se reflejará en el Corte Diario ni en el Corte Mensual, solo en el total anual de pago a proveedores.")) {
+      return;
+    }
     setPagosProveedores([
       ...pagosProveedores,
-      { id: uid(), fecha: new Date(fecha).toISOString(), ...nuevoProveedor, monto: Number(nuevoProveedor.monto) },
+      {
+        id: uid(),
+        fecha: new Date(fecha).toISOString(),
+        ...nuevoProveedor,
+        proveedor: esAjusteMayor ? "Ajuste mayor" : nuevoProveedor.proveedor,
+        monto: Number(nuevoProveedor.monto),
+        esAjusteMayor,
+      },
     ]);
     setNuevoProveedor({ proveedor: "", concepto: "", monto: "" });
     setMostrarProveedor(false);
@@ -4992,10 +5004,16 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
                 {proveedores.map((p) => (
                   <option key={p.id} value={p.nombre}>{p.nombre}</option>
                 ))}
+                {sesion?.rol === "ADMIN" && <option value="__AJUSTE_MAYOR__">Ajuste mayor</option>}
               </select>
               <input placeholder="Concepto" value={nuevoProveedor.concepto} onChange={(e) => setNuevoProveedor({ ...nuevoProveedor, concepto: e.target.value })} className="border rounded px-2 py-1 text-xs flex-1" />
               <input placeholder="Monto" type="number" value={nuevoProveedor.monto} onChange={(e) => setNuevoProveedor({ ...nuevoProveedor, monto: e.target.value })} className="border rounded px-2 py-1 text-xs w-20" />
               <button onClick={registrarPagoProveedor} className="px-2 py-1 rounded text-white text-xs" style={{ background: SKY_DARK }}>Guardar</button>
+              {nuevoProveedor.proveedor === "__AJUSTE_MAYOR__" && (
+                <p className="text-[10px] text-red-600 w-full">
+                  Este ajuste mayor no aparecerá en el Corte Diario ni en el Corte Mensual — solo se sumará al total anual de "Pago a proveedores" y se restará del "Debe haber en caja" anual.
+                </p>
+              )}
             </div>
           )}
           {proveedores.length === 0 && mostrarProveedor && (
@@ -5102,7 +5120,7 @@ function datosDelMes(mes, ventas, dashboard, pagosProveedores) {
     .filter((p) => p.fecha && p.fecha.slice(0, 7) === mes)
     .reduce((s, p) => s + p.monto, 0);
   const gastosReal = (pagosProveedores || [])
-    .filter((p) => p.fecha && p.fecha.slice(0, 7) === mes)
+    .filter((p) => p.fecha && p.fecha.slice(0, 7) === mes && !p.esAjusteMayor)
     .reduce((s, p) => s + Number(p.monto || 0), 0);
   const hayDatosReales = ventasDelMes.length > 0;
   const manual = (dashboard.historialManual || []).find((h) => h.mes === mes);
@@ -5141,7 +5159,7 @@ function CorteMensual({ ventas, pagosProveedores }) {
   const notasConSaldo = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && v.saldo > 0);
   const totalSaldoPendiente = notasConSaldo.reduce((s, v) => s + v.saldo, 0);
 
-  const pagosProvDelMes = pagosProveedores.filter((p) => esDelMes(p.fecha));
+  const pagosProvDelMes = pagosProveedores.filter((p) => esDelMes(p.fecha) && !p.esAjusteMayor);
   const totalProveedores = pagosProvDelMes.reduce((s, p) => s + Number(p.monto || 0), 0);
   const debeHaberCaja = totalCobradoMes - totalProveedores;
 
@@ -8529,7 +8547,10 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, ca
   const totalAnioMeta = meses.reduce((s, m) => s + m.meta, 0);
   const totalAnioVendido = meses.reduce((s, m) => s + m.vendido, 0);
   const totalAnioCobrado = meses.reduce((s, m) => s + m.cobrado, 0);
-  const totalAnioGastos = meses.reduce((s, m) => s + (m.gastos || 0), 0);
+  const totalAjustesMayoresAnio = (pagosProveedores || [])
+    .filter((p) => p.esAjusteMayor && p.fecha && p.fecha.slice(0, 4) === String(anio))
+    .reduce((s, p) => s + Number(p.monto || 0), 0);
+  const totalAnioGastos = meses.reduce((s, m) => s + (m.gastos || 0), 0) + totalAjustesMayoresAnio;
   const debeHaberCajaAnual = totalAnioCobrado - totalAnioGastos;
   const pctAnio = totalAnioMeta > 0 ? (totalAnioVendido / totalAnioMeta) * 100 : 0;
   const mesesConDatos = meses.filter((m) => m.origen !== "sin_datos");
@@ -8879,6 +8900,7 @@ export default function App() {
             pagosProveedores={pagosProveedores}
             setPagosProveedores={setPagosProveedores}
             proveedores={proveedores}
+            sesion={sesion}
           />
         )}
         {seccion === "administracion" && (
