@@ -4514,11 +4514,13 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
 
   const anticipos = pagosDelDia.filter((p) => p.tipo === "anticipo");
   const liquidaciones = pagosDelDia.filter((p) => p.tipo === "liquidacion");
+  const abonosParciales = pagosDelDia.filter((p) => p.tipo === "abono");
   const ventasCompletas = pagosDelDia.filter((p) => p.tipo === "venta_completa");
 
   const totalAnticipos = anticipos.reduce((s, p) => s + p.monto, 0);
   const totalLiquidaciones = liquidaciones.reduce((s, p) => s + p.monto, 0);
-  const totalCobradoHoy = totalAnticipos + totalLiquidaciones + ventasCompletas.reduce((s, p) => s + p.monto, 0);
+  const totalAbonosParciales = abonosParciales.reduce((s, p) => s + p.monto, 0);
+  const totalCobradoHoy = totalAnticipos + totalLiquidaciones + totalAbonosParciales + ventasCompletas.reduce((s, p) => s + p.monto, 0);
 
   // Saldo pendiente global (a la fecha de hoy, acumulado de todas las notas activas)
   const notasConSaldo = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && v.saldo > 0);
@@ -4607,7 +4609,8 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
           <TotalBox titulo="Total de tickets del día" monto={totalTicketsDia} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioDia.toFixed(2)}`} esConteo />
           <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#6B7280" subtitulo={`${anticipos.length} pago(s)`} />
           <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
-          <TotalBox titulo="Total cobrado hoy" monto={totalCobradoHoy} color="#047857" subtitulo="Anticipos + liquidaciones + contado" />
+          <TotalBox titulo="Abonos parciales (apartados)" monto={totalAbonosParciales} color="#eab308" subtitulo={`${abonosParciales.length} pago(s)`} />
+          <TotalBox titulo="Total cobrado hoy" monto={totalCobradoHoy} color="#047857" subtitulo="Anticipos + liquidaciones + abonos + contado" />
           <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
           <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelDia.length} pago(s)`} />
           <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado hoy − pago a proveedores" />
@@ -4622,6 +4625,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
           </div>
           <div>
             <p><b>Saldos cobrados al entregar:</b> ${totalLiquidaciones.toFixed(2)}</p>
+            <p><b>Abonos parciales (apartados):</b> ${totalAbonosParciales.toFixed(2)}</p>
             <p><b>Total cobrado hoy:</b> ${totalCobradoHoy.toFixed(2)}</p>
             <p><b>Saldo pendiente:</b> ${totalSaldoPendiente.toFixed(2)}</p>
             <p><b>Pago a proveedores:</b> ${totalProveedores.toFixed(2)}</p>
@@ -4676,10 +4680,22 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
         </div>
 
         <div className="bg-white border rounded-xl p-3">
+          <h4 className="font-semibold text-sm mb-2">Desglose — Abonos parciales (apartados)</h4>
+          <table className="w-full text-xs">
+            <tbody>
+              {abonosParciales.map((p, i) => (
+                <tr key={i} className="border-t"><td className="py-1">#{p.folio} {p.cliente} ({p.formaPago})</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
+              ))}
+              {abonosParciales.length === 0 && <tr><td className="text-slate-400 py-2">Sin abonos parciales este día.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="bg-white border rounded-xl p-3">
           <h4 className="font-semibold text-sm mb-2">Desglose — Total cobrado hoy</h4>
           <table className="w-full text-xs">
             <tbody>
-              {[...anticipos, ...liquidaciones, ...ventasCompletas].map((p, i) => (
+              {[...anticipos, ...liquidaciones, ...abonosParciales, ...ventasCompletas].map((p, i) => (
                 <tr key={i} className="border-t"><td className="py-1">#{p.folio} {p.cliente} — {p.tipo.replace("_", " ")}</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
               ))}
               {pagosDelDia.length === 0 && <tr><td className="text-slate-400 py-2">Sin cobros este día.</td></tr>}
@@ -4877,10 +4893,12 @@ function CorteMensual({ ventas, pagosProveedores }) {
   const pagosDelMes = todosPagos.filter((p) => esDelMes(p.fecha));
   const anticipos = pagosDelMes.filter((p) => p.tipo === "anticipo");
   const liquidaciones = pagosDelMes.filter((p) => p.tipo === "liquidacion");
+  const abonosParciales = pagosDelMes.filter((p) => p.tipo === "abono");
   const ventasCompletas = pagosDelMes.filter((p) => p.tipo === "venta_completa");
   const totalAnticipos = anticipos.reduce((s, p) => s + p.monto, 0);
   const totalLiquidaciones = liquidaciones.reduce((s, p) => s + p.monto, 0);
-  const totalCobradoMes = totalAnticipos + totalLiquidaciones + ventasCompletas.reduce((s, p) => s + p.monto, 0);
+  const totalAbonosParciales = abonosParciales.reduce((s, p) => s + p.monto, 0);
+  const totalCobradoMes = totalAnticipos + totalLiquidaciones + totalAbonosParciales + ventasCompletas.reduce((s, p) => s + p.monto, 0);
 
   const notasConSaldo = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && v.saldo > 0);
   const totalSaldoPendiente = notasConSaldo.reduce((s, v) => s + v.saldo, 0);
@@ -4925,7 +4943,8 @@ function CorteMensual({ ventas, pagosProveedores }) {
           <TotalBox titulo="Total de tickets del mes" monto={totalTicketsMes} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioMes.toFixed(2)}`} esConteo />
           <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#6B7280" subtitulo={`${anticipos.length} pago(s)`} />
           <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
-          <TotalBox titulo="Total cobrado en el mes" monto={totalCobradoMes} color="#047857" subtitulo="Anticipos + liquidaciones + contado" />
+          <TotalBox titulo="Abonos parciales (apartados)" monto={totalAbonosParciales} color="#eab308" subtitulo={`${abonosParciales.length} pago(s)`} />
+          <TotalBox titulo="Total cobrado en el mes" monto={totalCobradoMes} color="#047857" subtitulo="Anticipos + liquidaciones + abonos + contado" />
           <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
           <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelMes.length} pago(s)`} />
           <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado del mes − pago a proveedores" />
@@ -4940,6 +4959,7 @@ function CorteMensual({ ventas, pagosProveedores }) {
           </div>
           <div>
             <p><b>Saldos cobrados al entregar:</b> ${totalLiquidaciones.toFixed(2)}</p>
+            <p><b>Abonos parciales (apartados):</b> ${totalAbonosParciales.toFixed(2)}</p>
             <p><b>Total cobrado en el mes:</b> ${totalCobradoMes.toFixed(2)}</p>
             <p><b>Saldo pendiente:</b> ${totalSaldoPendiente.toFixed(2)}</p>
             <p><b>Pago a proveedores:</b> ${totalProveedores.toFixed(2)}</p>
@@ -5006,10 +5026,27 @@ function CorteMensual({ ventas, pagosProveedores }) {
           </div>
 
           <div className="bg-white border rounded-xl p-3">
+            <h4 className="font-semibold text-sm mb-2">Desglose — Abonos parciales (apartados)</h4>
+            <table className="w-full text-xs">
+              <tbody>
+                {abonosParciales.map((p, i) => (
+                  <tr key={i} className="border-t"><td className="py-1">#{p.folio} {p.cliente} ({p.formaPago})</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
+                ))}
+                {abonosParciales.length === 0 && <tr><td className="text-slate-400 py-2">Sin abonos parciales este mes.</td></tr>}
+              </tbody>
+              {abonosParciales.length > 0 && (
+                <tfoot>
+                  <tr className="border-t font-semibold"><td className="py-1">Total de tickets: {abonosParciales.length}</td><td className="text-right py-1">${totalAbonosParciales.toFixed(2)}</td></tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+
+          <div className="bg-white border rounded-xl p-3">
             <h4 className="font-semibold text-sm mb-2">Desglose — Total cobrado en el mes</h4>
             <table className="w-full text-xs">
               <tbody>
-                {[...anticipos, ...liquidaciones, ...ventasCompletas].map((p, i) => (
+                {[...anticipos, ...liquidaciones, ...abonosParciales, ...ventasCompletas].map((p, i) => (
                   <tr key={i} className="border-t"><td className="py-1">#{p.folio} {p.cliente} — {p.tipo.replace("_", " ")}</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
                 ))}
                 {pagosDelMes.length === 0 && <tr><td className="text-slate-400 py-2">Sin cobros este mes.</td></tr>}
