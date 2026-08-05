@@ -85,6 +85,10 @@ function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
+function siguienteFolioOrden(laboratorio) {
+  return laboratorio.reduce((m, o) => Math.max(m, o.folioOrden || 0), 0) + 1;
+}
+
 // Imprime SOLO el elemento indicado. Al llamar window.print(), el navegador
 // abre el diálogo nativo del sistema operativo, donde el usuario elige
 // cualquiera de sus impresoras instaladas (o "Guardar como PDF").
@@ -1377,6 +1381,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
           ...laboratorio,
           {
             id: uid(),
+            folioOrden: siguienteFolioOrden(laboratorio),
             pacienteId: clienteSel?.id || null,
             nombreCliente: nota.nombreCliente,
             folioVenta: folio,
@@ -3106,7 +3111,7 @@ function lineaOjo(ojo, etiqueta) {
   return `${etiqueta}: Esf ${o.esf || "-"} · Cil ${o.cil || "-"} · Eje ${o.eje || "-"} · DI ${di} · Add ${o.add || "-"} · Obs ${o.obs || "-"}`;
 }
 
-function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas, config }) {
+function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas, laboratorio, setLaboratorio, config }) {
   const [busqueda, setBusqueda] = useState("");
   const [abierto, setAbierto] = useState(null); // id de paciente con expediente abierto
   const [mensajeUnificar, setMensajeUnificar] = useState("");
@@ -3274,6 +3279,8 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, set
             paciente={pacienteAbierto}
             pacientes={pacientes}
             setPacientes={setPacientes}
+            laboratorio={laboratorio}
+            setLaboratorio={setLaboratorio}
             onEliminar={() => eliminarPaciente(pacienteAbierto.id)}
             onCerrar={() => setAbierto(null)}
             config={config}
@@ -3364,7 +3371,7 @@ function ResumenVisita({ v, paciente, config }) {
   );
 }
 
-function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onEliminar, onCerrar, config }) {
+function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laboratorio, setLaboratorio, onEliminar, onCerrar, config }) {
   const camposPersonales = ["nombre", "domicilio", "colonia", "cp", "mail", "telefono"];
   const [datos, setDatos] = useState(() => {
     const base = { ...paciente };
@@ -3384,6 +3391,12 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
   const [incluirCompra, setIncluirCompra] = useState(true);
   const [incluirReceta, setIncluirReceta] = useState(true);
   const [visitasSel, setVisitasSel] = useState({});
+  const [creandoReceta, setCreandoReceta] = useState(false);
+  const [nuevaReceta, setNuevaReceta] = useState({
+    od: { esf: "", cil: "", eje: "", di: "", add: "", obs: "" },
+    os: { esf: "", cil: "", eje: "", di: "", add: "", obs: "" },
+    material: "", descripcion: "", armazon: "",
+  });
 
   const visitasOrdenadas = ordenarVisitasDesc(datos.compras);
 
@@ -3400,6 +3413,54 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
 
   function guardar() {
     setPacientes(pacientes.map((p) => (p.id === paciente.id ? { ...p, ...datos } : p)));
+  }
+
+  function crearNuevaReceta(generarOrden) {
+    const tieneDatos = nuevaReceta.od.esf || nuevaReceta.od.cil || nuevaReceta.os.esf || nuevaReceta.os.cil;
+    if (!tieneDatos) return;
+    const visita = {
+      id: uid(),
+      fecha: new Date().toISOString(),
+      od: nuevaReceta.od,
+      os: nuevaReceta.os,
+      descripcion: nuevaReceta.descripcion,
+      materialReceta: nuevaReceta.material,
+      origen: "receta_manual",
+    };
+    const actualizado = { ...datos, compras: [...(datos.compras || []), visita] };
+    setDatos(actualizado);
+    setPacientes(pacientes.map((p) => (p.id === paciente.id ? { ...p, ...actualizado } : p)));
+
+    if (generarOrden && laboratorio && setLaboratorio) {
+      setLaboratorio([
+        ...laboratorio,
+        {
+          id: uid(),
+          folioOrden: siguienteFolioOrden(laboratorio),
+          pacienteId: paciente.id,
+          nombreCliente: paciente.nombre,
+          folioVenta: "",
+          od: nuevaReceta.od,
+          os: nuevaReceta.os,
+          descripcion: nuevaReceta.descripcion,
+          material: nuevaReceta.material,
+          armazon: nuevaReceta.armazon || "—",
+          fechaVenta: new Date().toISOString(),
+          fechaEnvio: "",
+          fechaPrometida: "",
+          fechaRecepcion: "",
+          origen: "receta_manual",
+          pendienteReceta: false,
+        },
+      ]);
+    }
+
+    setCreandoReceta(false);
+    setNuevaReceta({
+      od: { esf: "", cil: "", eje: "", di: "", add: "", obs: "" },
+      os: { esf: "", cil: "", eje: "", di: "", add: "", obs: "" },
+      material: "", descripcion: "", armazon: "",
+    });
   }
 
   function agregarVisitaManual() {
@@ -3451,9 +3512,14 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
           <h3 className="font-semibold text-slate-700">
             Historial de visitas / compras — <span className="text-slate-700">Número de compras: {visitasOrdenadas.length}</span>
           </h3>
-          <button onClick={() => setAgregandoVisita(true)} className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600 flex items-center gap-1">
-            <Plus size={14} /> Agregar visita manualmente
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setCreandoReceta(true)} className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600 flex items-center gap-1">
+              <Plus size={14} /> Crear nueva receta
+            </button>
+            <button onClick={() => setAgregandoVisita(true)} className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600 flex items-center gap-1">
+              <Plus size={14} /> Agregar visita manualmente
+            </button>
+          </div>
         </div>
         <div className="space-y-2">
           {visitasOrdenadas.map((v) => (
@@ -3572,6 +3638,40 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
         </button>
       </Modal>
 
+      <Modal open={creandoReceta} onClose={() => setCreandoReceta(false)} title="Crear nueva receta">
+        <div className="grid grid-cols-2 gap-3 mb-2">
+          <Field label="Material" value={nuevaReceta.material} onChange={(e) => setNuevaReceta({ ...nuevaReceta, material: e.target.value })} />
+          <Field label="Armazón (si aplica)" value={nuevaReceta.armazon} onChange={(e) => setNuevaReceta({ ...nuevaReceta, armazon: e.target.value })} />
+        </div>
+        <Field label="Descripción" value={nuevaReceta.descripcion} onChange={(e) => setNuevaReceta({ ...nuevaReceta, descripcion: e.target.value })} />
+        {["od", "os"].map((ojo) => (
+          <div key={ojo} className="flex items-center gap-2 mb-2">
+            <span className="w-10 font-semibold text-sm">{ojo === "od" ? "O.D." : "O.S."}</span>
+            {CAMPOS_RECETA_PACIENTE.map((c) => (
+              <input
+                key={c}
+                placeholder={c}
+                value={nuevaReceta[ojo][c.toLowerCase()]}
+                onChange={(e) => setNuevaReceta({ ...nuevaReceta, [ojo]: { ...nuevaReceta[ojo], [c.toLowerCase()]: e.target.value } })}
+                className="w-16 border rounded px-1 py-1 text-xs text-center"
+              />
+            ))}
+          </div>
+        ))}
+        <div className="flex gap-2 mt-3">
+          <button onClick={() => crearNuevaReceta(false)} className="flex-1 py-2 rounded-lg bg-slate-100 text-sm font-medium">
+            Guardar solo receta
+          </button>
+          <button onClick={() => crearNuevaReceta(true)} className="flex-1 py-2 rounded-lg text-white text-sm font-medium" style={{ background: SKY_DARK }}>
+            Guardar y generar orden de trabajo
+          </button>
+        </div>
+        <p className="text-xs text-slate-400 mt-2">
+          Si generas la orden de trabajo, se le asigna su propio folio (independiente del folio de venta) y aparece
+          lista para enviar a laboratorio en Entregas y Cobranza.
+        </p>
+      </Modal>
+
       <Modal open={imprimiendo} onClose={() => setImprimiendo(false)} title="Elige qué imprimir">
         <div className="space-y-2 mb-3">
           <label className="flex items-center gap-2 text-sm">
@@ -3652,6 +3752,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
       {
         ...nueva,
         id: uid(),
+        folioOrden: siguienteFolioOrden(laboratorio),
         nombreCliente: paciente?.nombre || "",
         fechaVenta: "",
         origen: "manual",
@@ -3812,7 +3913,8 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
         <table className="w-full text-sm">
           <thead style={{ background: BEIGE }}>
             <tr>
-              <th className="text-left px-3 py-2">Folio</th>
+              <th className="text-left px-3 py-2">Folio orden</th>
+              <th className="text-left px-3 py-2">Folio venta</th>
               <th className="text-left px-3 py-2">Paciente</th>
               <th className="text-left px-3 py-2">Receta</th>
               <th className="text-left px-3 py-2">Material</th>
@@ -3829,6 +3931,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
               const bloqueada = !!o.fechaRecepcion;
               return (
               <tr key={o.id} className={`border-t align-top ${o.cancelada ? "opacity-50" : ""}`}>
+                <td className="px-3 py-2 font-medium">{o.folioOrden || "—"}</td>
                 <td className="px-3 py-2 text-slate-500">{o.folioVenta || "—"}</td>
                 <td className="px-3 py-2">
                   <button
@@ -3885,7 +3988,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
             })}
             {laboratorio.length === 0 && (
               <tr>
-                <td colSpan={9} className="text-center text-slate-400 py-6">Sin órdenes de laboratorio todavía.</td>
+                <td colSpan={10} className="text-center text-slate-400 py-6">Sin órdenes de laboratorio todavía.</td>
               </tr>
             )}
           </tbody>
@@ -3989,6 +4092,8 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
               paciente={pacienteVer}
               pacientes={pacientes}
               setPacientes={setPacientes}
+              laboratorio={laboratorio}
+              setLaboratorio={setLaboratorio}
               onEliminar={() => {
                 setPacientes(pacientes.filter((p) => p.id !== pacienteVer.id));
                 setVerExpediente(null);
@@ -4340,7 +4445,8 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
         <table className="w-full text-sm">
           <thead style={{ background: BEIGE }}>
             <tr>
-              <th className="text-left px-3 py-2">Folio</th>
+              <th className="text-left px-3 py-2">Folio orden</th>
+              <th className="text-left px-3 py-2">Folio venta</th>
               <th className="text-left px-3 py-2">Paciente</th>
               <th className="text-left px-3 py-2">Estatus</th>
               <th className="text-left px-3 py-2">Apartados</th>
@@ -4361,6 +4467,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
 
               return (
                 <tr key={o.id} className="border-t align-top">
+                  <td className="px-3 py-2 font-medium">{o.folioOrden || "—"}</td>
                   <td className="px-3 py-2 text-slate-500">{o.folioVenta || "—"}</td>
                   <td className="px-3 py-2">
                     <button
@@ -4497,7 +4604,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
             })}
             {activas.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-center text-slate-400 py-6">Sin órdenes activas todavía.</td>
+                <td colSpan={8} className="text-center text-slate-400 py-6">Sin órdenes activas todavía.</td>
               </tr>
             )}
           </tbody>
@@ -4527,6 +4634,8 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
               paciente={pacienteVer}
               pacientes={pacientes}
               setPacientes={setPacientes}
+              laboratorio={laboratorio}
+              setLaboratorio={setLaboratorio}
               onEliminar={() => {
                 setPacientes(pacientes.filter((p) => p.id !== pacienteVer.id));
                 setVerExpediente(null);
@@ -7745,6 +7854,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
           ...laboratorio,
           {
             id: uid(),
+            folioOrden: siguienteFolioOrden(laboratorio),
             pacienteId: sesionCliente.pacienteId,
             nombreCliente: nota.nombreCliente,
             folioVenta: folio,
@@ -8728,7 +8838,7 @@ export default function App() {
         )}
         {seccion === "inventario" && <InventarioView inventario={inventario} setInventario={setInventario} config={config} setConfig={setConfig} />}
         {seccion === "pacientes" && (
-          <PacientesView pacientes={pacientes} setPacientes={setPacientes} agenda={agenda} setAgenda={setAgenda} ventas={ventas} setVentas={setVentas} config={config} />
+          <PacientesView pacientes={pacientes} setPacientes={setPacientes} agenda={agenda} setAgenda={setAgenda} ventas={ventas} setVentas={setVentas} laboratorio={laboratorio} setLaboratorio={setLaboratorio} config={config} />
         )}
         {seccion === "laboratorio" && (
           <LaboratorioView
