@@ -7,8 +7,8 @@ import {
 } from "lucide-react";
 
 /* ============================================================
-   SPEKTRUM Ã“PTICAS â€” Plataforma de gestiÃ³n
-   Persistencia real vÃ­a window.storage (shared=true: todo el
+   SPEKTRUM ÓPTICAS — Plataforma de gestión
+   Persistencia real vía window.storage (shared=true: todo el
    equipo y el sistema ven los mismos datos).
    ============================================================ */
 
@@ -86,7 +86,7 @@ function uid() {
 }
 
 // Imprime SOLO el elemento indicado. Al llamar window.print(), el navegador
-// abre el diÃ¡logo nativo del sistema operativo, donde el usuario elige
+// abre el diálogo nativo del sistema operativo, donde el usuario elige
 // cualquiera de sus impresoras instaladas (o "Guardar como PDF").
 function imprimirElemento(id) {
   document.querySelectorAll(".print-only").forEach((el) => el.classList.remove("print-only"));
@@ -95,39 +95,39 @@ function imprimirElemento(id) {
   setTimeout(() => window.print(), 50);
 }
 
-const NOMBRE_OPTICA = "Spektrum Ã“pticas";
+const NOMBRE_OPTICA = "Spektrum Ópticas";
 
-const AVISO_PRIVACIDAD_DEFAULT = `AVISO DE PRIVACIDAD â€” ${NOMBRE_OPTICA}
+const AVISO_PRIVACIDAD_DEFAULT = `AVISO DE PRIVACIDAD — ${NOMBRE_OPTICA}
 
-En cumplimiento con la Ley Federal de ProtecciÃ³n de Datos Personales en PosesiÃ³n de los Particulares, ${NOMBRE_OPTICA} es responsable del uso y protecciÃ³n de tus datos personales.
+En cumplimiento con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares, ${NOMBRE_OPTICA} es responsable del uso y protección de tus datos personales.
 
-1. Datos que recabamos: nombre, telÃ©fono, correo electrÃ³nico, domicilio, y datos de salud visual (receta Ã³ptica) necesarios para brindarte el servicio de examen de la vista y venta de armazones, lentes graduados, de contacto y solares.
+1. Datos que recabamos: nombre, teléfono, correo electrónico, domicilio, y datos de salud visual (receta óptica) necesarios para brindarte el servicio de examen de la vista y venta de armazones, lentes graduados, de contacto y solares.
 
-2. Finalidades: agendar tus citas, elaborar tu receta y tus lentes, procesar tus compras y pagos, dar seguimiento a garantÃ­as y devoluciones, y enviarte avisos relacionados con tu pedido por correo electrÃ³nico o WhatsApp.
+2. Finalidades: agendar tus citas, elaborar tu receta y tus lentes, procesar tus compras y pagos, dar seguimiento a garantías y devoluciones, y enviarte avisos relacionados con tu pedido por correo electrónico o WhatsApp.
 
-3. Datos sensibles: tu receta Ã³ptica se considera un dato de salud. Solo se usa para la elaboraciÃ³n de tus lentes y no se comparte con terceros ajenos al proceso de laboratorio Ã³ptico.
+3. Datos sensibles: tu receta óptica se considera un dato de salud. Solo se usa para la elaboración de tus lentes y no se comparte con terceros ajenos al proceso de laboratorio óptico.
 
-4. Transferencia de datos: no vendemos ni compartimos tus datos con terceros para fines distintos a los aquÃ­ seÃ±alados, salvo requerimiento de autoridad competente.
+4. Transferencia de datos: no vendemos ni compartimos tus datos con terceros para fines distintos a los aquí señalados, salvo requerimiento de autoridad competente.
 
-5. Derechos ARCO: puedes solicitar en cualquier momento el Acceso, RectificaciÃ³n, CancelaciÃ³n u OposiciÃ³n al uso de tus datos personales escribiendo a optispektrum@hotmail.com o llamando al telÃ©fono de contacto de la Ã³ptica.
+5. Derechos ARCO: puedes solicitar en cualquier momento el Acceso, Rectificación, Cancelación u Oposición al uso de tus datos personales escribiendo a optispektrum@hotmail.com o llamando al teléfono de contacto de la óptica.
 
-6. Cambios al aviso: cualquier modificaciÃ³n a este aviso de privacidad se publicarÃ¡ en esta misma pÃ¡gina.
+6. Cambios al aviso: cualquier modificación a este aviso de privacidad se publicará en esta misma página.
 
-Ãšltima actualizaciÃ³n: 2026.`;
+Última actualización: 2026.`;
 
 function mensajeCitaConfirmada(nombre, fecha, hora, consultorio, urlSitio) {
   return {
     email: {
-      asunto: `Tu cita en ${NOMBRE_OPTICA} quedÃ³ confirmada`,
+      asunto: `Tu cita en ${NOMBRE_OPTICA} quedó confirmada`,
       cuerpo:
         `Hola, ${nombre}:\n\n` +
-        `Tu cita para examen de la vista quedÃ³ agendada:\nðŸ“… Fecha: ${fecha}\nâ° Hora: ${hora}\nðŸ“ ${consultorio}\n\n` +
-        `Puedes ver o modificar tu cuenta aquÃ­: ${urlSitio}\n\n` +
+        `Tu cita para examen de la vista quedó agendada:\n📅 Fecha: ${fecha}\n⏰ Hora: ${hora}\n📍 ${consultorio}\n\n` +
+        `Puedes ver o modificar tu cuenta aquí: ${urlSitio}\n\n` +
         `Te esperamos.\nEl equipo de ${NOMBRE_OPTICA}`,
     },
     whatsapp:
-      `Â¡Hola, ${nombre}! ðŸ‘‹ Tu cita en ${NOMBRE_OPTICA} quedÃ³ confirmada para el ${fecha} a las ${hora} (${consultorio}). ` +
-      `Consulta o administra tu cuenta aquÃ­: ${urlSitio} Â¡Te esperamos! ðŸ¤“`,
+      `¡Hola, ${nombre}! 👋 Tu cita en ${NOMBRE_OPTICA} quedó confirmada para el ${fecha} a las ${hora} (${consultorio}). ` +
+      `Consulta o administra tu cuenta aquí: ${urlSitio} ¡Te esperamos! 🤓`,
   };
 }
 
@@ -165,7 +165,7 @@ async function generarPDFNota(nota, config) {
 
   doc.setFontSize(10);
   doc.setTextColor(120);
-  doc.text("ArtÃ­culo", 15, y);
+  doc.text("Artículo", 15, y);
   doc.text("Precio", 190, y, { align: "right" });
   doc.setTextColor(0);
   y += 5;
@@ -189,80 +189,80 @@ async function generarPDFNota(nota, config) {
   doc.text(`Total: $${nota.total.toFixed(2)} MXN`, 190, y, { align: "right" });
   y += 7;
   doc.setFontSize(10);
-  doc.text(`Abono: $${nota.abono.toFixed(2)} â€” Saldo: $${nota.saldo.toFixed(2)}`, 190, y, { align: "right" });
+  doc.text(`Abono: $${nota.abono.toFixed(2)} — Saldo: $${nota.saldo.toFixed(2)}`, 190, y, { align: "right" });
 
   doc.save(`${nota.estatus}-folio-${nota.folio}.pdf`);
 }
 
 function textoNotaWhatsApp(nota) {
   const encabezado = nota.estatus === "presupuesto" ? "Presupuesto" : "Nota de venta";
-  const lineas = nota.items.map((it) => `â€¢ ${it.nombre} â€” $${it.precio}`).join("\n");
+  const lineas = nota.items.map((it) => `• ${it.nombre} — $${it.precio}`).join("\n");
   return (
-    `${encabezado} â€” ${NOMBRE_OPTICA}\n` +
+    `${encabezado} — ${NOMBRE_OPTICA}\n` +
     `Folio #${nota.folio}\n` +
     `Cliente: ${nota.nombreCliente}\n\n` +
     `${lineas}\n\n` +
     `Total: $${nota.total.toFixed(2)} MXN\n` +
-    `Abono: $${nota.abono.toFixed(2)} â€” Saldo: $${nota.saldo.toFixed(2)}\n\n` +
-    `Â¡Gracias por tu preferencia en ${NOMBRE_OPTICA}!`
+    `Abono: $${nota.abono.toFixed(2)} — Saldo: $${nota.saldo.toFixed(2)}\n\n` +
+    `¡Gracias por tu preferencia en ${NOMBRE_OPTICA}!`
   );
 }
 
 function mensajeAgradecimiento(nombre) {
   return {
     email: {
-      asunto: `Â¡Gracias por confiar tu visiÃ³n en nosotros, ${nombre}! ðŸ¤“`,
+      asunto: `¡Gracias por confiar tu visión en nosotros, ${nombre}! 🤓`,
       cuerpo:
         `Hola, ${nombre}:\n\n` +
         `Queremos agradecerte sinceramente por elegirnos para el cuidado de tus ojos y por tu reciente compra de lentes. Nos entusiasma mucho ayudarte a ver el mundo con total claridad.\n\n` +
-        `Nuestro equipo ya estÃ¡ trabajando en tu orden con los mÃ¡s altos estÃ¡ndares de calidad. En un prÃ³ximo mensaje te avisaremos en cuanto tus lentes estÃ©n listos para entrega.\n\n` +
-        `Si tienes alguna duda con tu pedido, responde a este correo o escrÃ­benos por WhatsApp.\n\n` +
+        `Nuestro equipo ya está trabajando en tu orden con los más altos estándares de calidad. En un próximo mensaje te avisaremos en cuanto tus lentes estén listos para entrega.\n\n` +
+        `Si tienes alguna duda con tu pedido, responde a este correo o escríbenos por WhatsApp.\n\n` +
         `Atentamente,\nEl equipo de ${NOMBRE_OPTICA}`,
     },
     whatsapp:
-      `Â¡Hola, ${nombre}! ðŸ‘‹ Gracias por tu compra en ${NOMBRE_OPTICA}. Nos hace muy felices cuidar de tu salud visual y saber que pronto estrenarÃ¡s lentes. ðŸ¤“ ` +
-      `Nuestro laboratorio ya estÃ¡ trabajando en ellos. Te avisaremos por aquÃ­ mismo en cuanto estÃ©n listos. Â¡Que tengas un excelente dÃ­a! âœ¨`,
+      `¡Hola, ${nombre}! 👋 Gracias por tu compra en ${NOMBRE_OPTICA}. Nos hace muy felices cuidar de tu salud visual y saber que pronto estrenarás lentes. 🤓 ` +
+      `Nuestro laboratorio ya está trabajando en ellos. Te avisaremos por aquí mismo en cuanto estén listos. ¡Que tengas un excelente día! ✨`,
   };
 }
 
 function mensajeListos(nombre, direccion, horario) {
   return {
     email: {
-      asunto: `Â¡Buenas noticias, ${nombre}! Tus lentes ya estÃ¡n listos ðŸ¥³`,
+      asunto: `¡Buenas noticias, ${nombre}! Tus lentes ya están listos 🥳`,
       cuerpo:
         `Hola, ${nombre}:\n\n` +
-        `Te informamos que tus nuevos lentes han pasado todas nuestras pruebas de calidad y Â¡ya estÃ¡n listos para ti!\n\n` +
-        `Puedes pasar por ellos a nuestra sucursal en el siguiente horario:\nðŸ“ DirecciÃ³n: ${direccion || "â€”"}\nâ° Horario: ${horario || "nuestro horario de atenciÃ³n"}\n\n` +
-        `Nota: Recuerda que al entregÃ¡rtelos realizaremos un ajuste personalizado para que te queden perfectos y cÃ³modos.\n\n` +
-        `Â¡Te esperamos pronto!\nEl equipo de ${NOMBRE_OPTICA}`,
+        `Te informamos que tus nuevos lentes han pasado todas nuestras pruebas de calidad y ¡ya están listos para ti!\n\n` +
+        `Puedes pasar por ellos a nuestra sucursal en el siguiente horario:\n📍 Dirección: ${direccion || "—"}\n⏰ Horario: ${horario || "nuestro horario de atención"}\n\n` +
+        `Nota: Recuerda que al entregártelos realizaremos un ajuste personalizado para que te queden perfectos y cómodos.\n\n` +
+        `¡Te esperamos pronto!\nEl equipo de ${NOMBRE_OPTICA}`,
     },
     whatsapp:
-      `Â¡Hola, ${nombre}! ðŸŽ‰ Â¡Buenas noticias! Tus lentes ya estÃ¡n listos en ${NOMBRE_OPTICA}. ` +
-      `Puedes pasar por ellos a nuestra sucursal ubicada en ${direccion || "nuestra direcciÃ³n"} de ${horario || "nuestro horario de atenciÃ³n"}. ` +
-      `Te sugerimos traer unos minutos disponibles para ajustarlos perfectamente a tu rostro. Â¡Te esperamos! ðŸ¤“âœ¨`,
+      `¡Hola, ${nombre}! 🎉 ¡Buenas noticias! Tus lentes ya están listos en ${NOMBRE_OPTICA}. ` +
+      `Puedes pasar por ellos a nuestra sucursal ubicada en ${direccion || "nuestra dirección"} de ${horario || "nuestro horario de atención"}. ` +
+      `Te sugerimos traer unos minutos disponibles para ajustarlos perfectamente a tu rostro. ¡Te esperamos! 🤓✨`,
   };
 }
 
 function mensajeBienvenida(nombre) {
   return {
     email: {
-      asunto: `Â¡Bienvenido/a a ${NOMBRE_OPTICA}, ${nombre}! ðŸ¤“`,
+      asunto: `¡Bienvenido/a a ${NOMBRE_OPTICA}, ${nombre}! 🤓`,
       cuerpo:
         `Hola, ${nombre}:\n\n` +
-        `Â¡Tu cuenta en ${NOMBRE_OPTICA} quedÃ³ creada con Ã©xito! Con ella puedes agendar tu examen de la vista, ` +
+        `¡Tu cuenta en ${NOMBRE_OPTICA} quedó creada con éxito! Con ella puedes agendar tu examen de la vista, ` +
         `comprar armazones, lentes graduados, de contacto y solares, y llevar el seguimiento de tus pedidos.\n\n` +
         `Nos da mucho gusto tenerte con nosotros.\nEl equipo de ${NOMBRE_OPTICA}`,
     },
     whatsapp:
-      `Â¡Hola, ${nombre}! ðŸ‘‹ Tu cuenta en ${NOMBRE_OPTICA} quedÃ³ creada con Ã©xito. ` +
-      `Ya puedes agendar tu examen de la vista o comprar tus lentes desde nuestra tienda en lÃ­nea. Â¡Bienvenido/a! ðŸ¤“`,
+      `¡Hola, ${nombre}! 👋 Tu cuenta en ${NOMBRE_OPTICA} quedó creada con éxito. ` +
+      `Ya puedes agendar tu examen de la vista o comprar tus lentes desde nuestra tienda en línea. ¡Bienvenido/a! 🤓`,
   };
 }
 
 function mensajePedidoRecibido(nombre, folio) {
   return {
     email: {
-      asunto: `Recibimos tu pedido #${folio} â€” ${NOMBRE_OPTICA}`,
+      asunto: `Recibimos tu pedido #${folio} — ${NOMBRE_OPTICA}`,
       cuerpo:
         `Hola, ${nombre}:\n\n` +
         `Recibimos tu pedido con folio #${folio}. Nuestro equipo lo va a revisar y confirmar en breve; ` +
@@ -270,25 +270,25 @@ function mensajePedidoRecibido(nombre, folio) {
         `Gracias por tu preferencia.\nEl equipo de ${NOMBRE_OPTICA}`,
     },
     whatsapp:
-      `Â¡Hola, ${nombre}! ðŸ‘‹ Recibimos tu pedido #${folio} en ${NOMBRE_OPTICA}. ` +
-      `Lo vamos a revisar y te avisamos en cuanto quede confirmado. Â¡Gracias por tu preferencia! ðŸ¤“`,
+      `¡Hola, ${nombre}! 👋 Recibimos tu pedido #${folio} en ${NOMBRE_OPTICA}. ` +
+      `Lo vamos a revisar y te avisamos en cuanto quede confirmado. ¡Gracias por tu preferencia! 🤓`,
   };
 }
 
 function mensajeEntregaFinal(nombre) {
   return {
     email: {
-      asunto: `Â¡Gracias por tu compra, ${nombre}! ðŸ™Œ`,
+      asunto: `¡Gracias por tu compra, ${nombre}! 🙌`,
       cuerpo:
         `Hola, ${nombre}:\n\n` +
         `Queremos agradecerte por tu compra y por la confianza en ${NOMBRE_OPTICA} para el cuidado de tu salud visual. ` +
-        `Esperamos que disfrutes muchÃ­simo tus nuevos lentes.\n\n` +
-        `Si tienes alguna duda o necesitas un ajuste, aquÃ­ estamos.\n\n` +
-        `Con cariÃ±o,\nEl equipo de ${NOMBRE_OPTICA}`,
+        `Esperamos que disfrutes muchísimo tus nuevos lentes.\n\n` +
+        `Si tienes alguna duda o necesitas un ajuste, aquí estamos.\n\n` +
+        `Con cariño,\nEl equipo de ${NOMBRE_OPTICA}`,
     },
     whatsapp:
-      `Â¡Gracias por tu compra, ${nombre}! ðŸ™Œ Fue un gusto atenderte en ${NOMBRE_OPTICA}. ` +
-      `Esperamos que disfrutes muchÃ­simo tus nuevos lentes. Si necesitas algÃºn ajuste, aquÃ­ estamos. ðŸ¤“âœ¨`,
+      `¡Gracias por tu compra, ${nombre}! 🙌 Fue un gusto atenderte en ${NOMBRE_OPTICA}. ` +
+      `Esperamos que disfrutes muchísimo tus nuevos lentes. Si necesitas algún ajuste, aquí estamos. 🤓✨`,
   };
 }
 
@@ -332,10 +332,10 @@ async function enviarCorreoAutomatico(email, asunto, cuerpoHtml) {
 
 function mensajeListoParaEntrega(nombre) {
   const cuerpo =
-    `Nos es grato informarle que sus lentes estÃ¡n listos para su entrega, por lo que le invitamos a pasar por ellos, ` +
-    `en dÃ­as y horas hÃ¡biles. Estamos agradecidos con su preferencia.`;
+    `Nos es grato informarle que sus lentes están listos para su entrega, por lo que le invitamos a pasar por ellos, ` +
+    `en días y horas hábiles. Estamos agradecidos con su preferencia.`;
   return {
-    asunto: `Sus lentes estÃ¡n listos para su entrega â€” ${NOMBRE_OPTICA}`,
+    asunto: `Sus lentes están listos para su entrega — ${NOMBRE_OPTICA}`,
     cuerpoHtml: `<p>Estimado(a) ${nombre}:</p><p>${cuerpo}</p><p>${NOMBRE_OPTICA}</p>`,
     whatsapp: `Estimado(a) ${nombre}: ${cuerpo}`,
   };
@@ -393,7 +393,7 @@ function LoginScreen({ usuarios, setUsuarios, onIngresar, config }) {
   function entrar() {
     setError("");
     if (!nombre || !password) {
-      setError("Completa usuario y contraseÃ±a.");
+      setError("Completa usuario y contraseña.");
       return;
     }
     if (esPrimerAcceso) {
@@ -406,7 +406,7 @@ function LoginScreen({ usuarios, setUsuarios, onIngresar, config }) {
       (u) => u.nombre.trim().toLowerCase() === nombre.trim().toLowerCase() && u.password === password
     );
     if (!encontrado) {
-      setError("Usuario o contraseÃ±a incorrectos.");
+      setError("Usuario o contraseña incorrectos.");
       return;
     }
     onIngresar({ nombre: encontrado.nombre, rol: encontrado.rol });
@@ -416,12 +416,12 @@ function LoginScreen({ usuarios, setUsuarios, onIngresar, config }) {
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: BEIGE }}>
       <div className="bg-white border rounded-xl p-6 w-full max-w-sm shadow-lg">
         {config?.logo && <img src={config.logo} alt="logo" style={{ height: 70 }} className="mx-auto mb-2" />}
-        <h1 className="text-xl font-bold text-slate-800 mb-1 text-center">Spektrum Ã“pticas</h1>
+        <h1 className="text-xl font-bold text-slate-800 mb-1 text-center">Spektrum Ópticas</h1>
         <p className="text-xs text-slate-500 text-center mb-4">
-          {esPrimerAcceso ? "Primer acceso â€” crea la cuenta de administrador" : "Acceso para personal"}
+          {esPrimerAcceso ? "Primer acceso — crea la cuenta de administrador" : "Acceso para personal"}
         </p>
         <Field label="Usuario" value={nombre} onChange={(e) => setNombre(e.target.value)} />
-        <Field label="ContraseÃ±a" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <Field label="Contraseña" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
         <button
           onClick={entrar}
@@ -572,8 +572,8 @@ function Ribbon({ current, onSelect }) {
     { id: "reportes", label: "Reportes", icon: "report" },
     { id: "importar", label: "Importar datos", icon: "upload" },
     { id: "dashboard", label: "Dashboard", icon: "report" },
-    { id: "administracion", label: "AdministraciÃ³n", icon: "usercog" },
-    { id: "config", label: "ConfiguraciÃ³n", icon: "settings" },
+    { id: "administracion", label: "Administración", icon: "usercog" },
+    { id: "config", label: "Configuración", icon: "settings" },
   ];
   return (
     <div
@@ -609,7 +609,7 @@ function Header({ config }) {
         </div>
       )}
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Spektrum Ã“pticas</h1>
+        <h1 className="text-2xl font-bold text-slate-800">Spektrum Ópticas</h1>
         <p className="text-sm text-slate-500">{config.direccion}</p>
         <p className="text-sm text-slate-500">Tel: {config.telefono}</p>
       </div>
@@ -678,11 +678,11 @@ const ESTATUS_COLORS = {
   no_acudio: "#ef4444",
 };
 const ESTATUS_LABEL = {
-  proxima: "PrÃ³xima",
-  llego: "LlegÃ³",
+  proxima: "Próxima",
+  llego: "Llegó",
   en_consulta: "En consulta",
   piso_ventas: "Piso de ventas",
-  no_acudio: "No acudiÃ³",
+  no_acudio: "No acudió",
 };
 
 function fechaISO(d) {
@@ -822,7 +822,7 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS }) {
                           <div className="flex-1 text-center text-xs italic text-slate-500">
                             {cerradoTipo === "cerrado" ? "Consultorio cerrado" : "Horario de comida"}
                             <button onClick={() => toggleCerrado(key, cerradoTipo)} className="ml-2 text-red-400">
-                              âœ•
+                              ✕
                             </button>
                           </div>
                         ) : (
@@ -884,8 +884,8 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS }) {
           />
         ) : (
           <p className="text-sm text-slate-400">
-            No se encontrÃ³ el expediente de este paciente (puede que haya sido eliminado). Cierra esta ventana e
-            intÃ©ntalo de nuevo.
+            No se encontró el expediente de este paciente (puede que haya sido eliminado). Cierra esta ventana e
+            inténtalo de nuevo.
           </p>
         )}
       </Modal>
@@ -900,7 +900,7 @@ function CitaBlock({ cita, onDragStart, onClickNombre, onEliminar, onEstatus, da
       className="flex-1 flex items-center gap-2 rounded px-2 py-1 text-xs shadow-sm"
     >
       <span draggable onDragStart={onDragStart} title="Arrastrar para mover" className="cursor-move text-slate-400 shrink-0 select-none">
-        â ¿
+        ⠿
       </span>
       <span
         title={ESTATUS_LABEL[cita.estatus]}
@@ -918,7 +918,7 @@ function CitaBlock({ cita, onDragStart, onClickNombre, onEliminar, onEstatus, da
         {cita.nombre}
       </button>
       {cita.origen === "portal" && (
-        <span className="text-[9px] px-1 rounded bg-slate-800 text-white shrink-0" title="Agendada desde la tienda en lÃ­nea">
+        <span className="text-[9px] px-1 rounded bg-slate-800 text-white shrink-0" title="Agendada desde la tienda en línea">
           Web
         </span>
       )}
@@ -974,7 +974,7 @@ function NuevaCitaForm({ pacientes, setPacientes, onCrear }) {
               }}
               className="block w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
             >
-              {p.nombre} â€” {p.telefono}
+              {p.nombre} — {p.telefono}
             </button>
           ))}
         </div>
@@ -1002,12 +1002,12 @@ function NuevaCitaForm({ pacientes, setPacientes, onCrear }) {
 function ExpedientePaciente({ paciente, pacientes, setPacientes, onVenta, onGuardarSalir, onEliminar }) {
   const [datos, setDatos] = useState(paciente);
   const [anamnesisA, setAnamnesisA] = useState(paciente.anamnesisA || {
-    "VisiÃ³n borrosa lejos": false, "VisiÃ³n borrosa cerca": false, "Ardor": false, "IrritaciÃ³n": false,
+    "Visión borrosa lejos": false, "Visión borrosa cerca": false, "Ardor": false, "Irritación": false,
     "Cansancio": false, "Resequedad": false, "Conjuntivitis": false,
   });
   const [anamnesisB, setAnamnesisB] = useState(paciente.anamnesisB || {
-    "PterigiÃ³n": false, "Cx lasik": false, "Cx catarata": false, "Cx pterigiÃ³n": false,
-    "Otras Cx": false, "Diabetes": false, "HipertensiÃ³n": false,
+    "Pterigión": false, "Cx lasik": false, "Cx catarata": false, "Cx pterigión": false,
+    "Otras Cx": false, "Diabetes": false, "Hipertensión": false,
   });
   const [receta, setReceta] = useState(
     paciente.receta || {
@@ -1046,8 +1046,8 @@ function ExpedientePaciente({ paciente, pacientes, setPacientes, onVenta, onGuar
     <div className="space-y-4" style={{ maxHeight: "65vh", overflowY: "auto" }}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Nombre" value={datos.nombre || ""} onChange={(e) => setDatos({ ...datos, nombre: e.target.value })} />
-        <Field label="TelÃ©fono" value={datos.telefono || ""} onChange={(e) => setDatos({ ...datos, telefono: e.target.value })} />
-        <Field label="DirecciÃ³n" value={datos.direccion || ""} onChange={(e) => setDatos({ ...datos, direccion: e.target.value })} />
+        <Field label="Teléfono" value={datos.telefono || ""} onChange={(e) => setDatos({ ...datos, telefono: e.target.value })} />
+        <Field label="Dirección" value={datos.direccion || ""} onChange={(e) => setDatos({ ...datos, direccion: e.target.value })} />
         <Field label="Email" value={datos.email || ""} onChange={(e) => setDatos({ ...datos, email: e.target.value })} />
         <Field label="Ciudad" value={datos.ciudad || ""} onChange={(e) => setDatos({ ...datos, ciudad: e.target.value })} />
         <Field label="Municipio" value={datos.municipio || ""} onChange={(e) => setDatos({ ...datos, municipio: e.target.value })} />
@@ -1099,7 +1099,7 @@ function ExpedientePaciente({ paciente, pacientes, setPacientes, onVenta, onGuar
         <h3 className="font-semibold text-slate-700 mb-2">Agudeza visual</h3>
         <div className="space-y-1 text-sm">
           <div className="flex items-center gap-2">
-            <span className="w-40">A.V. sin correcciÃ³n</span> 20/
+            <span className="w-40">A.V. sin corrección</span> 20/
             <input value={avSin} onChange={(e) => setAvSin(e.target.value)} className="w-16 border rounded px-1" />
           </div>
           <div className="flex items-center gap-2">
@@ -1118,7 +1118,7 @@ function ExpedientePaciente({ paciente, pacientes, setPacientes, onVenta, onGuar
       {/* Plantillas imprimibles (ocultas en pantalla, visibles solo al imprimir) */}
       <div className="plantilla-oculta" style={{ position: "absolute", left: -9999, top: 0 }}>
         <div id="receta-imprimible">
-          <p className="font-bold text-center mb-2">RECETA â€” {datos.nombre}</p>
+          <p className="font-bold text-center mb-2">RECETA — {datos.nombre}</p>
           <p className="text-xs text-center mb-3">{new Date().toLocaleDateString("es-MX")}</p>
           {["OD", "OI"].map((ojo) => (
             <div key={ojo} className="flex gap-2 mb-1 text-sm">
@@ -1132,9 +1132,9 @@ function ExpedientePaciente({ paciente, pacientes, setPacientes, onVenta, onGuar
           ))}
         </div>
         <div id="expediente-imprimible">
-          <p className="font-bold text-center mb-2">EXPEDIENTE â€” {datos.nombre}</p>
-          <p className="text-sm">TelÃ©fono: {datos.telefono}</p>
-          <p className="text-sm">DirecciÃ³n: {datos.direccion}</p>
+          <p className="font-bold text-center mb-2">EXPEDIENTE — {datos.nombre}</p>
+          <p className="text-sm">Teléfono: {datos.telefono}</p>
+          <p className="text-sm">Dirección: {datos.direccion}</p>
           <p className="text-sm">Email: {datos.email}</p>
           <p className="text-sm">Ciudad/Municipio: {datos.ciudad} / {datos.municipio}</p>
           <p className="text-sm">Edad: {datos.edad}</p>
@@ -1142,16 +1142,16 @@ function ExpedientePaciente({ paciente, pacientes, setPacientes, onVenta, onGuar
           {[...Object.entries(anamnesisA), ...Object.entries(anamnesisB)]
             .filter(([, v]) => v)
             .map(([k]) => (
-              <p key={k} className="text-sm">â€¢ {k}</p>
+              <p key={k} className="text-sm">• {k}</p>
             ))}
           <p className="font-semibold mt-2">Receta</p>
           {["OD", "OI"].map((ojo) => (
             <p key={ojo} className="text-sm">
-              {ojo === "OD" ? "O.D." : "O.I."}: {camposReceta.map((c) => `${c} ${receta[ojo][c]}`).join(" Â· ")}
+              {ojo === "OD" ? "O.D." : "O.I."}: {camposReceta.map((c) => `${c} ${receta[ojo][c]}`).join(" · ")}
             </p>
           ))}
           <p className="font-semibold mt-2">Agudeza visual</p>
-          <p className="text-sm">Sin correcciÃ³n 20/{avSin} â€” Con Rx anterior 20/{avAnt} â€” Con nueva Rx 20/{avNueva}</p>
+          <p className="text-sm">Sin corrección 20/{avSin} — Con Rx anterior 20/{avAnt} — Con nueva Rx 20/{avNueva}</p>
           <p className="font-semibold mt-2">Lente recomendado</p>
           <p className="text-sm">{lenteRec}</p>
         </div>
@@ -1291,7 +1291,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
   }
 
   function cancelarPresupuesto(folio) {
-    if (!window.confirm(`Â¿Cancelar el presupuesto #${folio}? Ya no aparecerÃ¡ en la lista de pendientes.`)) return;
+    if (!window.confirm(`¿Cancelar el presupuesto #${folio}? Ya no aparecerá en la lista de pendientes.`)) return;
     setVentas(ventas.map((v) => (v.folio === folio ? { ...v, estatus: "cancelada" } : v)));
   }
 
@@ -1355,7 +1355,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
         const hoyISO = fechaISO(new Date());
         const visitaHoy = historial.find((v) => v.origen === "agenda" && v.fecha && v.fecha.slice(0, 10) === hoyISO && (v.od || v.os));
         const visitaReceta = visitaHoy || historial.find((v) => v.od || v.os);
-        const materialFinal = material?.nombre || visitaReceta?.materialReceta || "â€”";
+        const materialFinal = material?.nombre || visitaReceta?.materialReceta || "—";
         const fechaEnvioAuto = new Date(new Date(ahora).getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
         setLaboratorio([
           ...laboratorio,
@@ -1368,7 +1368,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
             os: visitaReceta?.os || null,
             descripcion: visitaReceta?.descripcion || "",
             material: materialFinal,
-            armazon: armazon?.nombre || "â€”",
+            armazon: armazon?.nombre || "—",
             fechaVenta: ahora,
             fechaEnvio: fechaEnvioAuto,
             fechaPrometida: visitaReceta?.fechaPrometido || p?.fechaPrometido || "",
@@ -1377,12 +1377,12 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
           },
         ]);
       }
-      // Mensaje de agradecimiento automÃ¡tico (WhatsApp y/o correo, lo que estÃ© disponible) + PDF de la nota
+      // Mensaje de agradecimiento automático (WhatsApp y/o correo, lo que esté disponible) + PDF de la nota
       const nombreParaMensaje = clienteSel?.nombre || nota.nombreCliente;
       const msj = mensajeAgradecimiento(nombreParaMensaje);
       generarPDFNota(nota, config);
       if (clienteSel?.telefono)
-        abrirWhatsApp(clienteSel.telefono, msj.whatsapp + "\n\nðŸ“Ž Te comparto tu nota en PDF (adjunta el archivo aquÃ­).");
+        abrirWhatsApp(clienteSel.telefono, msj.whatsapp + "\n\n📎 Te comparto tu nota en PDF (adjunta el archivo aquí).");
       if (clienteSel?.mail) abrirEmail(clienteSel.mail, msj.email.asunto, msj.email.cuerpo + "\n\n(Adjunta el PDF de tu nota que se acaba de descargar.)");
     }
     setPreview(nota);
@@ -1399,16 +1399,16 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
       {pedidosPortal.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
           <h3 className="font-semibold text-amber-800 text-sm mb-2">
-            ðŸ“¦ Pedidos nuevos de la tienda en lÃ­nea ({pedidosPortal.length})
+            📦 Pedidos nuevos de la tienda en línea ({pedidosPortal.length})
           </h3>
           <div className="space-y-2">
             {pedidosPortal.map((v) => (
               <div key={v.folio} className="bg-white rounded-lg border border-amber-200 p-2 flex items-center justify-between flex-wrap gap-2">
                 <div className="text-sm">
-                  <p className="font-medium">{v.nombreCliente} â€” ${v.total.toFixed(2)} MXN</p>
+                  <p className="font-medium">{v.nombreCliente} — ${v.total.toFixed(2)} MXN</p>
                   <p className="text-xs text-slate-500">
-                    {v.items.map((it) => it.nombre).join(", ")} Â· {new Date(v.fecha).toLocaleString("es-MX")}
-                    {v.recetaArchivo && " Â· Con receta adjunta"}
+                    {v.items.map((it) => it.nombre).join(", ")} · {new Date(v.fecha).toLocaleString("es-MX")}
+                    {v.recetaArchivo && " · Con receta adjunta"}
                   </p>
                 </div>
                 <button
@@ -1430,15 +1430,15 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
       {presupuestosMostrador.length > 0 && (
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4">
           <h3 className="font-semibold text-slate-800 text-sm mb-2">
-            ðŸ§¾ Presupuestos guardados ({presupuestosMostrador.length})
+            🧾 Presupuestos guardados ({presupuestosMostrador.length})
           </h3>
           <div className="space-y-2">
             {presupuestosMostrador.map((v) => (
               <div key={v.folio} className="bg-white rounded-lg border border-slate-200 p-2 flex items-center justify-between flex-wrap gap-2">
                 <div className="text-sm">
-                  <p className="font-medium">Folio #{v.folio} â€” {v.nombreCliente} â€” ${v.total.toFixed(2)} MXN</p>
+                  <p className="font-medium">Folio #{v.folio} — {v.nombreCliente} — ${v.total.toFixed(2)} MXN</p>
                   <p className="text-xs text-slate-500">
-                    {v.items.map((it) => it.nombre).join(", ")} Â· {new Date(v.fecha).toLocaleString("es-MX")}
+                    {v.items.map((it) => it.nombre).join(", ")} · {new Date(v.fecha).toLocaleString("es-MX")}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -1484,9 +1484,9 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
               .map((v) => (
                 <div key={v.folio} className="flex items-center justify-between text-sm border-b py-1.5">
                   <div>
-                    <span className="font-medium">#{v.folio} â€” {v.nombreCliente}</span>{" "}
+                    <span className="font-medium">#{v.folio} — {v.nombreCliente}</span>{" "}
                     <span className="text-xs text-slate-400">
-                      ${v.total.toFixed(2)} Â· {v.estatus} Â· {new Date(v.fecha).toLocaleDateString("es-MX")}
+                      ${v.total.toFixed(2)} · {v.estatus} · {new Date(v.fecha).toLocaleDateString("es-MX")}
                     </span>
                   </div>
                   <button onClick={() => setPreview(v)} className="text-xs px-3 py-1 rounded-lg bg-slate-100 text-slate-600">
@@ -1530,7 +1530,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                     onClick={() => setClienteSel(p)}
                     className="block w-full text-left px-2 py-1.5 text-xs hover:bg-slate-50 rounded"
                   >
-                    {p.nombre} â€” {p.telefono}
+                    {p.nombre} — {p.telefono}
                   </button>
                 ))}
               </div>
@@ -1546,7 +1546,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
             placeholder="Nombre de quien vende"
             className="w-full border rounded-lg px-2 py-1.5 text-sm mb-2"
           />
-          <label className="text-xs text-slate-500">Optometrista que atendiÃ³ (para el Dashboard)</label>
+          <label className="text-xs text-slate-500">Optometrista que atendió (para el Dashboard)</label>
           <input
             value={optometrista}
             onChange={(e) => setOptometrista(e.target.value)}
@@ -1563,8 +1563,8 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
             className="w-full border rounded-lg px-2 py-1.5 text-sm mb-2"
           >
             <option value="efectivo">Efectivo</option>
-            <option value="tarjeta_credito">Tarjeta de crÃ©dito</option>
-            <option value="tarjeta_debito">Tarjeta de dÃ©bito</option>
+            <option value="tarjeta_credito">Tarjeta de crédito</option>
+            <option value="tarjeta_debito">Tarjeta de débito</option>
             <option value="transferencia">Transferencia</option>
           </select>
           <label className="text-xs text-slate-500">Abono ($ MXN)</label>
@@ -1580,7 +1580,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
       <div className="col-span-2 space-y-3">
         <div className="bg-white rounded-xl border p-3">
           <h3 className="font-semibold text-sm mb-2 flex items-center gap-1">
-            <Search size={16} /> Buscar artÃ­culo
+            <Search size={16} /> Buscar artículo
           </h3>
           <div className="flex gap-2 mb-2">
             <select
@@ -1588,7 +1588,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
               onChange={(e) => setCategoriaArtSel(e.target.value)}
               className="border rounded-lg px-2 py-1.5 text-sm"
             >
-              <option value="">Todas las categorÃ­as</option>
+              <option value="">Todas las categorías</option>
               <option value="armazones">Armazones</option>
               <option value="lentesGraduados">Lentes graduados</option>
               <option value="lentesContacto">Lentes de contacto</option>
@@ -1598,7 +1598,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
             <input
               value={busquedaArt}
               onChange={(e) => setBusquedaArt(e.target.value)}
-              placeholder="Nombre del artÃ­culo..."
+              placeholder="Nombre del artículo..."
               className="flex-1 border rounded-lg px-2 py-1.5 text-sm"
             />
           </div>
@@ -1614,19 +1614,19 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
               </button>
             ))}
             {articulosFiltrados.length === 0 && (
-              <p className="text-xs text-slate-400 col-span-2">Sin artÃ­culos en inventario aÃºn.</p>
+              <p className="text-xs text-slate-400 col-span-2">Sin artículos en inventario aún.</p>
             )}
           </div>
         </div>
 
         <div className="bg-white rounded-xl border p-3">
           <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-            <h3 className="font-semibold text-sm">Nota de venta â€” folio #{(ventas[ventas.length - 1]?.folio || 0) + 1}</h3>
+            <h3 className="font-semibold text-sm">Nota de venta — folio #{(ventas[ventas.length - 1]?.folio || 0) + 1}</h3>
             <button
               onClick={() => setModoFechaPasada(!modoFechaPasada)}
               className={`text-xs px-2 py-1 rounded-lg ${modoFechaPasada ? "bg-amber-500 text-white" : "bg-slate-100 text-slate-600"}`}
             >
-              {modoFechaPasada ? "âœ• Cancelar fecha pasada" : "ðŸ“… Registrar venta de fecha pasada"}
+              {modoFechaPasada ? "✕ Cancelar fecha pasada" : "📅 Registrar venta de fecha pasada"}
             </button>
           </div>
           {modoFechaPasada && (
@@ -1710,7 +1710,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
               <div className="flex items-center gap-3 mb-3">
                 {config.logo && <img src={config.logo} style={{ height: 60 }} alt="logo" />}
                 <div>
-                  <p className="font-bold">Spektrum Ã“pticas</p>
+                  <p className="font-bold">Spektrum Ópticas</p>
                   <p className="text-xs">{config.direccion}</p>
                   <p className="text-xs">Tel: {config.telefono}</p>
                 </div>
@@ -1723,7 +1723,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
               <p className="text-sm">Fecha: {new Date(preview.fecha).toLocaleString("es-MX")}</p>
               <table className="w-full text-sm mt-3">
                 <thead>
-                  <tr className="border-b"><th className="text-left">ArtÃ­culo</th><th className="text-right">Precio</th></tr>
+                  <tr className="border-b"><th className="text-left">Artículo</th><th className="text-right">Precio</th></tr>
                 </thead>
                 <tbody>
                   {preview.items.map((it, i) => (
@@ -1740,12 +1740,12 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                 </>
               )}
               <p className="text-right font-bold mt-2">Total: ${preview.total.toFixed(2)} MXN</p>
-              <p className="text-right text-sm">Abono: ${preview.abono.toFixed(2)} â€” Saldo: ${preview.saldo.toFixed(2)}</p>
+              <p className="text-right text-sm">Abono: ${preview.abono.toFixed(2)} — Saldo: ${preview.saldo.toFixed(2)}</p>
             </div>
             {preview.estatus === "venta" && (
               <p className="text-xs text-slate-400 mt-2">
-                El mensaje de agradecimiento se intentÃ³ abrir automÃ¡ticamente por WhatsApp y/o correo. Si tu navegador
-                bloqueÃ³ la ventana, usa los botones de abajo. Imprimir la nota es opcional.
+                El mensaje de agradecimiento se intentó abrir automáticamente por WhatsApp y/o correo. Si tu navegador
+                bloqueó la ventana, usa los botones de abajo. Imprimir la nota es opcional.
               </p>
             )}
             {(() => {
@@ -1757,14 +1757,14 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                     Enviar {preview.estatus === "presupuesto" ? "presupuesto" : "nota de venta"} por WhatsApp
                   </p>
                   <p className="text-xs text-slate-400 mb-2">
-                    Se va a descargar el PDF a tu computadora y se abrirÃ¡ WhatsApp con el mensaje listo â€” adjunta ahÃ­ el
+                    Se va a descargar el PDF a tu computadora y se abrirá WhatsApp con el mensaje listo — adjunta ahí el
                     PDF descargado antes de enviarlo (WhatsApp no permite adjuntarlo solo desde un enlace).
                   </p>
                   {!p?.telefono && (
                     <input
                       value={telefonoManual}
                       onChange={(e) => setTelefonoManual(e.target.value)}
-                      placeholder="TelÃ©fono del cliente"
+                      placeholder="Teléfono del cliente"
                       className="w-full border rounded-lg px-2 py-1.5 text-sm mb-2"
                     />
                   )}
@@ -1781,7 +1781,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                         if (telefono)
                           abrirWhatsApp(
                             telefono,
-                            textoNotaWhatsApp(preview) + "\n\nðŸ“Ž Te comparto tu nota en PDF (adjunta el archivo aquÃ­)."
+                            textoNotaWhatsApp(preview) + "\n\n📎 Te comparto tu nota en PDF (adjunta el archivo aquí)."
                           );
                       }}
                       disabled={!telefono}
@@ -1803,7 +1803,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
                       <button
                         onClick={async () => {
                           await generarPDFNota(preview, config);
-                          abrirWhatsApp(p.telefono, msj.whatsapp + "\n\nðŸ“Ž Te comparto tu nota en PDF (adjunta el archivo aquÃ­).");
+                          abrirWhatsApp(p.telefono, msj.whatsapp + "\n\n📎 Te comparto tu nota en PDF (adjunta el archivo aquí).");
                         }}
                         className="flex-1 py-2 rounded-lg bg-emerald-500 text-white text-sm"
                       >
@@ -1836,7 +1836,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
         )}
       </Modal>
 
-      <Modal open={!!cobrandoFolio} onClose={() => setCobrandoFolio(null)} title={`Cobrar saldo pendiente â€” Folio #${cobrandoFolio}`}>
+      <Modal open={!!cobrandoFolio} onClose={() => setCobrandoFolio(null)} title={`Cobrar saldo pendiente — Folio #${cobrandoFolio}`}>
         {(() => {
           const venta = ventas.find((v) => v.folio === cobrandoFolio);
           if (!venta) return null;
@@ -1844,7 +1844,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
             <div>
               <p className="text-sm mb-1">Cliente: <b>{venta.nombreCliente}</b></p>
               <p className="text-sm text-slate-500 mb-4">
-                Total: ${venta.total.toFixed(2)} Â· Abonado: ${venta.abono.toFixed(2)} Â· Saldo pendiente: ${venta.saldo.toFixed(2)}
+                Total: ${venta.total.toFixed(2)} · Abonado: ${venta.abono.toFixed(2)} · Saldo pendiente: ${venta.saldo.toFixed(2)}
               </p>
               <Field label="Monto a cobrar" type="number" value={montoCobroFolio} onChange={(e) => setMontoCobroFolio(e.target.value)} />
               <label className="block mb-3">
@@ -1894,10 +1894,10 @@ const PRODUCTOS_CONTACTO_SEED = [
     nombreProducto: "SofLens 59",
     marca: "Bausch & Lomb",
     caracteristicas:
-      "Cualidades: Lente mensual de alta resistencia a la acumulaciÃ³n de depÃ³sitos y proteÃ­nas. Ofrece una visiÃ³n clara con una inversiÃ³n muy baja, ideal para usuarios principiantes",
-    rangos: "MiopÃ­a: -0.50 D a -9.00 D\nHipermetropÃ­a: +0.50 D a +6.00 D",
+      "Cualidades: Lente mensual de alta resistencia a la acumulación de depósitos y proteínas. Ofrece una visión clara con una inversión muy baja, ideal para usuarios principiantes",
+    rangos: "Miopía: -0.50 D a -9.00 D\nHipermetropía: +0.50 D a +6.00 D",
     presentacion: "6 lentes",
-    tipoLente: "EsfÃ©rico",
+    tipoLente: "Esférico",
     reemplazo: "Mensual",
     precio: 420,
   },
@@ -1905,11 +1905,11 @@ const PRODUCTOS_CONTACTO_SEED = [
     nombreProducto: "Acuvue Oasys con Hydraclear Plus",
     marca: "Johnson & Johnson",
     caracteristicas:
-      "Cualidades: Lente quincenal ultra cÃ³modo que imita las lÃ¡grimas naturales para combatir la resequedad ocular en oficinas o climas secos. Cuenta con uno de los filtros de protecciÃ³n UV mÃ¡s altos del mercado.",
+      "Cualidades: Lente quincenal ultra cómodo que imita las lágrimas naturales para combatir la resequedad ocular en oficinas o climas secos. Cuenta con uno de los filtros de protección UV más altos del mercado.",
     rangos:
-      "MiopÃ­a: -0.50 D a -12.00 D (pasos de 0.50 D despuÃ©s de -6.00 D)\nHipermetropÃ­a: +0.50 D a +8.00 D (pasos de 0.50 D despuÃ©s de +6.00 D)",
+      "Miopía: -0.50 D a -12.00 D (pasos de 0.50 D después de -6.00 D)\nHipermetropía: +0.50 D a +8.00 D (pasos de 0.50 D después de +6.00 D)",
     presentacion: "6 lentes",
-    tipoLente: "EsfÃ©rico",
+    tipoLente: "Esférico",
     reemplazo: "Quincenal",
     precio: 675,
   },
@@ -1917,11 +1917,11 @@ const PRODUCTOS_CONTACTO_SEED = [
     nombreProducto: "Biofinity",
     marca: "Cooper Vision",
     caracteristicas:
-      "Cualidades: Fabricado con hidrogel de silicona natural sin aditivos ni humectantes artificiales. Su altÃ­sima transmisiÃ³n de oxÃ­geno mantiene los ojos blancos y saludables durante jornadas de uso muy prolongadas.",
+      "Cualidades: Fabricado con hidrogel de silicona natural sin aditivos ni humectantes artificiales. Su altísima transmisión de oxígeno mantiene los ojos blancos y saludables durante jornadas de uso muy prolongadas.",
     rangos:
-      "MiopÃ­a: -0.25 D a -12.00 D\nHipermetropÃ­a: +0.25 D a +8.00 D\n(Nota: Existe la gama XR bajo pedido especial que cubre desde -20.00 D hasta +15.00 D)",
+      "Miopía: -0.25 D a -12.00 D\nHipermetropía: +0.25 D a +8.00 D\n(Nota: Existe la gama XR bajo pedido especial que cubre desde -20.00 D hasta +15.00 D)",
     presentacion: "6 lentes",
-    tipoLente: "EsfÃ©rico",
+    tipoLente: "Esférico",
     reemplazo: "Mensual",
     precio: 570,
   },
@@ -1929,11 +1929,11 @@ const PRODUCTOS_CONTACTO_SEED = [
     nombreProducto: "Biofinity Toric",
     marca: "Cooper Vision",
     caracteristicas:
-      "Cualidades: El lente lÃ­der para corregir el astigmatismo. Su diseÃ±o optimizado garantiza que el lente se mantenga perfectamente estable en el ojo al parpadear, evitando la visiÃ³n borrosa o los mareos.",
+      "Cualidades: El lente líder para corregir el astigmatismo. Su diseño optimizado garantiza que el lente se mantenga perfectamente estable en el ojo al parpadear, evitando la visión borrosa o los mareos.",
     rangos:
-      "Esfera (MiopÃ­a/HipermetropÃ­a): -10.00 D a +6.00 D\nCilindro (Astigmatismo): -0.75 D, -1.25 D, -1.75 D, -2.25 D\nEje: 10Â° a 180Â° (en pasos de 10Â°)",
+      "Esfera (Miopía/Hipermetropía): -10.00 D a +6.00 D\nCilindro (Astigmatismo): -0.75 D, -1.25 D, -1.75 D, -2.25 D\nEje: 10° a 180° (en pasos de 10°)",
     presentacion: "6 lentes",
-    tipoLente: "TÃ³rico (Astigmatismo)",
+    tipoLente: "Tórico (Astigmatismo)",
     reemplazo: "Mensual",
     precio: 1075,
   },
@@ -1941,11 +1941,11 @@ const PRODUCTOS_CONTACTO_SEED = [
     nombreProducto: "Air Optix Colors",
     marca: "Alcon",
     caracteristicas:
-      "Cualidades: Lentes de color mensuales que aportan una mirada natural y profunda. Al estar hechos de hidrogel de silicona, dejan pasar hasta 5 veces mÃ¡s oxÃ­geno que los pupilentes de color econÃ³micos tradicionales.",
+      "Cualidades: Lentes de color mensuales que aportan una mirada natural y profunda. Al estar hechos de hidrogel de silicona, dejan pasar hasta 5 veces más oxígeno que los pupilentes de color económicos tradicionales.",
     rangos:
-      "EstÃ©ticos / CosmÃ©ticos: 0.00 (Neutros)\nMiopÃ­a: -0.25 D a -6.00 D (y hasta -8.00 D en pasos de 0.50 D)\nHipermetropÃ­a: +0.25 D a +6.00 D",
+      "Estéticos / Cosméticos: 0.00 (Neutros)\nMiopía: -0.25 D a -6.00 D (y hasta -8.00 D en pasos de 0.50 D)\nHipermetropía: +0.25 D a +6.00 D",
     presentacion: "2 lentes",
-    tipoLente: "CosmÃ©tico / Color",
+    tipoLente: "Cosmético / Color",
     reemplazo: "Mensual",
     precio: 775,
   },
@@ -1953,10 +1953,10 @@ const PRODUCTOS_CONTACTO_SEED = [
     nombreProducto: "Ultra Monthly",
     marca: "Bausch & Lomb",
     caracteristicas:
-      "Cualidades: DiseÃ±ado especÃ­ficamente para usuarios de pantallas digitales (computadoras y celulares). Su tecnologÃ­a retiene el 95% de la humedad del lente hasta por 16 horas continuas de uso.",
-    rangos: "MiopÃ­a: -0.25 D a -12.00 D\nHipermetropÃ­a: +0.25 D a +6.00 D",
+      "Cualidades: Diseñado específicamente para usuarios de pantallas digitales (computadoras y celulares). Su tecnología retiene el 95% de la humedad del lente hasta por 16 horas continuas de uso.",
+    rangos: "Miopía: -0.25 D a -12.00 D\nHipermetropía: +0.25 D a +6.00 D",
     presentacion: "6 lentes",
-    tipoLente: "EsfÃ©rico",
+    tipoLente: "Esférico",
     reemplazo: "Mensual",
     precio: 750,
   },
@@ -1964,34 +1964,34 @@ const PRODUCTOS_CONTACTO_SEED = [
     nombreProducto: "SofLens 66 Toric",
     marca: "Bausch & Lomb",
     caracteristicas:
-      "Cualidades: Lente mensual para astigmatismo con un diseÃ±o hidrofÃ­lico clÃ¡sico muy probado. Su excelente estabilidad geomÃ©trica proporciona una agudeza visual nÃ­tida en pacientes con astigmatismos elevados.",
+      "Cualidades: Lente mensual para astigmatismo con un diseño hidrofílico clásico muy probado. Su excelente estabilidad geométrica proporciona una agudeza visual nítida en pacientes con astigmatismos elevados.",
     rangos:
-      "Esfera (MiopÃ­a): 0.00 D a -9.00 D\nCilindro (Astigmatismo): -0.75 D, -1.25 D, -1.75 D, -2.25 D, -2.75 D\nEje: 10Â° a 180Â° (en pasos de 10Â°)",
+      "Esfera (Miopía): 0.00 D a -9.00 D\nCilindro (Astigmatismo): -0.75 D, -1.25 D, -1.75 D, -2.25 D, -2.75 D\nEje: 10° a 180° (en pasos de 10°)",
     presentacion: "6 lentes",
-    tipoLente: "TÃ³rico (Astigmatismo)",
+    tipoLente: "Tórico (Astigmatismo)",
     reemplazo: "Mensual",
     precio: 900,
   },
   {
-    nombreProducto: "UV Soft EsfÃ©rico",
+    nombreProducto: "UV Soft Esférico",
     marca: "Hidrosoft",
     caracteristicas:
-      "Cualidades: Lente de duraciÃ³n anual torneado a la medida en laboratorio. Ofrece un material no iÃ³nico de gran resistencia al desgaste diario y protecciÃ³n contra los rayos UV. Muy rentable a largo plazo.",
-    rangos: "MiopÃ­a / HipermetropÃ­a: -10.00 D a +10.00 D (rango estÃ¡ndar; se pueden pedir graduaciones mÃ¡s altas sobre diseÃ±o)",
+      "Cualidades: Lente de duración anual torneado a la medida en laboratorio. Ofrece un material no iónico de gran resistencia al desgaste diario y protección contra los rayos UV. Muy rentable a largo plazo.",
+    rangos: "Miopía / Hipermetropía: -10.00 D a +10.00 D (rango estándar; se pueden pedir graduaciones más altas sobre diseño)",
     presentacion: "1 lente (Vial)",
-    tipoLente: "EsfÃ©rico",
+    tipoLente: "Esférico",
     reemplazo: "Anual",
     precio: 1500,
   },
   {
-    nombreProducto: "UV Soft TÃ³rico",
+    nombreProducto: "UV Soft Tórico",
     marca: "Hidrosoft",
     caracteristicas:
-      "Cualidades: Lente anual personalizado para astigmatismos complejos, altos o combinados. Al fabricarse de forma individual, permite ajustar el eje grado por grado para un enfoque milimÃ©trico e impecable.",
+      "Cualidades: Lente anual personalizado para astigmatismos complejos, altos o combinados. Al fabricarse de forma individual, permite ajustar el eje grado por grado para un enfoque milimétrico e impecable.",
     rangos:
-      "Esfera: -10.00 D a +10.00 D\nCilindro (Astigmatismo): -0.75 D a -5.00 D (o mayor segÃºn el caso)\nEje: 1Â° a 180Â° (ajustable de 1Â° en 1Â°)",
+      "Esfera: -10.00 D a +10.00 D\nCilindro (Astigmatismo): -0.75 D a -5.00 D (o mayor según el caso)\nEje: 1° a 180° (ajustable de 1° en 1°)",
     presentacion: "1 lente (Vial)",
-    tipoLente: "TÃ³rico (Astigmatismo)",
+    tipoLente: "Tórico (Astigmatismo)",
     reemplazo: "Anual",
     precio: 3400,
   },
@@ -2080,15 +2080,15 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
   const esSolar = cat === "lentesSolares";
   const esAccesorio = cat === "accesorios";
 
-  const LINEAS_ARMAZON = ["ArmazÃ³n LÃ­nea EconÃ³mica", "ArmazÃ³n LÃ­nea EstÃ¡ndar", "ArmazÃ³n LÃ­nea Premium"];
+  const LINEAS_ARMAZON = ["Armazón Línea Económica", "Armazón Línea Estándar", "Armazón Línea Premium"];
   const CATEGORIAS_ARMAZON = {
     Dama: ["Dama - Metal", "Dama - Pasta", "Dama - Combinado"],
     Caballero: ["Caballero - Metal", "Caballero - Pasta", "Caballero - Combinado"],
     Unisex: ["Unisex - Metal", "Unisex - Pasta", "Unisex - Combinado"],
     Junior: ["Junior - Metal", "Junior - Pasta", "Junior - Combinado"],
   };
-  const COLORES_PASTA = ["Negro", "CafÃ©", "Azul", "Transparente", "Rosa", "TraslÃºcido", "Verde", "Morado", "Lila", "Animal print"];
-  const COLORES_METAL = ["Dorado", "Plata", "CafÃ©", "Negro", "Azul", "Morado", "Lila", "Rojo", "Combinado"];
+  const COLORES_PASTA = ["Negro", "Café", "Azul", "Transparente", "Rosa", "Traslúcido", "Verde", "Morado", "Lila", "Animal print"];
+  const COLORES_METAL = ["Dorado", "Plata", "Café", "Negro", "Azul", "Morado", "Lila", "Rojo", "Combinado"];
   const coloresDisponibles = nuevo.categoriaArmazon?.includes("Pasta")
     ? COLORES_PASTA
     : nuevo.categoriaArmazon?.includes("Metal")
@@ -2129,10 +2129,10 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
     let extra = {};
     if (esArmazon) {
       if (!nuevo.tipoLinea || !nuevo.categoriaArmazon) return;
-      nombreFinal = `${nuevo.tipoLinea} Â· ${nuevo.categoriaArmazon}`;
+      nombreFinal = `${nuevo.tipoLinea} · ${nuevo.categoriaArmazon}`;
     } else if (esGraduado) {
       if (!nuevo.material || !nuevo.tipo || !nuevo.tratamiento || !nuevo.rango) return;
-      nombreFinal = `${nuevo.material} Â· ${nuevo.tipo} Â· ${nuevo.tratamiento} Â· ${nuevo.rango}`;
+      nombreFinal = `${nuevo.material} · ${nuevo.tipo} · ${nuevo.tratamiento} · ${nuevo.rango}`;
       extra = { rangoDescripcion: `${nuevo.rango}: ${RANGOS_RX[nuevo.rango]}` };
     } else if (esContacto) {
       if (!nuevo.marcaContacto || !nuevo.nombreProductoContacto) return;
@@ -2158,7 +2158,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
       }
     } else if (esSolar) {
       if (!nuevo.marcaSolar || !nuevo.modeloSolar || !nuevo.colorSolar) return;
-      nombreFinal = `${nuevo.marcaSolar} Â· ${nuevo.modeloSolar} Â· ${nuevo.colorSolar}`;
+      nombreFinal = `${nuevo.marcaSolar} · ${nuevo.modeloSolar} · ${nuevo.colorSolar}`;
     } else if (!nuevo.nombre) {
       return;
     }
@@ -2225,12 +2225,12 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
       {esArmazon && (
         <div className="bg-white border rounded-xl p-3 mb-4">
           <button onClick={() => setCatalogoAbierto(!catalogoAbierto)} className="text-sm font-semibold text-slate-700">
-            {catalogoAbierto ? "â–¾" : "â–¸"} CatÃ¡logo de marcas y modelos ({marcasOrdenadas.length} marcas)
+            {catalogoAbierto ? "▾" : "▸"} Catálogo de marcas y modelos ({marcasOrdenadas.length} marcas)
           </button>
           {catalogoAbierto && (
             <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-slate-500 block mb-1">Agregar marcas (una por lÃ­nea o separadas por coma)</label>
+                <label className="text-xs text-slate-500 block mb-1">Agregar marcas (una por línea o separadas por coma)</label>
                 <textarea
                   value={bulkMarcas}
                   onChange={(e) => setBulkMarcas(e.target.value)}
@@ -2272,7 +2272,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                 </button>
                 {marcaParaModelos && (
                   <p className="text-xs text-slate-400 mt-2">
-                    Modelos actuales: {(catalogoMarcas[marcaParaModelos] || []).join(", ") || "ninguno todavÃ­a"}
+                    Modelos actuales: {(catalogoMarcas[marcaParaModelos] || []).join(", ") || "ninguno todavía"}
                   </p>
                 )}
               </div>
@@ -2285,26 +2285,26 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
         {esArmazon && (
           <>
             <div>
-              <label className="text-xs text-slate-500">LÃ­nea</label>
+              <label className="text-xs text-slate-500">Línea</label>
               <select
                 value={nuevo.tipoLinea}
                 onChange={(e) => setNuevo({ ...nuevo, tipoLinea: e.target.value })}
                 className="block border rounded-lg px-2 py-1.5 text-sm"
               >
-                <option value="">â€”</option>
+                <option value="">—</option>
                 {LINEAS_ARMAZON.map((l) => (
                   <option key={l}>{l}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="text-xs text-slate-500">CategorÃ­a</label>
+              <label className="text-xs text-slate-500">Categoría</label>
               <select
                 value={nuevo.categoriaArmazon}
                 onChange={(e) => setNuevo({ ...nuevo, categoriaArmazon: e.target.value, descripcion: "" })}
                 className="block border rounded-lg px-2 py-1.5 text-sm"
               >
-                <option value="">â€”</option>
+                <option value="">—</option>
                 {Object.entries(CATEGORIAS_ARMAZON).map(([grupo, opciones]) => (
                   <optgroup key={grupo} label={grupo}>
                     {opciones.map((o) => (
@@ -2315,14 +2315,14 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
               </select>
             </div>
             <div>
-              <label className="text-xs text-slate-500">DescripciÃ³n (color)</label>
+              <label className="text-xs text-slate-500">Descripción (color)</label>
               <select
                 value={nuevo.descripcion}
                 onChange={(e) => setNuevo({ ...nuevo, descripcion: e.target.value })}
                 disabled={!nuevo.categoriaArmazon}
                 className="block border rounded-lg px-2 py-1.5 text-sm disabled:bg-slate-100 disabled:opacity-60"
               >
-                <option value="">{nuevo.categoriaArmazon ? "â€”" : "Elige categorÃ­a primero"}</option>
+                <option value="">{nuevo.categoriaArmazon ? "—" : "Elige categoría primero"}</option>
                 {coloresDisponibles.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
@@ -2356,7 +2356,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                   onChange={(e) => setNuevo({ ...nuevo, marcaArmazon: e.target.value, modeloArmazon: "" })}
                   className="block border rounded-lg px-2 py-1.5 text-sm w-36"
                 >
-                  <option value="">â€”</option>
+                  <option value="">—</option>
                   {marcasOrdenadas.map((m) => (
                     <option key={m} value={m}>{m}</option>
                   ))}
@@ -2386,7 +2386,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                   disabled={!nuevo.marcaArmazon}
                   className="block border rounded-lg px-2 py-1.5 text-sm w-36 disabled:bg-slate-100 disabled:opacity-60"
                 >
-                  <option value="">{nuevo.marcaArmazon ? "â€”" : "Elige marca primero"}</option>
+                  <option value="">{nuevo.marcaArmazon ? "—" : "Elige marca primero"}</option>
                   {modelosDeMarca.map((m) => (
                     <option key={m} value={m}>{m}</option>
                   ))}
@@ -2411,13 +2411,13 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
             <div>
               <label className="text-xs text-slate-500">Clip-on compatible</label>
               <select value={nuevo.clipOnCompatible} onChange={(e) => setNuevo({ ...nuevo, clipOnCompatible: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm">
-                <option value="">â€”</option>
-                <option>SÃ­</option>
+                <option value="">—</option>
+                <option>Sí</option>
                 <option>No</option>
               </select>
             </div>
             <div className="w-full">
-              <label className="text-xs text-slate-500">Acerca de (descripciÃ³n para la ficha)</label>
+              <label className="text-xs text-slate-500">Acerca de (descripción para la ficha)</label>
               <textarea
                 value={nuevo.acercaDe}
                 onChange={(e) => setNuevo({ ...nuevo, acercaDe: e.target.value })}
@@ -2437,7 +2437,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                 onChange={(e) => setNuevo({ ...nuevo, material: e.target.value, rango: "" })}
                 className="block border rounded-lg px-2 py-1.5 text-sm"
               >
-                <option value="">â€”</option>
+                <option value="">—</option>
                 <option>CR39</option>
                 <option>Policarbonato</option>
                 <option>Hi Index</option>
@@ -2446,7 +2446,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
             <div>
               <label className="text-xs text-slate-500">Tipo</label>
               <select value={nuevo.tipo} onChange={(e) => setNuevo({ ...nuevo, tipo: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm">
-                <option value="">â€”</option>
+                <option value="">—</option>
                 <option>Monofocal</option>
                 <option>Bifocal</option>
                 <option>Progresivo</option>
@@ -2455,10 +2455,10 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
             <div>
               <label className="text-xs text-slate-500">Tratamiento</label>
               <select value={nuevo.tratamiento} onChange={(e) => setNuevo({ ...nuevo, tratamiento: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm">
-                <option value="">â€”</option>
+                <option value="">—</option>
                 <option>Antireflejante</option>
                 <option>Antiblue</option>
-                <option>FotocromÃ¡tico</option>
+                <option>Fotocromático</option>
               </select>
             </div>
             <div>
@@ -2470,9 +2470,9 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                 className="block border rounded-lg px-2 py-1.5 text-sm disabled:bg-slate-100 disabled:opacity-60"
                 title={!nuevo.material ? "Elige primero el material" : ""}
               >
-                <option value="">{nuevo.material ? "â€”" : "Elige material primero"}</option>
+                <option value="">{nuevo.material ? "—" : "Elige material primero"}</option>
                 {rangosDisponibles.map((r) => (
-                  <option key={r} value={r}>{r} â€” {RANGOS_RX[r]}</option>
+                  <option key={r} value={r}>{r} — {RANGOS_RX[r]}</option>
                 ))}
               </select>
             </div>
@@ -2489,7 +2489,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                   onChange={(e) => setNuevo({ ...nuevo, marcaContacto: e.target.value, nombreProductoContacto: "" })}
                   className="block border rounded-lg px-2 py-1.5 text-sm w-48"
                 >
-                  <option value="">â€”</option>
+                  <option value="">—</option>
                   {marcasContactoOrdenadas.map((m) => (
                     <option key={m} value={m}>{m}</option>
                   ))}
@@ -2532,7 +2532,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                   }}
                   className="block border rounded-lg px-2 py-1.5 text-sm w-56 disabled:bg-slate-100 disabled:opacity-60"
                 >
-                  <option value="">{nuevo.marcaContacto ? "â€”" : "Elige marca primero"}</option>
+                  <option value="">{nuevo.marcaContacto ? "—" : "Elige marca primero"}</option>
                   {productosDeMarcaContacto.map((p) => (
                     <option key={p.nombreProducto} value={p.nombreProducto}>{p.nombreProducto}</option>
                   ))}
@@ -2566,18 +2566,18 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
 
             {nuevo.modoManualContacto && (
               <div className="bg-slate-50 rounded-lg p-2 w-full space-y-2">
-                <p className="text-xs text-amber-700">Producto nuevo â€” completa sus caracterÃ­sticas (se guardarÃ¡ en el catÃ¡logo para la prÃ³xima vez).</p>
+                <p className="text-xs text-amber-700">Producto nuevo — completa sus características (se guardará en el catálogo para la próxima vez).</p>
                 <textarea
                   value={nuevo.caracteristicasContacto}
                   onChange={(e) => setNuevo({ ...nuevo, caracteristicasContacto: e.target.value })}
-                  placeholder="CaracterÃ­sticas principales"
+                  placeholder="Características principales"
                   rows={2}
                   className="w-full border rounded-lg px-2 py-1.5 text-sm"
                 />
                 <textarea
                   value={nuevo.rangosContacto}
                   onChange={(e) => setNuevo({ ...nuevo, rangosContacto: e.target.value })}
-                  placeholder="Rangos de graduaciÃ³n"
+                  placeholder="Rangos de graduación"
                   rows={2}
                   className="w-full border rounded-lg px-2 py-1.5 text-sm"
                 />
@@ -2585,7 +2585,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                   <input
                     value={nuevo.presentacionContacto}
                     onChange={(e) => setNuevo({ ...nuevo, presentacionContacto: e.target.value })}
-                    placeholder="PresentaciÃ³n (ej. 6 lentes)"
+                    placeholder="Presentación (ej. 6 lentes)"
                     className="border rounded-lg px-2 py-1.5 text-sm w-40"
                   />
                   <select
@@ -2594,9 +2594,9 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                     className="border rounded-lg px-2 py-1.5 text-sm"
                   >
                     <option value="">Tipo de lente</option>
-                    <option>EsfÃ©rico</option>
-                    <option>TÃ³rico (Astigmatismo)</option>
-                    <option>CosmÃ©tico / Color</option>
+                    <option>Esférico</option>
+                    <option>Tórico (Astigmatismo)</option>
+                    <option>Cosmético / Color</option>
                   </select>
                   <select
                     value={nuevo.reemplazoContacto}
@@ -2614,7 +2614,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
 
             {!nuevo.modoManualContacto && nuevo.nombreProductoContacto && (
               <div className="text-xs text-slate-500 w-full bg-slate-50 rounded-lg p-2">
-                <p><b>PresentaciÃ³n:</b> {nuevo.presentacionContacto} Â· <b>Tipo:</b> {nuevo.tipoLenteContacto} Â· <b>Reemplazo:</b> {nuevo.reemplazoContacto}</p>
+                <p><b>Presentación:</b> {nuevo.presentacionContacto} · <b>Tipo:</b> {nuevo.tipoLenteContacto} · <b>Reemplazo:</b> {nuevo.reemplazoContacto}</p>
               </div>
             )}
           </>
@@ -2668,7 +2668,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
           />
         </div>
         <div>
-          <label className="text-xs text-slate-500">Imagen (tienda en lÃ­nea)</label>
+          <label className="text-xs text-slate-500">Imagen (tienda en línea)</label>
           <div className="flex items-center gap-2">
             {nuevo.imagen ? (
               <img src={nuevo.imagen} alt="" className="w-10 h-10 rounded object-cover border" />
@@ -2690,7 +2690,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                     className="absolute -top-1 -right-1 bg-white rounded-full border text-red-500"
                     style={{ width: 14, height: 14, fontSize: 9, lineHeight: "12px" }}
                   >
-                    âœ•
+                    ✕
                   </button>
                 </div>
               ))}
@@ -2720,7 +2720,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
       </div>
 
       <div id="inventario-imprimible" className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
-        <p className="hidden print:block font-bold px-3 pt-3">Inventario â€” {CATEGORIAS_INV.find((c) => c.key === cat)?.label}</p>
+        <p className="hidden print:block font-bold px-3 pt-3">Inventario — {CATEGORIAS_INV.find((c) => c.key === cat)?.label}</p>
         {esContacto ? (
           <table className="w-full text-sm">
             <thead style={{ background: BEIGE }}>
@@ -2729,9 +2729,9 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                 <th className="text-left px-3 py-2">SKU</th>
                 <th className="text-left px-3 py-2">Nombre (del Producto)</th>
                 <th className="text-left px-3 py-2">Marca</th>
-                <th className="text-left px-3 py-2">CaracterÃ­sticas Principales</th>
-                <th className="text-left px-3 py-2">Rangos de graduaciÃ³n</th>
-                <th className="text-left px-3 py-2">PresentaciÃ³n</th>
+                <th className="text-left px-3 py-2">Características Principales</th>
+                <th className="text-left px-3 py-2">Rangos de graduación</th>
+                <th className="text-left px-3 py-2">Presentación</th>
                 <th className="text-left px-3 py-2">Tipo de Lente</th>
                 <th className="text-left px-3 py-2">Reemplazo</th>
                 <th className="text-right px-3 py-2">Precio</th>
@@ -2747,7 +2747,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                       {a.imagen ? (
                         <img src={a.imagen} alt="" className="w-10 h-10 rounded object-cover border" />
                       ) : (
-                        <div className="w-10 h-10 rounded border border-dashed bg-slate-50 flex items-center justify-center text-slate-300 text-[9px] text-center">vacÃ­o</div>
+                        <div className="w-10 h-10 rounded border border-dashed bg-slate-50 flex items-center justify-center text-slate-300 text-[9px] text-center">vacío</div>
                       )}
                       <input
                         type="file"
@@ -2766,12 +2766,12 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                   </td>
                   <td className="px-3 py-2 text-slate-500 whitespace-nowrap">{a.sku}</td>
                   <td className="px-3 py-2 font-medium whitespace-nowrap">{a.nombreProductoContacto || a.nombre}</td>
-                  <td className="px-3 py-2 whitespace-nowrap">{a.marcaContacto || "â€”"}</td>
-                  <td className="px-3 py-2 max-w-[220px] truncate" title={a.caracteristicas || ""}>{a.caracteristicas || "â€”"}</td>
-                  <td className="px-3 py-2 max-w-[220px] truncate whitespace-pre-line" title={a.rangos || ""}>{a.rangos || "â€”"}</td>
-                  <td className="px-3 py-2 whitespace-nowrap">{a.presentacion || "â€”"}</td>
-                  <td className="px-3 py-2 whitespace-nowrap">{a.tipoLente || "â€”"}</td>
-                  <td className="px-3 py-2 whitespace-nowrap">{a.reemplazo || "â€”"}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{a.marcaContacto || "—"}</td>
+                  <td className="px-3 py-2 max-w-[220px] truncate" title={a.caracteristicas || ""}>{a.caracteristicas || "—"}</td>
+                  <td className="px-3 py-2 max-w-[220px] truncate whitespace-pre-line" title={a.rangos || ""}>{a.rangos || "—"}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{a.presentacion || "—"}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{a.tipoLente || "—"}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{a.reemplazo || "—"}</td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">${a.precio}</td>
                   <td className="px-3 py-2 text-right">
                     <input
@@ -2794,7 +2794,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
               {lista.length === 0 && (
                 <tr>
                   <td colSpan={12} className="text-center text-slate-400 py-6">
-                    Sin artÃ­culos en esta categorÃ­a todavÃ­a.
+                    Sin artículos en esta categoría todavía.
                   </td>
                 </tr>
               )}
@@ -2807,7 +2807,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
               <th className="text-left px-3 py-2 print:hidden">Imagen</th>
               <th className="text-left px-3 py-2">SKU</th>
               <th className="text-left px-3 py-2">Nombre</th>
-              <th className="text-left px-3 py-2">DescripciÃ³n</th>
+              <th className="text-left px-3 py-2">Descripción</th>
               <th className="text-right px-3 py-2">Precio</th>
               <th className="text-right px-3 py-2">Existencias</th>
               <th className="px-3 py-2 print:hidden"></th>
@@ -2821,7 +2821,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                     {a.imagen ? (
                       <img src={a.imagen} alt="" className="w-10 h-10 rounded object-cover border" />
                     ) : (
-                      <div className="w-10 h-10 rounded border border-dashed bg-slate-50 flex items-center justify-center text-slate-300 text-[9px] text-center">vacÃ­o</div>
+                      <div className="w-10 h-10 rounded border border-dashed bg-slate-50 flex items-center justify-center text-slate-300 text-[9px] text-center">vacío</div>
                     )}
                     <input
                       type="file"
@@ -2840,7 +2840,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                 </td>
                 <td className="px-3 py-2 text-slate-500">{a.sku}</td>
                 <td className="px-3 py-2">{a.nombre}</td>
-                <td className="px-3 py-2 text-slate-500 max-w-[260px] truncate" title={a.caracteristicas || ""}>{a.rangoDescripcion || a.caracteristicas || a.descripcion || "â€”"}</td>
+                <td className="px-3 py-2 text-slate-500 max-w-[260px] truncate" title={a.caracteristicas || ""}>{a.rangoDescripcion || a.caracteristicas || a.descripcion || "—"}</td>
                 <td className="px-3 py-2 text-right">${a.precio}</td>
                 <td className="px-3 py-2 text-right">
                   <input
@@ -2868,7 +2868,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
             {lista.length === 0 && (
               <tr>
                 <td colSpan={7} className="text-center text-slate-400 py-6">
-                  Sin artÃ­culos en esta categorÃ­a todavÃ­a.
+                  Sin artículos en esta categoría todavía.
                 </td>
               </tr>
             )}
@@ -2899,8 +2899,8 @@ function EditarArticuloModal({ articulo, onCerrar, onGuardar, config, setConfig 
     tallas: articulo.tallas || [],
     galeriaExtra: articulo.galeriaExtra || [],
   });
-  const COLORES_PASTA = ["Negro", "CafÃ©", "Azul", "Transparente", "Rosa", "TraslÃºcido", "Verde", "Morado", "Lila", "Animal print"];
-  const COLORES_METAL = ["Dorado", "Plata", "CafÃ©", "Negro", "Azul", "Morado", "Lila", "Rojo", "Combinado"];
+  const COLORES_PASTA = ["Negro", "Café", "Azul", "Transparente", "Rosa", "Traslúcido", "Verde", "Morado", "Lila", "Animal print"];
+  const COLORES_METAL = ["Dorado", "Plata", "Café", "Negro", "Azul", "Morado", "Lila", "Rojo", "Combinado"];
   const coloresDisponibles = datos.categoriaArmazon?.includes("Pasta")
     ? COLORES_PASTA
     : datos.categoriaArmazon?.includes("Metal")
@@ -2931,12 +2931,12 @@ function EditarArticuloModal({ articulo, onCerrar, onGuardar, config, setConfig 
   }
 
   return (
-    <Modal open={true} onClose={onCerrar} title={`Editar detalles â€” ${articulo.nombre}`} wide>
+    <Modal open={true} onClose={onCerrar} title={`Editar detalles — ${articulo.nombre}`} wide>
       <div className="space-y-3">
         <div>
-          <label className="text-xs text-slate-500">DescripciÃ³n (color)</label>
+          <label className="text-xs text-slate-500">Descripción (color)</label>
           <select value={datos.descripcion} onChange={(e) => setDatos({ ...datos, descripcion: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm">
-            <option value="">â€”</option>
+            <option value="">—</option>
             {coloresDisponibles.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
@@ -2967,7 +2967,7 @@ function EditarArticuloModal({ articulo, onCerrar, onGuardar, config, setConfig 
               onChange={(e) => setDatos({ ...datos, marcaArmazon: e.target.value, modeloArmazon: "" })}
               className="block border rounded-lg px-2 py-1.5 text-sm w-40"
             >
-              <option value="">â€”</option>
+              <option value="">—</option>
               {marcasOrdenadas.map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
@@ -2996,7 +2996,7 @@ function EditarArticuloModal({ articulo, onCerrar, onGuardar, config, setConfig 
               disabled={!datos.marcaArmazon}
               className="block border rounded-lg px-2 py-1.5 text-sm w-40 disabled:bg-slate-100 disabled:opacity-60"
             >
-              <option value="">{datos.marcaArmazon ? "â€”" : "Elige marca primero"}</option>
+              <option value="">{datos.marcaArmazon ? "—" : "Elige marca primero"}</option>
               {modelosDeMarca.map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
@@ -3020,13 +3020,13 @@ function EditarArticuloModal({ articulo, onCerrar, onGuardar, config, setConfig 
         <label className="block mb-3">
           <span className="text-xs font-medium text-slate-500 uppercase">Clip-on compatible</span>
           <select value={datos.clipOnCompatible || ""} onChange={(e) => setDatos({ ...datos, clipOnCompatible: e.target.value })} className="mt-1 w-full border rounded-lg px-2 py-2 text-sm">
-            <option value="">â€”</option>
-            <option>SÃ­</option>
+            <option value="">—</option>
+            <option>Sí</option>
             <option>No</option>
           </select>
         </label>
         <label className="block mb-3">
-          <span className="text-xs font-medium text-slate-500 uppercase">Acerca de (descripciÃ³n para la ficha)</span>
+          <span className="text-xs font-medium text-slate-500 uppercase">Acerca de (descripción para la ficha)</span>
           <textarea
             value={datos.acercaDe || ""}
             onChange={(e) => setDatos({ ...datos, acercaDe: e.target.value })}
@@ -3051,7 +3051,7 @@ function EditarArticuloModal({ articulo, onCerrar, onGuardar, config, setConfig 
                   className="absolute -top-1 -right-1 bg-white rounded-full border text-red-500"
                   style={{ width: 16, height: 16, fontSize: 10, lineHeight: "14px" }}
                 >
-                  âœ•
+                  ✕
                 </button>
               </div>
             ))}
@@ -3080,14 +3080,14 @@ function EditarArticuloModal({ articulo, onCerrar, onGuardar, config, setConfig 
 }
 
 /* ============================================================
-   PACIENTES (CompilaciÃ³n)
+   PACIENTES (Compilación)
    ============================================================ */
 const CAMPOS_RECETA_PACIENTE = ["Esf", "Cil", "Eje", "DI", "Add", "Obs"];
 
 function lineaOjo(ojo, etiqueta) {
   const o = ojo || {};
   const di = o.di ? `${o.di} mm` : "-";
-  return `${etiqueta}: Esf ${o.esf || "-"} Â· Cil ${o.cil || "-"} Â· Eje ${o.eje || "-"} Â· DI ${di} Â· Add ${o.add || "-"} Â· Obs ${o.obs || "-"}`;
+  return `${etiqueta}: Esf ${o.esf || "-"} · Cil ${o.cil || "-"} · Eje ${o.eje || "-"} · DI ${di} · Add ${o.add || "-"} · Obs ${o.obs || "-"}`;
 }
 
 function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas, config }) {
@@ -3118,7 +3118,7 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, set
       setMensajeUnificar("No se encontraron pacientes duplicados.");
       return;
     }
-    if (!window.confirm(`Se encontraron ${duplicados} nombre(s) con expedientes repetidos. Se van a unificar en uno solo por nombre, combinando sus datos y su historial de compras. Â¿Continuar?`)) {
+    if (!window.confirm(`Se encontraron ${duplicados} nombre(s) con expedientes repetidos. Se van a unificar en uno solo por nombre, combinando sus datos y su historial de compras. ¿Continuar?`)) {
       return;
     }
 
@@ -3180,7 +3180,7 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, set
             <tr>
               <th className="text-left px-3 py-2">Folio</th>
               <th className="text-left px-3 py-2">Nombre</th>
-              <th className="text-left px-3 py-2">TelÃ©fono</th>
+              <th className="text-left px-3 py-2">Teléfono</th>
               <th className="text-right px-3 py-2">Saldo</th>
               <th className="text-right px-3 py-2 print:hidden"># Compras</th>
               <th className="text-left px-3 py-2 print:hidden">Cita</th>
@@ -3208,7 +3208,7 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, set
                         {citaProxima.fecha} {citaProxima.hora}
                       </span>
                     ) : (
-                      <span className="text-xs text-slate-300">â€”</span>
+                      <span className="text-xs text-slate-300">—</span>
                     );
                   })()}
                 </td>
@@ -3219,12 +3219,12 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, set
                     <button
                       onClick={() => {
                         if (!p.telefono) {
-                          window.alert("Este paciente no tiene telÃ©fono guardado para invitarlo.");
+                          window.alert("Este paciente no tiene teléfono guardado para invitarlo.");
                           return;
                         }
                         abrirWhatsApp(
                           p.telefono,
-                          "Estamos felices que seas uno de nuestros clientes distinguidos, y nos encantarÃ­a invitarte a crear una cuenta en nuestra pÃ¡gina, para acceder a promociones, lanzamientos y mÃ¡s. En Spektrum Ã“pticas estamos comprometidos con tu salud visual"
+                          "Estamos felices que seas uno de nuestros clientes distinguidos, y nos encantaría invitarte a crear una cuenta en nuestra página, para acceder a promociones, lanzamientos y más. En Spektrum Ópticas estamos comprometidos con tu salud visual"
                         );
                       }}
                       className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
@@ -3244,7 +3244,7 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, set
             {filtrados.length === 0 && (
               <tr>
                 <td colSpan={8} className="text-center text-slate-400 py-6">
-                  Sin pacientes registrados todavÃ­a.
+                  Sin pacientes registrados todavía.
                 </td>
               </tr>
             )}
@@ -3286,13 +3286,13 @@ function ResumenVisita({ v, paciente, config }) {
   return (
     <div className="border rounded-lg p-3 text-sm">
       <p className="text-xs text-slate-400 mb-1">
-        {fechaVisita(v)} {v.origen ? `Â· origen: ${v.origen}` : ""}
+        {fechaVisita(v)} {v.origen ? `· origen: ${v.origen}` : ""}
       </p>
       {v.items && (
         <div className="mb-1">
-          <p className="font-medium">Venta (POS) â€” Folio #{v.folio}</p>
+          <p className="font-medium">Venta (POS) — Folio #{v.folio}</p>
           {v.items.map((it, i) => (
-            <p key={i} className="text-xs text-slate-600">{it.nombre} â€” ${it.precio}</p>
+            <p key={i} className="text-xs text-slate-600">{it.nombre} — ${it.precio}</p>
           ))}
         </div>
       )}
@@ -3301,12 +3301,12 @@ function ResumenVisita({ v, paciente, config }) {
           <p className="font-medium">Receta</p>
           {v.od && (
             <p className="text-xs text-slate-600">
-              O.D.: {CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${v.od[c.toLowerCase()] || "-"}`).join(" Â· ")}
+              O.D.: {CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${v.od[c.toLowerCase()] || "-"}`).join(" · ")}
             </p>
           )}
           {v.os && (
             <p className="text-xs text-slate-600">
-              O.S.: {CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${v.os[c.toLowerCase()] || "-"}`).join(" Â· ")}
+              O.S.: {CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${v.os[c.toLowerCase()] || "-"}`).join(" · ")}
             </p>
           )}
         </div>
@@ -3314,7 +3314,7 @@ function ResumenVisita({ v, paciente, config }) {
       {(v.materialReceta || v.descripcion || v.cantidad || v.precioMaterial || v.totalProducto) && (
         <div className="text-xs text-slate-600 mb-1">
           {v.materialReceta && <p>Material: {v.materialReceta}</p>}
-          {v.descripcion && <p>DescripciÃ³n: {v.descripcion}</p>}
+          {v.descripcion && <p>Descripción: {v.descripcion}</p>}
           {v.cantidad && <p>Cantidad: {v.cantidad}</p>}
           {v.precioMaterial && <p>Precio material: ${v.precioMaterial}</p>}
           {v.totalProducto && <p>Total producto: ${v.totalProducto}</p>}
@@ -3322,8 +3322,8 @@ function ResumenVisita({ v, paciente, config }) {
       )}
       {(v.total !== undefined && v.total !== "" && !v.items) && (
         <p className="text-xs text-slate-600">
-          Total: ${v.total} Â· Anticipo: ${v.anticipo || 0} Â· Saldo: ${v.saldo || 0}
-          {v.fechaPrometido && ` Â· Prometido: ${v.fechaPrometido}`}
+          Total: ${v.total} · Anticipo: ${v.anticipo || 0} · Saldo: ${v.saldo || 0}
+          {v.fechaPrometido && ` · Prometido: ${v.fechaPrometido}`}
         </p>
       )}
       {v.items && v.folio && (
@@ -3335,7 +3335,7 @@ function ResumenVisita({ v, paciente, config }) {
             <button
               onClick={async () => {
                 await generarPDFNota(v, config);
-                abrirWhatsApp(paciente.telefono, textoNotaWhatsApp(v) + "\n\nðŸ“Ž Te comparto tu nota en PDF (adjunta el archivo aquÃ­).");
+                abrirWhatsApp(paciente.telefono, textoNotaWhatsApp(v) + "\n\n📎 Te comparto tu nota en PDF (adjunta el archivo aquí).");
               }}
               className="text-xs px-2 py-1 rounded bg-emerald-100 text-emerald-700"
             >
@@ -3426,14 +3426,14 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
           {campo("colonia", "Colonia")}
           {campo("cp", "C.P.")}
           {campo("mail", "Mail")}
-          {campo("telefono", "TelÃ©fono")}
+          {campo("telefono", "Teléfono")}
         </div>
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-semibold text-slate-700">
-            Historial de visitas / compras â€” <span className="text-slate-700">NÃºmero de compras: {visitasOrdenadas.length}</span>
+            Historial de visitas / compras — <span className="text-slate-700">Número de compras: {visitasOrdenadas.length}</span>
           </h3>
           <button onClick={() => setAgregandoVisita(true)} className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600 flex items-center gap-1">
             <Plus size={14} /> Agregar visita manualmente
@@ -3443,7 +3443,7 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
           {visitasOrdenadas.map((v) => (
             <ResumenVisita key={v.id || v.folio} v={v} paciente={datos} config={config} />
           ))}
-          {visitasOrdenadas.length === 0 && <p className="text-xs text-slate-400">Sin visitas o compras registradas todavÃ­a.</p>}
+          {visitasOrdenadas.length === 0 && <p className="text-xs text-slate-400">Sin visitas o compras registradas todavía.</p>}
         </div>
       </div>
 
@@ -3453,19 +3453,19 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
           <div className="flex items-center gap-3 mb-3">
             {config?.logo && <img src={config.logo} style={{ height: 60 }} alt="logo" />}
             <div>
-              <p className="font-bold">Spektrum Ã“pticas</p>
+              <p className="font-bold">Spektrum Ópticas</p>
               <p className="text-xs">{config?.direccion}</p>
               <p className="text-xs">Tel: {config?.telefono}</p>
             </div>
           </div>
-          <p className="font-bold mb-2">EXPEDIENTE â€” {datos.nombre} (Folio {paciente.folio})</p>
+          <p className="font-bold mb-2">EXPEDIENTE — {datos.nombre} (Folio {paciente.folio})</p>
           {incluirPersonales && (
             <>
               <p className="text-sm">Domicilio: {datos.domicilio}, {datos.colonia}, C.P. {datos.cp}</p>
-              <p className="text-sm">Mail: {datos.mail} â€” TelÃ©fono: {datos.telefono}</p>
+              <p className="text-sm">Mail: {datos.mail} — Teléfono: {datos.telefono}</p>
             </>
           )}
-          <p className="text-sm mt-1">NÃºmero de compras: {visitasOrdenadas.length}</p>
+          <p className="text-sm mt-1">Número de compras: {visitasOrdenadas.length}</p>
           {visitasAImprimir.map((v) => (
             <div key={v.id || v.folio} style={{ marginTop: 10, borderTop: "1px solid #ccc", paddingTop: 6 }}>
               <p className="text-sm font-semibold">{fechaVisita(v)}</p>
@@ -3473,17 +3473,17 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
                 <>
                   {v.items && (
                     <>
-                      <p className="text-xs">Venta â€” Folio #{v.folio}</p>
+                      <p className="text-xs">Venta — Folio #{v.folio}</p>
                       {v.items.map((it, i) => (
-                        <p key={i} className="text-xs">{it.nombre} â€” ${it.precio}</p>
+                        <p key={i} className="text-xs">{it.nombre} — ${it.precio}</p>
                       ))}
                     </>
                   )}
                   {v.materialReceta && <p className="text-xs">Material: {v.materialReceta}</p>}
-                  {v.descripcion && <p className="text-xs">DescripciÃ³n: {v.descripcion}</p>}
+                  {v.descripcion && <p className="text-xs">Descripción: {v.descripcion}</p>}
                   {v.cantidad && <p className="text-xs">Cantidad: {v.cantidad}</p>}
                   {(v.total !== undefined && v.total !== "") && (
-                    <p className="text-xs">Total: ${v.total} â€” Anticipo: ${v.anticipo || 0} â€” Saldo: ${v.saldo || 0}</p>
+                    <p className="text-xs">Total: ${v.total} — Anticipo: ${v.anticipo || 0} — Saldo: ${v.saldo || 0}</p>
                   )}
                   {v.fechaPrometido && <p className="text-xs">Fecha prometido: {v.fechaPrometido}</p>}
                 </>
@@ -3491,10 +3491,10 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
               {incluirReceta && (v.od || v.os) && (
                 <>
                   {v.od && (
-                    <p className="text-xs">O.D.: {CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${v.od[c.toLowerCase()] || "-"}`).join(" Â· ")}</p>
+                    <p className="text-xs">O.D.: {CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${v.od[c.toLowerCase()] || "-"}`).join(" · ")}</p>
                   )}
                   {v.os && (
-                    <p className="text-xs">O.S.: {CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${v.os[c.toLowerCase()] || "-"}`).join(" Â· ")}</p>
+                    <p className="text-xs">O.S.: {CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${v.os[c.toLowerCase()] || "-"}`).join(" · ")}</p>
                   )}
                 </>
               )}
@@ -3533,7 +3533,7 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
           <Field label="Saldo" type="number" value={nuevaVisita.saldo} onChange={(e) => setNuevaVisita({ ...nuevaVisita, saldo: e.target.value })} />
           <Field label="Material receta" value={nuevaVisita.materialReceta} onChange={(e) => setNuevaVisita({ ...nuevaVisita, materialReceta: e.target.value })} />
           <Field label="Cantidad" type="number" value={nuevaVisita.cantidad} onChange={(e) => setNuevaVisita({ ...nuevaVisita, cantidad: e.target.value })} />
-          <Field label="DescripciÃ³n" value={nuevaVisita.descripcion} onChange={(e) => setNuevaVisita({ ...nuevaVisita, descripcion: e.target.value })} />
+          <Field label="Descripción" value={nuevaVisita.descripcion} onChange={(e) => setNuevaVisita({ ...nuevaVisita, descripcion: e.target.value })} />
           <Field label="Precio material" type="number" value={nuevaVisita.precioMaterial} onChange={(e) => setNuevaVisita({ ...nuevaVisita, precioMaterial: e.target.value })} />
           <Field label="Total producto" type="number" value={nuevaVisita.totalProducto} onChange={(e) => setNuevaVisita({ ...nuevaVisita, totalProducto: e.target.value })} />
         </div>
@@ -3556,7 +3556,7 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, onElimi
         </button>
       </Modal>
 
-      <Modal open={imprimiendo} onClose={() => setImprimiendo(false)} title="Elige quÃ© imprimir">
+      <Modal open={imprimiendo} onClose={() => setImprimiendo(false)} title="Elige qué imprimir">
         <div className="space-y-2 mb-3">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={incluirPersonales} onChange={(e) => setIncluirPersonales(e.target.checked)} /> Datos personales
@@ -3648,7 +3648,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
   }
 
   function cancelarOrden(id) {
-    if (!window.confirm("Â¿Cancelar esta orden de laboratorio? QuedarÃ¡ marcada como cancelada.")) return;
+    if (!window.confirm("¿Cancelar esta orden de laboratorio? Quedará marcada como cancelada.")) return;
     setLaboratorio(laboratorio.map((o) => (o.id === id ? { ...o, cancelada: true } : o)));
   }
 
@@ -3657,7 +3657,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
   }
 
   function eliminarOrden(id) {
-    if (!window.confirm("Â¿EstÃ¡ seguro de eliminar esta orden? No se podrÃ¡ recuperar.")) return;
+    if (!window.confirm("¿Está seguro de eliminar esta orden? No se podrá recuperar.")) return;
     setLaboratorio(laboratorio.filter((o) => o.id !== id));
   }
 
@@ -3682,7 +3682,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
     if (paciente?.telefono) abrirWhatsApp(paciente.telefono, msj.whatsapp);
     if (paciente?.mail) abrirEmail(paciente.mail, msj.email.asunto, msj.email.cuerpo);
     if (!paciente?.telefono && !paciente?.mail) {
-      alert("Se marcÃ³ como recibido, pero este paciente no tiene telÃ©fono ni correo guardado para avisarle.");
+      alert("Se marcó como recibido, pero este paciente no tiene teléfono ni correo guardado para avisarle.");
     }
   }
 
@@ -3691,8 +3691,8 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
     <div className="p-4">
       <div className="bg-white border rounded-xl p-3 mb-4 space-y-2">
         <p className="text-xs text-slate-500">
-          Las Ã³rdenes de venta con armazÃ³n o lentes se agregan solas aquÃ­ abajo, con la receta del dÃ­a de consulta (si
-          la hubo) o la mÃ¡s reciente de su expediente. Usa este formulario solo para casos especiales.
+          Las órdenes de venta con armazón o lentes se agregan solas aquí abajo, con la receta del día de consulta (si
+          la hubo) o la más reciente de su expediente. Usa este formulario solo para casos especiales.
         </p>
         <div className="flex flex-wrap gap-2 items-end">
           <select
@@ -3718,7 +3718,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
           <div>
             <label className="text-xs text-slate-500">Material</label>
             <select value={nueva.material} onChange={(e) => setNueva({ ...nueva, material: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm w-32">
-              <option value="">â€”</option>
+              <option value="">—</option>
               <option>CR39</option>
               <option>Policarbonato</option>
               <option>Hi Index</option>
@@ -3728,16 +3728,16 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
             </select>
           </div>
           <div>
-            <label className="text-xs text-slate-500">ArmazÃ³n</label>
+            <label className="text-xs text-slate-500">Armazón</label>
             <div className="flex gap-1">
-              <input placeholder="Escribe o elige â†’" value={nueva.armazon} onChange={(e) => setNueva({ ...nueva, armazon: e.target.value })} className="border rounded-lg px-2 py-1.5 text-sm w-32" />
+              <input placeholder="Escribe o elige →" value={nueva.armazon} onChange={(e) => setNueva({ ...nueva, armazon: e.target.value })} className="border rounded-lg px-2 py-1.5 text-sm w-32" />
               <select
                 value=""
                 onChange={(e) => e.target.value && setNueva({ ...nueva, armazon: e.target.value })}
                 className="border rounded-lg text-sm px-1"
                 title="Elegir del inventario"
               >
-                <option value="">â–¾</option>
+                <option value="">▾</option>
                 {armazonesInventario.map((a) => (
                   <option key={a.id} value={a.nombre}>{a.nombre}</option>
                 ))}
@@ -3745,7 +3745,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
             </div>
           </div>
           <div>
-            <label className="text-xs text-slate-500">EnvÃ­o a laboratorio</label>
+            <label className="text-xs text-slate-500">Envío a laboratorio</label>
             <input type="date" value={nueva.fechaEnvio} onChange={(e) => setNueva({ ...nueva, fechaEnvio: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm" />
           </div>
           <div>
@@ -3759,7 +3759,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
       </div>
 
       <div className="flex justify-end items-center gap-2 mb-2">
-        <label className="text-xs text-slate-500">Ã“rdenes del dÃ­a:</label>
+        <label className="text-xs text-slate-500">Órdenes del día:</label>
         <input type="date" value={fechaImprimir} onChange={(e) => setFechaImprimir(e.target.value)} className="border rounded-lg px-2 py-1.5 text-sm" />
         <button
           onClick={() => imprimirElemento("todas-ordenes-lab")}
@@ -3774,7 +3774,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
           className="px-3 py-2 rounded-lg text-white text-sm flex items-center gap-1 disabled:opacity-40"
           style={{ background: SKY_DARK }}
         >
-          <Printer size={16} /> Imprimir Ã³rdenes del dÃ­a (
+          <Printer size={16} /> Imprimir órdenes del día (
           {
             laboratorio.filter(
               (o) =>
@@ -3787,8 +3787,8 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
         </button>
       </div>
       <p className="text-xs text-slate-400 text-right mb-2">
-        Solo se cuentan como activas las Ã³rdenes que aÃºn no han sido recibidas del laboratorio â€” una vez recibidas,
-        se apagan de este conteo porque ya estÃ¡n en la Ã³ptica listas para entregar.
+        Solo se cuentan como activas las órdenes que aún no han sido recibidas del laboratorio — una vez recibidas,
+        se apagan de este conteo porque ya están en la óptica listas para entregar.
       </p>
 
       <div className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
@@ -3798,9 +3798,9 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
               <th className="text-left px-3 py-2">Paciente</th>
               <th className="text-left px-3 py-2">Receta</th>
               <th className="text-left px-3 py-2">Material</th>
-              <th className="text-left px-3 py-2">ArmazÃ³n</th>
+              <th className="text-left px-3 py-2">Armazón</th>
               <th className="text-left px-3 py-2">Fecha venta</th>
-              <th className="text-left px-3 py-2">EnvÃ­o a lab.</th>
+              <th className="text-left px-3 py-2">Envío a lab.</th>
               <th className="text-left px-3 py-2">Prometida</th>
               <th className="text-left px-3 py-2">Recibido del laboratorio</th>
               <th className="px-3 py-2"></th>
@@ -3809,13 +3809,13 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
           <tbody>
             {laboratorio.map((o) => (
               <tr key={o.id} className={`border-t align-top ${o.cancelada ? "opacity-50" : ""}`}>
-                <td className="px-3 py-2">{o.nombreCliente || pacientes.find((p) => p.id === o.pacienteId)?.nombre || "â€”"}</td>
+                <td className="px-3 py-2">{o.nombreCliente || pacientes.find((p) => p.id === o.pacienteId)?.nombre || "—"}</td>
                 <td className="px-3 py-2 max-w-[220px] truncate" title={`${lineaOjo(recetaParaImprimir(o).od, "O.D.")} | ${lineaOjo(recetaParaImprimir(o).os, "O.S.")}`}>
-                  {recetaParaImprimir(o).od || recetaParaImprimir(o).os ? `${lineaOjo(recetaParaImprimir(o).od, "O.D.")} | ${lineaOjo(recetaParaImprimir(o).os, "O.S.")}` : "â€”"}
+                  {recetaParaImprimir(o).od || recetaParaImprimir(o).os ? `${lineaOjo(recetaParaImprimir(o).od, "O.D.")} | ${lineaOjo(recetaParaImprimir(o).os, "O.S.")}` : "—"}
                 </td>
-                <td className="px-3 py-2">{o.material || "â€”"}</td>
-                <td className="px-3 py-2">{o.armazon || "â€”"}</td>
-                <td className="px-3 py-2">{o.fechaVenta ? new Date(o.fechaVenta).toLocaleDateString("es-MX") : "â€”"}</td>
+                <td className="px-3 py-2">{o.material || "—"}</td>
+                <td className="px-3 py-2">{o.armazon || "—"}</td>
+                <td className="px-3 py-2">{o.fechaVenta ? new Date(o.fechaVenta).toLocaleDateString("es-MX") : "—"}</td>
                 <td className="px-3 py-2">
                   <input type="date" value={o.fechaEnvio || ""} onChange={(e) => actualizarFecha(o.id, "fechaEnvio", e.target.value)} className="border rounded px-1 py-0.5 text-xs" />
                 </td>
@@ -3844,7 +3844,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
             ))}
             {laboratorio.length === 0 && (
               <tr>
-                <td colSpan={8} className="text-center text-slate-400 py-6">Sin Ã³rdenes de laboratorio todavÃ­a.</td>
+                <td colSpan={8} className="text-center text-slate-400 py-6">Sin órdenes de laboratorio todavía.</td>
               </tr>
             )}
           </tbody>
@@ -3868,7 +3868,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
                 <div className="flex items-center gap-3 mb-4" style={{ borderBottom: `2px solid ${SKY}`, paddingBottom: 10 }}>
                   {config?.logo && <img src={config.logo} style={{ height: 70 }} alt="logo" />}
                   <div>
-                    <p className="font-bold text-lg">Spektrum Ã“pticas</p>
+                    <p className="font-bold text-lg">Spektrum Ópticas</p>
                     <p className="text-xs">{config?.direccion}</p>
                     <p className="text-xs">Tel: {config?.telefono}</p>
                   </div>
@@ -3876,8 +3876,8 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
                 <p className="font-bold text-center mb-3" style={{ fontSize: 16 }}>ORDEN DE LABORATORIO</p>
                 <table style={{ width: "100%", fontSize: 13, marginBottom: 12 }}>
                   <tbody>
-                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Paciente:</td><td>{o.nombreCliente || paciente?.nombre || "â€”"}</td></tr>
-                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Folio de venta:</td><td>{o.folioVenta || "â€”"}</td></tr>
+                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Paciente:</td><td>{o.nombreCliente || paciente?.nombre || "—"}</td></tr>
+                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Folio de venta:</td><td>{o.folioVenta || "—"}</td></tr>
                   </tbody>
                 </table>
                 <div style={{ border: "1px solid #ccc", borderRadius: 6, padding: "8px 10px", marginBottom: 12 }}>
@@ -3885,13 +3885,13 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
                   <p style={{ fontSize: 13 }}>{lineaOjo(recetaParaImprimir(o).od, "O.D.")}</p>
                   <p style={{ fontSize: 13 }}>{lineaOjo(recetaParaImprimir(o).os, "O.S.")}</p>
                   <p style={{ fontSize: 13, marginTop: 4 }}>Material: {o.material || "-"}</p>
-                  <p style={{ fontSize: 13 }}>DescripciÃ³n: {recetaParaImprimir(o).descripcion || "-"}</p>
+                  <p style={{ fontSize: 13 }}>Descripción: {recetaParaImprimir(o).descripcion || "-"}</p>
                 </div>
                 <table style={{ width: "100%", fontSize: 13, marginBottom: 12, borderCollapse: "collapse" }}>
                   <tbody>
-                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>ArmazÃ³n:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.armazon || "â€”"}</td></tr>
-                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha de envÃ­o a laboratorio:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaEnvio || "â€”"}</td></tr>
-                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha prometida:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaPrometida || "â€”"}</td></tr>
+                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Armazón:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.armazon || "—"}</td></tr>
+                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha de envío a laboratorio:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaEnvio || "—"}</td></tr>
+                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha prometida:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaPrometida || "—"}</td></tr>
                     <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha de recibido del laboratorio:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaRecepcion || "Pendiente"}</td></tr>
                   </tbody>
                 </table>
@@ -3907,7 +3907,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
               <div className="flex items-center gap-3 mb-4" style={{ borderBottom: `2px solid ${SKY}`, paddingBottom: 10 }}>
                 {config?.logo && <img src={config.logo} style={{ height: 70 }} alt="logo" />}
                 <div>
-                  <p className="font-bold text-lg">Spektrum Ã“pticas</p>
+                  <p className="font-bold text-lg">Spektrum Ópticas</p>
                   <p className="text-xs">{config?.direccion}</p>
                   <p className="text-xs">Tel: {config?.telefono}</p>
                 </div>
@@ -3915,8 +3915,8 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
               <p className="font-bold text-center mb-3" style={{ fontSize: 16 }}>ORDEN DE LABORATORIO</p>
               <table style={{ width: "100%", fontSize: 13, marginBottom: 12 }}>
                 <tbody>
-                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Paciente:</td><td>{o.nombreCliente || paciente?.nombre || "â€”"}</td></tr>
-                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Folio de venta:</td><td>{o.folioVenta || "â€”"}</td></tr>
+                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Paciente:</td><td>{o.nombreCliente || paciente?.nombre || "—"}</td></tr>
+                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Folio de venta:</td><td>{o.folioVenta || "—"}</td></tr>
                 </tbody>
               </table>
               <div style={{ border: "1px solid #ccc", borderRadius: 6, padding: "8px 10px", marginBottom: 12 }}>
@@ -3924,13 +3924,13 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, inventario, c
                 <p style={{ fontSize: 13 }}>{lineaOjo(recetaParaImprimir(o).od, "O.D.")}</p>
                 <p style={{ fontSize: 13 }}>{lineaOjo(recetaParaImprimir(o).os, "O.S.")}</p>
                 <p style={{ fontSize: 13, marginTop: 4 }}>Material: {o.material || "-"}</p>
-                <p style={{ fontSize: 13 }}>DescripciÃ³n: {recetaParaImprimir(o).descripcion || "-"}</p>
+                <p style={{ fontSize: 13 }}>Descripción: {recetaParaImprimir(o).descripcion || "-"}</p>
               </div>
               <table style={{ width: "100%", fontSize: 13, marginBottom: 12, borderCollapse: "collapse" }}>
                 <tbody>
-                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>ArmazÃ³n:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.armazon || "â€”"}</td></tr>
-                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha de envÃ­o a laboratorio:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaEnvio || "â€”"}</td></tr>
-                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha prometida:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaPrometida || "â€”"}</td></tr>
+                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Armazón:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.armazon || "—"}</td></tr>
+                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha de envío a laboratorio:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaEnvio || "—"}</td></tr>
+                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha prometida:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaPrometida || "—"}</td></tr>
                   <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0", borderTop: "1px solid #ddd" }}>Fecha de recibido del laboratorio:</td><td style={{ borderTop: "1px solid #ddd" }}>{o.fechaRecepcion || "Pendiente"}</td></tr>
                 </tbody>
               </table>
@@ -3985,7 +3985,7 @@ function ModalCobro({ venta, config, pacientes, modoAbono, onCerrar, onRegistrar
               <p className="text-sm mb-1">Cliente: <b>{venta.nombreCliente}</b></p>
               <div className="text-xs text-slate-500 mb-2">
                 {venta.items?.map((it, i) => (
-                  <p key={i}>{it.nombre} â€” ${it.precio}</p>
+                  <p key={i}>{it.nombre} — ${it.precio}</p>
                 ))}
               </div>
               <p className="text-sm">Total: ${venta.total.toFixed(2)}</p>
@@ -4006,8 +4006,8 @@ function ModalCobro({ venta, config, pacientes, modoAbono, onCerrar, onRegistrar
                 <span className="text-xs font-medium text-slate-500 uppercase">Forma de pago</span>
                 <select value={formaPago} onChange={(e) => setFormaPago(e.target.value)} className="mt-1 w-full border rounded-lg px-2 py-2 text-sm">
                   <option>Efectivo</option>
-                  <option>Tarjeta de dÃ©bito</option>
-                  <option>Tarjeta de crÃ©dito</option>
+                  <option>Tarjeta de débito</option>
+                  <option>Tarjeta de crédito</option>
                   <option>Transferencia</option>
                   <option>Otro</option>
                 </select>
@@ -4022,10 +4022,10 @@ function ModalCobro({ venta, config, pacientes, modoAbono, onCerrar, onRegistrar
           {paso === "confirmar" && (
             <div className="text-center">
               <p className="font-medium mb-4">
-                Â¿Desea {modoAbono ? "registrar este abono" : "cobrar este saldo"} de ${Number(monto).toFixed(2)} en {formaPago}?
+                ¿Desea {modoAbono ? "registrar este abono" : "cobrar este saldo"} de ${Number(monto).toFixed(2)} en {formaPago}?
               </p>
               <div className="flex gap-2">
-                <button onClick={cobrarDeVerdad} className="flex-1 py-2 rounded-lg text-white text-sm font-medium bg-emerald-600">SÃ­, confirmar</button>
+                <button onClick={cobrarDeVerdad} className="flex-1 py-2 rounded-lg text-white text-sm font-medium bg-emerald-600">Sí, confirmar</button>
                 <button onClick={() => setPaso("elegir")} className="flex-1 py-2 rounded-lg bg-slate-100 text-sm">No, corregir</button>
               </div>
             </div>
@@ -4034,9 +4034,9 @@ function ModalCobro({ venta, config, pacientes, modoAbono, onCerrar, onRegistrar
           {paso === "cobrado" && cobroFinal && (
             <div>
               <div className="text-center mb-4">
-                <p className="text-emerald-600 font-semibold text-lg">Cobrado âœ“</p>
+                <p className="text-emerald-600 font-semibold text-lg">Cobrado ✓</p>
                 <p className="text-sm text-slate-500">
-                  ${cobroFinal.monto.toFixed(2)} â€” {cobroFinal.formaPago}
+                  ${cobroFinal.monto.toFixed(2)} — {cobroFinal.formaPago}
                 </p>
                 {cobroFinal.saldoRestante > 0 && (
                   <p className="text-xs text-amber-600 mt-1">Queda un saldo pendiente de ${cobroFinal.saldoRestante.toFixed(2)}.</p>
@@ -4045,10 +4045,10 @@ function ModalCobro({ venta, config, pacientes, modoAbono, onCerrar, onRegistrar
               <p className="text-xs font-medium text-slate-500 uppercase mb-2">Imprimir o enviar recibo</p>
               <div className="grid grid-cols-2 gap-2 mb-2">
                 <button onClick={() => imprimirElemento(idTicket)} className="py-2 rounded-lg bg-slate-100 text-xs">
-                  Imprimir (tÃ©rmica)
+                  Imprimir (térmica)
                 </button>
                 <button onClick={() => generarPDFNota({ ...venta, abono: venta.abono + cobroFinal.monto, saldo: cobroFinal.saldoRestante }, config)} className="py-2 rounded-lg bg-slate-100 text-xs">
-                  Imprimir (inyecciÃ³n de tinta / PDF)
+                  Imprimir (inyección de tinta / PDF)
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-2 mb-3">
@@ -4065,7 +4065,7 @@ function ModalCobro({ venta, config, pacientes, modoAbono, onCerrar, onRegistrar
                       </button>
                       <button
                         disabled={!paciente?.mail}
-                        onClick={() => abrirEmail(paciente.mail, `Recibo de pago â€” ${NOMBRE_OPTICA}`, textoNotaWhatsApp({ ...venta, estatus: "venta" }))}
+                        onClick={() => abrirEmail(paciente.mail, `Recibo de pago — ${NOMBRE_OPTICA}`, textoNotaWhatsApp({ ...venta, estatus: "venta" }))}
                         className="py-2 rounded-lg bg-slate-600 text-white text-xs disabled:opacity-30"
                       >
                         Enviar por correo
@@ -4078,7 +4078,7 @@ function ModalCobro({ venta, config, pacientes, modoAbono, onCerrar, onRegistrar
                 Cerrar
               </button>
 
-              {/* Ticket tÃ©rmico oculto, se muestra solo al imprimir */}
+              {/* Ticket térmico oculto, se muestra solo al imprimir */}
               <div id={idTicket} className="plantilla-oculta" style={{ maxWidth: 260, margin: "0 auto", fontSize: 12 }}>
                 {config?.logo && <img src={config.logo} alt="logo" style={{ height: 36, margin: "0 auto 6px", display: "block" }} />}
                 <p style={{ textAlign: "center", fontWeight: "bold" }}>{NOMBRE_OPTICA}</p>
@@ -4091,7 +4091,7 @@ function ModalCobro({ venta, config, pacientes, modoAbono, onCerrar, onRegistrar
                 <p>Forma de pago: {cobroFinal.formaPago}</p>
                 <p style={{ borderTop: "1px dashed #999", marginTop: 6, paddingTop: 6 }}>Monto cobrado: ${cobroFinal.monto.toFixed(2)}</p>
                 <p>Saldo restante: ${cobroFinal.saldoRestante.toFixed(2)}</p>
-                <p style={{ textAlign: "center", marginTop: 10 }}>Â¡Gracias por su preferencia!</p>
+                <p style={{ textAlign: "center", marginTop: 10 }}>¡Gracias por su preferencia!</p>
               </div>
             </div>
           )}
@@ -4109,12 +4109,12 @@ function HistorialAbonosModal({ venta, config, onCerrar }) {
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onCerrar} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-4">
-        <h3 className="font-semibold mb-3">Historial de abonos â€” Folio #{venta.folio}</h3>
+        <h3 className="font-semibold mb-3">Historial de abonos — Folio #{venta.folio}</h3>
         <div className="space-y-2 mb-4">
-          {pagos.length === 0 && <p className="text-sm text-slate-400">Sin abonos registrados todavÃ­a.</p>}
+          {pagos.length === 0 && <p className="text-sm text-slate-400">Sin abonos registrados todavía.</p>}
           {pagos.map((p, i) => (
             <div key={i} className="flex justify-between text-sm border-b pb-1">
-              <span>{new Date(p.fecha).toLocaleDateString("es-MX")} Â· {p.formaPago}</span>
+              <span>{new Date(p.fecha).toLocaleDateString("es-MX")} · {p.formaPago}</span>
               <span className="font-medium">${p.monto.toFixed(2)}</span>
             </div>
           ))}
@@ -4128,8 +4128,8 @@ function HistorialAbonosModal({ venta, config, onCerrar }) {
         <div id={idHist} className="plantilla-oculta" style={{ maxWidth: 400, margin: "0 auto" }}>
           {config?.logo && <img src={config.logo} alt="logo" style={{ height: 40, margin: "0 auto 6px", display: "block" }} />}
           <p style={{ textAlign: "center", fontWeight: "bold" }}>{NOMBRE_OPTICA}</p>
-          <p style={{ textAlign: "center" }}>{config?.direccion} Â· Tel: {config?.telefono}</p>
-          <p style={{ fontWeight: "bold", marginTop: 10 }}>Historial de abonos â€” Folio #{venta.folio}</p>
+          <p style={{ textAlign: "center" }}>{config?.direccion} · Tel: {config?.telefono}</p>
+          <p style={{ fontWeight: "bold", marginTop: 10 }}>Historial de abonos — Folio #{venta.folio}</p>
           <p>Cliente: {venta.nombreCliente}</p>
           <table style={{ width: "100%", marginTop: 8, borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
@@ -4187,15 +4187,15 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
     if (paciente?.mail) {
       const enviado = await enviarCorreoAutomatico(paciente.mail, msj.asunto, msj.cuerpoHtml);
       if (enviado) {
-        alert(`Se enviÃ³ el correo automÃ¡ticamente a ${paciente.mail}.`);
+        alert(`Se envió el correo automáticamente a ${paciente.mail}.`);
       } else {
-        alert("No se pudo enviar el correo automÃ¡tico (revisa que la funciÃ³n 'enviar-correo' estÃ© desplegada en Supabase). Se intentarÃ¡ abrir tu correo para enviarlo manualmente.");
+        alert("No se pudo enviar el correo automático (revisa que la función 'enviar-correo' esté desplegada en Supabase). Se intentará abrir tu correo para enviarlo manualmente.");
         abrirEmail(paciente.mail, msj.asunto, msj.cuerpoHtml.replace(/<[^>]+>/g, ""));
       }
     } else if (paciente?.telefono) {
       abrirWhatsApp(paciente.telefono, msj.whatsapp);
     } else {
-      alert("Este paciente no tiene correo ni telÃ©fono guardado para avisarle.");
+      alert("Este paciente no tiene correo ni teléfono guardado para avisarle.");
     }
   }
 
@@ -4208,7 +4208,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
     if (paciente?.telefono) abrirWhatsApp(paciente.telefono, msj.whatsapp);
     if (paciente?.mail) abrirEmail(paciente.mail, msj.email.asunto, msj.email.cuerpo);
     if (!paciente?.telefono && !paciente?.mail) {
-      alert("Se marcÃ³ como entregado, pero este paciente no tiene telÃ©fono ni correo guardado para agradecerle.");
+      alert("Se marcó como entregado, pero este paciente no tiene teléfono ni correo guardado para agradecerle.");
     }
   }
 
@@ -4254,7 +4254,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
               const esApartado = venta && venta.abono > 0 && venta.saldo > 0;
               return (
                 <tr key={o.id} className="border-t align-top">
-                  <td className="px-3 py-2">{o.nombreCliente || pacientes.find((p) => p.id === o.pacienteId)?.nombre || "â€”"}</td>
+                  <td className="px-3 py-2">{o.nombreCliente || pacientes.find((p) => p.id === o.pacienteId)?.nombre || "—"}</td>
                   <td className="px-3 py-2">
                     <select
                       value={estatus}
@@ -4271,7 +4271,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
                       <div className="flex flex-col gap-1 items-start">
                         {esApartado && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                            Apartado â€” abonado ${venta.abono.toFixed(2)} de ${venta.total.toFixed(2)}
+                            Apartado — abonado ${venta.abono.toFixed(2)} de ${venta.total.toFixed(2)}
                           </span>
                         )}
                         <div className="flex gap-1">
@@ -4290,7 +4290,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
                         </div>
                       </div>
                     ) : (
-                      <span className="text-xs text-slate-300">â€”</span>
+                      <span className="text-xs text-slate-300">—</span>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -4313,7 +4313,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
                         </div>
                       )
                     ) : (
-                      <span className="text-xs text-slate-300">â€”</span>
+                      <span className="text-xs text-slate-300">—</span>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -4324,7 +4324,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
                         onClick={() => marcarEntregado(o)}
                         disabled={estatus !== "recibido_laboratorio"}
                         className="text-xs px-2 py-1 rounded bg-slate-800 text-white disabled:opacity-30"
-                        title={estatus !== "recibido_laboratorio" ? "Primero mÃ¡rcala como recibida del laboratorio" : ""}
+                        title={estatus !== "recibido_laboratorio" ? "Primero márcala como recibida del laboratorio" : ""}
                       >
                         Marcar entregado y agradecer
                       </button>
@@ -4332,13 +4332,13 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
                   </td>
                   <td className="px-3 py-2">
                     {!venta ? (
-                      <span className="text-xs text-slate-300">â€”</span>
+                      <span className="text-xs text-slate-300">—</span>
                     ) : venta.saldo <= 0 ? (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">SÃ­</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Sí</span>
                     ) : (
                       <div className="flex items-center gap-1">
                         <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">
-                          No â€” ${venta.saldo.toFixed(2)}
+                          No — ${venta.saldo.toFixed(2)}
                         </span>
                         <button
                           onClick={() => { setCobrandoFolio(venta.folio); setModoAbono(false); }}
@@ -4355,7 +4355,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, ventas, 
             })}
             {activas.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center text-slate-400 py-6">Sin Ã³rdenes activas todavÃ­a.</td>
+                <td colSpan={6} className="text-center text-slate-400 py-6">Sin órdenes activas todavía.</td>
               </tr>
             )}
           </tbody>
@@ -4457,13 +4457,13 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
       setPasswordGastos("");
       setErrorPasswordGastos("");
     } else {
-      setErrorPasswordGastos("ContraseÃ±a incorrecta.");
+      setErrorPasswordGastos("Contraseña incorrecta.");
     }
   }
 
   const esDelDia = (isoFecha) => isoFecha.slice(0, 10) === fecha;
 
-  // Ventas (notas confirmadas) creadas ese dÃ­a
+  // Ventas (notas confirmadas) creadas ese día
   const ventasDelDia = ventas.filter((v) => v.estatus === "venta" && esDelDia(v.fecha));
   const totalVendido = ventasDelDia.reduce((s, v) => s + v.total, 0);
 
@@ -4529,7 +4529,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
   }
 
   function eliminarPagoProveedor(id) {
-    if (!window.confirm("Â¿Eliminar este pago a proveedor? No se podrÃ¡ recuperar.")) return;
+    if (!window.confirm("¿Eliminar este pago a proveedor? No se podrá recuperar.")) return;
     setPagosProveedores(pagosProveedores.filter((p) => p.id !== id));
   }
 
@@ -4560,22 +4560,22 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
       </div>
 
       <div id="corte-imprimible">
-        <p className="hidden print:block font-bold mb-3">Corte Diario â€” {fecha}</p>
+        <p className="hidden print:block font-bold mb-3">Corte Diario — {fecha}</p>
         <div className="flex gap-3 mb-6 overflow-x-auto pb-1 print:hidden">
-          <TotalBox titulo="Vendido del dÃ­a" monto={totalVendido} color="#111827" subtitulo={`${ventasDelDia.length} nota(s)`} />
-          <TotalBox titulo="Total de tickets del dÃ­a" monto={totalTicketsDia} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioDia.toFixed(2)}`} esConteo />
+          <TotalBox titulo="Vendido del día" monto={totalVendido} color="#111827" subtitulo={`${ventasDelDia.length} nota(s)`} />
+          <TotalBox titulo="Total de tickets del día" monto={totalTicketsDia} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioDia.toFixed(2)}`} esConteo />
           <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#6B7280" subtitulo={`${anticipos.length} pago(s)`} />
           <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
           <TotalBox titulo="Total cobrado hoy" monto={totalCobradoHoy} color="#047857" subtitulo="Anticipos + liquidaciones + contado" />
           <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
           <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelDia.length} pago(s)`} />
-          <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado hoy âˆ’ pago a proveedores" />
+          <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado hoy − pago a proveedores" />
         </div>
 
         <div className="hidden print:grid" style={{ gridTemplateColumns: "1fr 1fr", columnGap: 24, rowGap: 2, fontSize: 12, marginBottom: 16 }}>
           <div>
-            <p><b>Vendido del dÃ­a:</b> ${totalVendido.toFixed(2)}</p>
-            <p><b>Total de tickets del dÃ­a:</b> {totalTicketsDia}</p>
+            <p><b>Vendido del día:</b> ${totalVendido.toFixed(2)}</p>
+            <p><b>Total de tickets del día:</b> {totalTicketsDia}</p>
             <p><b>Ticket promedio:</b> ${ticketPromedioDia.toFixed(2)}</p>
             <p><b>Anticipos cobrados:</b> ${totalAnticipos.toFixed(2)}</p>
           </div>
@@ -4590,16 +4590,16 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white border rounded-xl p-3">
-          <h4 className="font-semibold text-sm mb-2">Desglose â€” Vendido del dÃ­a</h4>
+          <h4 className="font-semibold text-sm mb-2">Desglose — Vendido del día</h4>
           <table className="w-full text-xs">
             <thead>
               <tr className="text-slate-400"><th className="text-left font-normal py-1">No. de ticket</th><th className="text-right font-normal py-1">Importe vendido</th></tr>
             </thead>
             <tbody>
               {ventasDelDia.map((v) => (
-                <tr key={v.folio} className="border-t"><td className="py-1">#{v.folio} â€” {v.nombreCliente}</td><td className="text-right py-1">${v.total.toFixed(2)}</td></tr>
+                <tr key={v.folio} className="border-t"><td className="py-1">#{v.folio} — {v.nombreCliente}</td><td className="text-right py-1">${v.total.toFixed(2)}</td></tr>
               ))}
-              {ventasDelDia.length === 0 && <tr><td className="text-slate-400 py-2">Sin ventas este dÃ­a.</td></tr>}
+              {ventasDelDia.length === 0 && <tr><td className="text-slate-400 py-2">Sin ventas este día.</td></tr>}
             </tbody>
             {ventasDelDia.length > 0 && (
               <tfoot>
@@ -4611,44 +4611,44 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
         </div>
 
         <div className="bg-white border rounded-xl p-3">
-          <h4 className="font-semibold text-sm mb-2">Desglose â€” Anticipos cobrados</h4>
+          <h4 className="font-semibold text-sm mb-2">Desglose — Anticipos cobrados</h4>
           <table className="w-full text-xs">
             <tbody>
               {anticipos.map((p, i) => (
                 <tr key={i} className="border-t"><td className="py-1">#{p.folio} {p.cliente} ({p.formaPago})</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
               ))}
-              {anticipos.length === 0 && <tr><td className="text-slate-400 py-2">Sin anticipos este dÃ­a.</td></tr>}
+              {anticipos.length === 0 && <tr><td className="text-slate-400 py-2">Sin anticipos este día.</td></tr>}
             </tbody>
           </table>
         </div>
 
         <div className="bg-white border rounded-xl p-3">
-          <h4 className="font-semibold text-sm mb-2">Desglose â€” Saldos cobrados al entregar</h4>
+          <h4 className="font-semibold text-sm mb-2">Desglose — Saldos cobrados al entregar</h4>
           <table className="w-full text-xs">
             <tbody>
               {liquidaciones.map((p, i) => (
                 <tr key={i} className="border-t"><td className="py-1">#{p.folio} {p.cliente} ({p.formaPago})</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
               ))}
-              {liquidaciones.length === 0 && <tr><td className="text-slate-400 py-2">Sin liquidaciones este dÃ­a.</td></tr>}
+              {liquidaciones.length === 0 && <tr><td className="text-slate-400 py-2">Sin liquidaciones este día.</td></tr>}
             </tbody>
           </table>
         </div>
 
         <div className="bg-white border rounded-xl p-3">
-          <h4 className="font-semibold text-sm mb-2">Desglose â€” Total cobrado hoy</h4>
+          <h4 className="font-semibold text-sm mb-2">Desglose — Total cobrado hoy</h4>
           <table className="w-full text-xs">
             <tbody>
               {[...anticipos, ...liquidaciones, ...ventasCompletas].map((p, i) => (
-                <tr key={i} className="border-t"><td className="py-1">#{p.folio} {p.cliente} â€” {p.tipo.replace("_", " ")}</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
+                <tr key={i} className="border-t"><td className="py-1">#{p.folio} {p.cliente} — {p.tipo.replace("_", " ")}</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
               ))}
-              {pagosDelDia.length === 0 && <tr><td className="text-slate-400 py-2">Sin cobros este dÃ­a.</td></tr>}
+              {pagosDelDia.length === 0 && <tr><td className="text-slate-400 py-2">Sin cobros este día.</td></tr>}
             </tbody>
           </table>
         </div>
 
         <div className="bg-white border rounded-xl p-3">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="font-semibold text-sm">Desglose â€” Saldo pendiente</h4>
+            <h4 className="font-semibold text-sm">Desglose — Saldo pendiente</h4>
           </div>
           <table className="w-full text-xs">
             <tbody>
@@ -4670,7 +4670,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
 
         <div className="bg-white border rounded-xl p-3">
           <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-            <h4 className="font-semibold text-sm">Desglose â€” Pago a proveedores</h4>
+            <h4 className="font-semibold text-sm">Desglose — Pago a proveedores</h4>
             <div className="flex gap-2">
               <button onClick={() => setMostrarProveedor(!mostrarProveedor)} className="text-xs text-slate-600 underline">
                 + Registrar pago
@@ -4705,7 +4705,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
           )}
           {proveedores.length === 0 && mostrarProveedor && (
             <p className="text-[10px] text-amber-600 mb-2">
-              AÃºn no tienes proveedores dados de alta. Ve a AdministraciÃ³n â†’ Proveedores para agregarlos.
+              Aún no tienes proveedores dados de alta. Ve a Administración → Proveedores para agregarlos.
             </p>
           )}
           <table className="w-full text-xs">
@@ -4748,12 +4748,12 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
                   </tr>
                 ) : (
                   <tr key={p.id} className="border-t">
-                    <td className="py-1">{p.proveedor} â€” {p.concepto}</td>
+                    <td className="py-1">{p.proveedor} — {p.concepto}</td>
                     <td className="text-right py-1">${p.monto.toFixed(2)}</td>
                   </tr>
                 )
               )}
-              {pagosProvDelDia.length === 0 && <tr><td className="text-slate-400 py-2">Sin pagos a proveedores este dÃ­a.</td></tr>}
+              {pagosProvDelDia.length === 0 && <tr><td className="text-slate-400 py-2">Sin pagos a proveedores este día.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -4761,11 +4761,11 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
       </div>
 
       <Modal open={pidiendoPasswordGastos} onClose={() => { setPidiendoPasswordGastos(false); setPasswordGastos(""); setErrorPasswordGastos(""); }} title="Corregir gastos">
-        <p className="text-sm text-slate-500 mb-3">Escribe la contraseÃ±a para poder editar o eliminar pagos a proveedores.</p>
-        <Field label="ContraseÃ±a" type="password" value={passwordGastos} onChange={(e) => setPasswordGastos(e.target.value)} />
+        <p className="text-sm text-slate-500 mb-3">Escribe la contraseña para poder editar o eliminar pagos a proveedores.</p>
+        <Field label="Contraseña" type="password" value={passwordGastos} onChange={(e) => setPasswordGastos(e.target.value)} />
         {errorPasswordGastos && <p className="text-xs text-red-600 mb-2">{errorPasswordGastos}</p>}
         <button onClick={intentarCorregirGastos} className="w-full py-2 rounded-lg text-white text-sm font-medium" style={{ background: SKY_DARK }}>
-          Desbloquear ediciÃ³n
+          Desbloquear edición
         </button>
       </Modal>
 
@@ -4776,8 +4776,8 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
             <span className="text-xs font-medium text-slate-500 uppercase">Forma de pago</span>
             <select value={formaPagoCobro} onChange={(e) => setFormaPagoCobro(e.target.value)} className="mt-1 w-full border rounded-lg px-2 py-2 text-sm">
               <option value="efectivo">Efectivo</option>
-              <option value="tarjeta_credito">Tarjeta de crÃ©dito</option>
-              <option value="tarjeta_debito">Tarjeta de dÃ©bito</option>
+              <option value="tarjeta_credito">Tarjeta de crédito</option>
+              <option value="tarjeta_debito">Tarjeta de débito</option>
               <option value="transferencia">Transferencia</option>
             </select>
           </label>
@@ -4878,7 +4878,7 @@ function CorteMensual({ ventas, pagosProveedores }) {
       </div>
 
       <div id="corte-mes-imprimible">
-        <p className="hidden print:block font-bold mb-3">Corte del mes â€” {mes}</p>
+        <p className="hidden print:block font-bold mb-3">Corte del mes — {mes}</p>
         <div className="flex gap-3 mb-6 overflow-x-auto pb-1 print:hidden">
           <TotalBox titulo="Vendido del mes" monto={totalVendido} color="#111827" subtitulo={`${ventasDelMes.length} nota(s)`} />
           <TotalBox titulo="Total de tickets del mes" monto={totalTicketsMes} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioMes.toFixed(2)}`} esConteo />
@@ -4887,7 +4887,7 @@ function CorteMensual({ ventas, pagosProveedores }) {
           <TotalBox titulo="Total cobrado en el mes" monto={totalCobradoMes} color="#047857" subtitulo="Anticipos + liquidaciones + contado" />
           <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
           <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelMes.length} pago(s)`} />
-          <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado del mes âˆ’ pago a proveedores" />
+          <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado del mes − pago a proveedores" />
         </div>
 
         <div className="hidden print:grid" style={{ gridTemplateColumns: "1fr 1fr", columnGap: 24, rowGap: 2, fontSize: 12, marginBottom: 16 }}>
@@ -4908,14 +4908,14 @@ function CorteMensual({ ventas, pagosProveedores }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-white border rounded-xl p-3">
-            <h4 className="font-semibold text-sm mb-2">Desglose â€” Vendido del mes</h4>
+            <h4 className="font-semibold text-sm mb-2">Desglose — Vendido del mes</h4>
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-slate-400"><th className="text-left font-normal py-1">No. de ticket</th><th className="text-right font-normal py-1">Importe vendido</th></tr>
               </thead>
               <tbody>
                 {ventasDelMes.map((v) => (
-                  <tr key={v.folio} className="border-t"><td className="py-1">#{v.folio} â€” {v.nombreCliente}</td><td className="text-right py-1">${v.total.toFixed(2)}</td></tr>
+                  <tr key={v.folio} className="border-t"><td className="py-1">#{v.folio} — {v.nombreCliente}</td><td className="text-right py-1">${v.total.toFixed(2)}</td></tr>
                 ))}
                 {ventasDelMes.length === 0 && <tr><td className="text-slate-400 py-2">Sin ventas este mes.</td></tr>}
               </tbody>
@@ -4929,7 +4929,7 @@ function CorteMensual({ ventas, pagosProveedores }) {
           </div>
 
           <div className="bg-white border rounded-xl p-3">
-            <h4 className="font-semibold text-sm mb-2">Desglose â€” Anticipos cobrados</h4>
+            <h4 className="font-semibold text-sm mb-2">Desglose — Anticipos cobrados</h4>
             <table className="w-full text-xs">
               <tbody>
                 {anticipos.map((p, i) => (
@@ -4947,7 +4947,7 @@ function CorteMensual({ ventas, pagosProveedores }) {
           </div>
 
           <div className="bg-white border rounded-xl p-3">
-            <h4 className="font-semibold text-sm mb-2">Desglose â€” Saldos cobrados al entregar</h4>
+            <h4 className="font-semibold text-sm mb-2">Desglose — Saldos cobrados al entregar</h4>
             <table className="w-full text-xs">
               <tbody>
                 {liquidaciones.map((p, i) => (
@@ -4965,11 +4965,11 @@ function CorteMensual({ ventas, pagosProveedores }) {
           </div>
 
           <div className="bg-white border rounded-xl p-3">
-            <h4 className="font-semibold text-sm mb-2">Desglose â€” Total cobrado en el mes</h4>
+            <h4 className="font-semibold text-sm mb-2">Desglose — Total cobrado en el mes</h4>
             <table className="w-full text-xs">
               <tbody>
                 {[...anticipos, ...liquidaciones, ...ventasCompletas].map((p, i) => (
-                  <tr key={i} className="border-t"><td className="py-1">#{p.folio} {p.cliente} â€” {p.tipo.replace("_", " ")}</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
+                  <tr key={i} className="border-t"><td className="py-1">#{p.folio} {p.cliente} — {p.tipo.replace("_", " ")}</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
                 ))}
                 {pagosDelMes.length === 0 && <tr><td className="text-slate-400 py-2">Sin cobros este mes.</td></tr>}
               </tbody>
@@ -4983,7 +4983,7 @@ function CorteMensual({ ventas, pagosProveedores }) {
           </div>
 
           <div className="bg-white border rounded-xl p-3">
-            <h4 className="font-semibold text-sm mb-2">Desglose â€” Saldo pendiente</h4>
+            <h4 className="font-semibold text-sm mb-2">Desglose — Saldo pendiente</h4>
             <table className="w-full text-xs">
               <tbody>
                 {notasConSaldo.map((v) => (
@@ -4995,11 +4995,11 @@ function CorteMensual({ ventas, pagosProveedores }) {
           </div>
 
           <div className="bg-white border rounded-xl p-3">
-            <h4 className="font-semibold text-sm mb-2">Desglose â€” Pago a proveedores</h4>
+            <h4 className="font-semibold text-sm mb-2">Desglose — Pago a proveedores</h4>
             <table className="w-full text-xs">
               <tbody>
                 {pagosProvDelMes.map((p) => (
-                  <tr key={p.id} className="border-t"><td className="py-1">{p.proveedor} â€” {p.concepto}</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
+                  <tr key={p.id} className="border-t"><td className="py-1">{p.proveedor} — {p.concepto}</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
                 ))}
                 {pagosProvDelMes.length === 0 && <tr><td className="text-slate-400 py-2">Sin pagos a proveedores este mes.</td></tr>}
               </tbody>
@@ -5092,7 +5092,7 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
         <input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar por nombre, telÃ©fono, correo, fecha (AAAA-MM-DD) o artÃ­culo..."
+          placeholder="Buscar por nombre, teléfono, correo, fecha (AAAA-MM-DD) o artículo..."
           className="w-full border rounded-lg px-3 py-2 text-sm mb-3"
         />
         <div className="bg-white border rounded-xl overflow-hidden max-h-[60vh] overflow-y-auto">
@@ -5128,7 +5128,7 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
           </table>
         </div>
 
-        <h4 className="text-sm font-semibold mt-4 mb-1">Ya canceladas / con devoluciÃ³n</h4>
+        <h4 className="text-sm font-semibold mt-4 mb-1">Ya canceladas / con devolución</h4>
         <div className="bg-white border rounded-xl overflow-hidden max-h-40 overflow-y-auto">
           <table className="w-full text-sm">
             <tbody>
@@ -5140,7 +5140,7 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
                 </tr>
               ))}
               {canceladas.length === 0 && (
-                <tr><td className="text-center text-slate-400 py-3">Ninguna todavÃ­a.</td></tr>
+                <tr><td className="text-center text-slate-400 py-3">Ninguna todavía.</td></tr>
               )}
             </tbody>
           </table>
@@ -5152,11 +5152,11 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
           <p className="text-sm text-slate-400">Selecciona una nota para ver el expediente de la visita.</p>
         ) : (
           <div>
-            <h3 className="font-semibold mb-2">Expediente de la visita â€” Folio {nota.folio}</h3>
+            <h3 className="font-semibold mb-2">Expediente de la visita — Folio {nota.folio}</h3>
             <p className="text-sm">Cliente: {nota.nombreCliente}</p>
             {paciente && (
               <>
-                <p className="text-sm">TelÃ©fono: {paciente.telefono}</p>
+                <p className="text-sm">Teléfono: {paciente.telefono}</p>
                 <p className="text-sm">Email: {paciente.email}</p>
               </>
             )}
@@ -5164,10 +5164,10 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
             <p className="text-sm">Monto pagado (abono): ${nota.abono.toFixed(2)}</p>
             <p className="text-sm">Forma de pago: {nota.formaPago}</p>
             {ordenesLab.map((o) => (
-              <p key={o.id} className="text-sm">EnvÃ­o a laboratorio: {o.fechaEnvio} â€” Prometida: {o.fechaPrometida} â€” RecepciÃ³n: {o.fechaRecepcion || "pendiente"}</p>
+              <p key={o.id} className="text-sm">Envío a laboratorio: {o.fechaEnvio} — Prometida: {o.fechaPrometida} — Recepción: {o.fechaRecepcion || "pendiente"}</p>
             ))}
 
-            <h4 className="text-sm font-semibold mt-3 mb-1">ArtÃ­culos (marca los que se devuelven)</h4>
+            <h4 className="text-sm font-semibold mt-3 mb-1">Artículos (marca los que se devuelven)</h4>
             <div className="space-y-1 max-h-48 overflow-y-auto">
               {nota.items.map((it) => (
                 <label key={it.uidLinea} className="flex items-center justify-between text-sm border-b py-1">
@@ -5190,14 +5190,14 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
                 disabled={Object.values(marcados).every((v) => !v)}
                 className="flex-1 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium disabled:opacity-40"
               >
-                DevoluciÃ³n parcial (marcados)
+                Devolución parcial (marcados)
               </button>
               <button onClick={cancelarCompleta} className="flex-1 py-2 rounded-lg bg-red-500 text-white text-sm font-medium">
                 Cancelar nota completa
               </button>
             </div>
             <p className="text-xs text-slate-400 mt-2">
-              Los artÃ­culos devueltos se reintegran al inventario de inmediato y el monto se descuenta del corte del dÃ­a.
+              Los artículos devueltos se reintegran al inventario de inmediato y el monto se descuenta del corte del día.
             </p>
           </div>
         )}
@@ -5225,7 +5225,7 @@ function UsuariosView({ usuarios, setUsuarios }) {
     <div className="p-4">
       <div className="bg-white border rounded-xl p-3 mb-4 flex flex-wrap gap-2 items-end">
         <Field label="Nombre" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} />
-        <Field label="ContraseÃ±a" type="password" value={nuevo.password} onChange={(e) => setNuevo({ ...nuevo, password: e.target.value })} />
+        <Field label="Contraseña" type="password" value={nuevo.password} onChange={(e) => setNuevo({ ...nuevo, password: e.target.value })} />
         <label className="block mb-3">
           <span className="text-xs font-medium text-slate-500 uppercase">Rol</span>
           <select value={nuevo.rol} onChange={(e) => setNuevo({ ...nuevo, rol: e.target.value })} className="mt-1 border rounded-lg px-2 py-2 text-sm block">
@@ -5262,7 +5262,7 @@ function UsuariosView({ usuarios, setUsuarios }) {
 }
 
 /* ============================================================
-   ADMINISTRACIÃ“N (Usuarios + Proveedores)
+   ADMINISTRACIÓN (Usuarios + Proveedores)
    ============================================================ */
 function ProveedoresView({ proveedores, setProveedores }) {
   const [nuevo, setNuevo] = useState({ nombre: "", contacto: "", telefono: "", notas: "" });
@@ -5281,7 +5281,7 @@ function ProveedoresView({ proveedores, setProveedores }) {
       <div className="bg-white border rounded-xl p-3 mb-4 flex flex-wrap gap-2 items-end">
         <Field label="Nombre del proveedor" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} />
         <Field label="Contacto" value={nuevo.contacto} onChange={(e) => setNuevo({ ...nuevo, contacto: e.target.value })} />
-        <Field label="TelÃ©fono" value={nuevo.telefono} onChange={(e) => setNuevo({ ...nuevo, telefono: e.target.value })} />
+        <Field label="Teléfono" value={nuevo.telefono} onChange={(e) => setNuevo({ ...nuevo, telefono: e.target.value })} />
         <Field label="Notas" value={nuevo.notas} onChange={(e) => setNuevo({ ...nuevo, notas: e.target.value })} />
         <button onClick={agregar} className="px-3 py-2 rounded-lg text-white text-sm h-fit" style={{ background: SKY_DARK }}>
           Agregar proveedor
@@ -5293,7 +5293,7 @@ function ProveedoresView({ proveedores, setProveedores }) {
             <tr>
               <th className="text-left px-3 py-2">Nombre</th>
               <th className="text-left px-3 py-2">Contacto</th>
-              <th className="text-left px-3 py-2">TelÃ©fono</th>
+              <th className="text-left px-3 py-2">Teléfono</th>
               <th className="text-left px-3 py-2">Notas</th>
               <th className="px-3 py-2"></th>
             </tr>
@@ -5311,7 +5311,7 @@ function ProveedoresView({ proveedores, setProveedores }) {
               </tr>
             ))}
             {proveedores.length === 0 && (
-              <tr><td colSpan={5} className="text-center text-slate-400 py-6">Sin proveedores dados de alta todavÃ­a.</td></tr>
+              <tr><td colSpan={5} className="text-center text-slate-400 py-6">Sin proveedores dados de alta todavía.</td></tr>
             )}
           </tbody>
         </table>
@@ -5381,7 +5381,7 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario, conf
   }
 
   function normalizarFilas(filas) {
-    // homogeniza encabezados (acentos, mayÃºsculas, puntuaciÃ³n) para que coincidan aunque el archivo los escriba distinto
+    // homogeniza encabezados (acentos, mayúsculas, puntuación) para que coincidan aunque el archivo los escriba distinto
     return filas.map((fila) => {
       const obj = {};
       Object.entries(fila).forEach(([k, v]) => {
@@ -5454,7 +5454,7 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario, conf
         return isNaN(valor.getTime()) ? "" : valor.toISOString();
       }
       if (typeof valor === "number") {
-        // NÃºmero de serie de Excel (dÃ­as desde 1899-12-30)
+        // Número de serie de Excel (días desde 1899-12-30)
         const ms = Math.round((valor - 25569) * 86400 * 1000);
         const d = new Date(ms);
         return isNaN(d.getTime()) ? "" : d.toISOString();
@@ -5493,17 +5493,17 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario, conf
           },
           materialReceta: campo(f, "material_receta", "material receta"),
           cantidad: campo(f, "cantidad"),
-          descripcion: campo(f, "descripcion", "descripciÃ³n"),
+          descripcion: campo(f, "descripcion", "descripción"),
           precioMaterial: campo(f, "precio material", "precio_material"),
           totalProducto: campo(f, "total producto", "total_producto"),
           origen: "importado",
         };
         const idx = lista.findIndex((p) => p.nombre.trim().toLowerCase() === claveNombre);
-        const domicilio = campo(f, "domicilio", "direccion", "direcciÃ³n");
+        const domicilio = campo(f, "domicilio", "direccion", "dirección");
         const colonia = campo(f, "colonia");
-        const cp = campo(f, "c.p.", "cp", "codigo postal", "cÃ³digo postal");
+        const cp = campo(f, "c.p.", "cp", "codigo postal", "código postal");
         const mail = campo(f, "mail", "correo", "email");
-        const telefono = campo(f, "telefono", "telÃ©fono", "tel", "celular", "whatsapp", "phone");
+        const telefono = campo(f, "telefono", "teléfono", "tel", "celular", "whatsapp", "phone");
 
         const tieneDatosVisita = [
           visita.fecha, visita.total, visita.anticipo, visita.saldo, visita.fechaPrometido,
@@ -5543,7 +5543,7 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario, conf
         cantidad: filas.length,
         aviso:
           sinNombre > 0
-            ? `Aviso: ${sinNombre} fila(s) no traÃ­an un nombre reconocible y se guardaron como pacientes separados con nombre temporal. Revisa el encabezado de la columna "Nombre" en tu archivo.`
+            ? `Aviso: ${sinNombre} fila(s) no traían un nombre reconocible y se guardaron como pacientes separados con nombre temporal. Revisa el encabezado de la columna "Nombre" en tu archivo.`
             : "",
       });
     } else {
@@ -5562,9 +5562,9 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario, conf
             ...base,
             marcaContacto: campo(f, "marca"),
             nombreProductoContacto: base.nombre,
-            caracteristicas: campo(f, "caracteristicas principales", "caracteristicas", "caracterÃ­sticas principales", "caracterÃ­sticas"),
-            rangos: campo(f, "rangos de graduacion", "rangos de graduaciÃ³n", "rangos"),
-            presentacion: campo(f, "presentacion", "presentaciÃ³n"),
+            caracteristicas: campo(f, "caracteristicas principales", "caracteristicas", "características principales", "características"),
+            rangos: campo(f, "rangos de graduacion", "rangos de graduación", "rangos"),
+            presentacion: campo(f, "presentacion", "presentación"),
             tipoLente: campo(f, "tipo de lente", "tipo lente"),
             reemplazo: campo(f, "reemplazo"),
           };
@@ -5599,7 +5599,7 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario, conf
     <div className="p-4 max-w-xl">
       <div className="bg-white border rounded-xl p-4">
         <label className="block mb-3">
-          <span className="text-xs font-medium text-slate-500 uppercase">CategorÃ­a</span>
+          <span className="text-xs font-medium text-slate-500 uppercase">Categoría</span>
           <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className="mt-1 w-full border rounded-lg px-2 py-2 text-sm">
             <option>Pacientes</option>
             <option>Armazones</option>
@@ -5633,10 +5633,10 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario, conf
 
       {vistaPrevia && (
         <div className="bg-white border rounded-xl p-4 mt-4">
-          <h3 className="font-semibold text-sm mb-2">Vista previa â€” confirma antes de importar</h3>
+          <h3 className="font-semibold text-sm mb-2">Vista previa — confirma antes de importar</h3>
           <p className="text-xs text-slate-500 mb-2">
             Se detectaron {vistaPrevia.totalFilas} fila(s) con estas columnas. Revisa que "Nombre" tenga datos reales
-            (no vacÃ­o) antes de confirmar.
+            (no vacío) antes de confirmar.
           </p>
           <div className="overflow-x-auto mb-3">
             <table className="text-xs border-collapse">
@@ -5660,7 +5660,7 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario, conf
           </div>
           <div className="flex gap-2">
             <button onClick={confirmarImportacion} className="px-4 py-2 rounded-lg text-white text-sm" style={{ background: SKY_DARK }}>
-              Confirmar importaciÃ³n ({vistaPrevia.totalFilas} filas)
+              Confirmar importación ({vistaPrevia.totalFilas} filas)
             </button>
             <button onClick={() => { setVistaPrevia(null); if (fileRef.current) fileRef.current.value = ""; }} className="px-4 py-2 rounded-lg bg-slate-100 text-sm">
               Cancelar
@@ -5673,7 +5673,7 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario, conf
 }
 
 /* ============================================================
-   CONFIGURACIÃ“N
+   CONFIGURACIÓN
    ============================================================ */
 function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) {
   const [local, setLocal] = useState(config);
@@ -5725,8 +5725,8 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
           <input type="file" accept="image/*" onChange={subirLogo} className="text-sm" />
         </div>
         <div>
-          <label className="text-xs font-medium text-slate-500 uppercase block mb-1">Imagen principal de la tienda en lÃ­nea</label>
-          <p className="text-xs text-slate-400 mb-1">Se muestra de fondo en el inicio de la tienda. Mientras no la subas, ese espacio queda vacÃ­o.</p>
+          <label className="text-xs font-medium text-slate-500 uppercase block mb-1">Imagen principal de la tienda en línea</label>
+          <p className="text-xs text-slate-400 mb-1">Se muestra de fondo en el inicio de la tienda. Mientras no la subas, ese espacio queda vacío.</p>
           {local.imagenPrincipal ? (
             <div className="mb-2">
               <img src={local.imagenPrincipal} alt="imagen principal" style={{ height: 120 }} className="rounded-lg mb-1" />
@@ -5734,21 +5734,21 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
             </div>
           ) : (
             <div className="h-24 rounded-lg bg-slate-100 border border-dashed flex items-center justify-center text-xs text-slate-400 mb-2">
-              Sin imagen todavÃ­a
+              Sin imagen todavía
             </div>
           )}
           <input type="file" accept="image/*" onChange={subirImagenPrincipal} className="text-sm" />
         </div>
-        <Field label="DirecciÃ³n" value={local.direccion} onChange={(e) => setLocal({ ...local, direccion: e.target.value })} />
-        <Field label="TelÃ©fono" value={local.telefono} onChange={(e) => setLocal({ ...local, telefono: e.target.value })} />
+        <Field label="Dirección" value={local.direccion} onChange={(e) => setLocal({ ...local, direccion: e.target.value })} />
+        <Field label="Teléfono" value={local.telefono} onChange={(e) => setLocal({ ...local, telefono: e.target.value })} />
         <Field label="Correo de contacto" value={local.mail} onChange={(e) => setLocal({ ...local, mail: e.target.value })} />
         <button onClick={() => setConfig(local)} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
-          <Save size={16} /> Guardar configuraciÃ³n
+          <Save size={16} /> Guardar configuración
         </button>
       </div>
 
       <div className="bg-white border rounded-xl p-4 space-y-3">
-        <h3 className="font-semibold text-slate-700 mb-1">Redes sociales de la tienda en lÃ­nea</h3>
+        <h3 className="font-semibold text-slate-700 mb-1">Redes sociales de la tienda en línea</h3>
         <Field label="Facebook (URL)" value={local.redesSociales?.facebook || ""} onChange={(e) => setLocal({ ...local, redesSociales: { ...local.redesSociales, facebook: e.target.value } })} />
         <Field label="X / Twitter (URL)" value={local.redesSociales?.x || ""} onChange={(e) => setLocal({ ...local, redesSociales: { ...local.redesSociales, x: e.target.value } })} />
         <Field label="Instagram (URL)" value={local.redesSociales?.instagram || ""} onChange={(e) => setLocal({ ...local, redesSociales: { ...local.redesSociales, instagram: e.target.value } })} />
@@ -5761,9 +5761,9 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
       <div className="bg-white border rounded-xl p-4 space-y-3">
         <h3 className="font-semibold text-slate-700 mb-1">Registro de clientes con Google</h3>
         <p className="text-xs text-slate-500">
-          Pega aquÃ­ el "Client ID" que te da Google Cloud al crear tus credenciales OAuth. Mientras esto estÃ© vacÃ­o,
-          el botÃ³n de Google en la tienda solo mostrarÃ¡ un aviso y los clientes seguirÃ¡n pudiendo registrarse con
-          nombre y telÃ©fono sin problema.
+          Pega aquí el "Client ID" que te da Google Cloud al crear tus credenciales OAuth. Mientras esto esté vacío,
+          el botón de Google en la tienda solo mostrará un aviso y los clientes seguirán pudiendo registrarse con
+          nombre y teléfono sin problema.
         </p>
         <Field label="Google Client ID" value={local.googleClientId || ""} onChange={(e) => setLocal({ ...local, googleClientId: e.target.value })} />
         <button onClick={() => setConfig(local)} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
@@ -5772,11 +5772,11 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
       </div>
 
       <div className="bg-white border rounded-xl p-4 space-y-3">
-        <h3 className="font-semibold text-slate-700 mb-1">Pago en lÃ­nea con PayPal</h3>
+        <h3 className="font-semibold text-slate-700 mb-1">Pago en línea con PayPal</h3>
         <p className="text-xs text-slate-500">
-          Pega aquÃ­ el "Client ID" de tu app de PayPal Developer. Mientras estÃ© en modo "Sandbox" son pagos de
-          prueba (no se cobra dinero real) â€” cuando quieras cobrar de verdad, crea el Client ID de producciÃ³n
-          ("Live") en PayPal y pÃ©galo aquÃ­, marcando la casilla de abajo.
+          Pega aquí el "Client ID" de tu app de PayPal Developer. Mientras esté en modo "Sandbox" son pagos de
+          prueba (no se cobra dinero real) — cuando quieras cobrar de verdad, crea el Client ID de producción
+          ("Live") en PayPal y pégalo aquí, marcando la casilla de abajo.
         </p>
         <Field label="PayPal Client ID" value={local.paypalClientId || ""} onChange={(e) => setLocal({ ...local, paypalClientId: e.target.value })} />
         <label className="flex items-center gap-2 text-sm">
@@ -5785,7 +5785,7 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
             checked={!!local.paypalModoProduccion}
             onChange={(e) => setLocal({ ...local, paypalModoProduccion: e.target.checked })}
           />
-          Este Client ID es de producciÃ³n (Live) â€” cobros con dinero real
+          Este Client ID es de producción (Live) — cobros con dinero real
         </label>
         <button onClick={() => setConfig(local)} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
           <Save size={16} /> Guardar PayPal
@@ -5793,21 +5793,21 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
       </div>
 
       <div className="bg-white border rounded-xl p-4 space-y-3">
-        <h3 className="font-semibold text-slate-700 mb-1">Contenido de pÃ¡ginas de la tienda (pie de pÃ¡gina)</h3>
+        <h3 className="font-semibold text-slate-700 mb-1">Contenido de páginas de la tienda (pie de página)</h3>
         <p className="text-xs text-slate-500">
-          Mientras no llenes un campo, el visitante verÃ¡ "Contenido prÃ³ximamente" al abrir ese enlace.
+          Mientras no llenes un campo, el visitante verá "Contenido próximamente" al abrir ese enlace.
         </p>
         {[
           ["manifiesto", "Nuestro manifiesto"],
-          ["politicaIntegridad", "PolÃ­tica de integridad"],
+          ["politicaIntegridad", "Política de integridad"],
           ["avisoPrivacidad", "Aviso de privacidad (ya viene con un texto sugerido)"],
           ["rastreoPedido", "Rastrear mi pedido"],
           ["trabajaConNosotros", "Trabaja con nosotros"],
           ["preguntasFrecuentes", "Preguntas frecuentes"],
-          ["devolucionesGarantias", "Devoluciones y garantÃ­as"],
-          ["terminosCondiciones", "TÃ©rminos y condiciones"],
+          ["devolucionesGarantias", "Devoluciones y garantías"],
+          ["terminosCondiciones", "Términos y condiciones"],
           ["lentesComputadora", "Lentes pa' la compu"],
-          ["facturacionElectronica", "FacturaciÃ³n electrÃ³nica"],
+          ["facturacionElectronica", "Facturación electrónica"],
         ].map(([clave, label]) => (
           <div key={clave}>
             <label className="text-xs font-medium text-slate-500 uppercase block mb-1">{label}</label>
@@ -5827,9 +5827,9 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
         <h3 className="font-semibold text-amber-800 mb-1">Respaldo manual (recomendado)</h3>
         <p className="text-xs text-amber-700 mb-3">
-          Esto guarda TODA la informaciÃ³n (pacientes, inventario, agenda, ventas, usuarios, laboratorio) en un
-          archivo en tu dispositivo. No depende de la conexiÃ³n con el almacenamiento en lÃ­nea â€” funciona siempre.
-          DescÃ¡rgalo despuÃ©s de capturar informaciÃ³n importante, y si algo no se guarda solo, puedes restaurarlo aquÃ­.
+          Esto guarda TODA la información (pacientes, inventario, agenda, ventas, usuarios, laboratorio) en un
+          archivo en tu dispositivo. No depende de la conexión con el almacenamiento en línea — funciona siempre.
+          Descárgalo después de capturar información importante, y si algo no se guarda solo, puedes restaurarlo aquí.
         </p>
         <div className="flex flex-wrap gap-2">
           <button
@@ -5853,7 +5853,7 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
 }
 
 /* ============================================================
-   TIENDA EN LÃNEA (acceso Ãºnico, estilo e-commerce)
+   TIENDA EN LÍNEA (acceso único, estilo e-commerce)
    ============================================================ */
 function useSesionCliente() {
   const [sesionCliente, setSesionClienteState] = useState(() => {
@@ -5896,7 +5896,7 @@ function BotonContorno({ children, ...props }) {
   );
 }
 
-/* ---------- Drawer lateral genÃ©rico ---------- */
+/* ---------- Drawer lateral genérico ---------- */
 function DrawerLateral({ open, onClose, children, title }) {
   return (
     <div
@@ -5946,7 +5946,7 @@ function BotonGoogleReal({ clientId, onCredencial }) {
     function iniciar() {
       if (cancelado) return;
       if (!window.google || !window.google.accounts || !window.google.accounts.id) {
-        setError("No se pudo cargar el botÃ³n de Google. Revisa tu conexiÃ³n a internet.");
+        setError("No se pudo cargar el botón de Google. Revisa tu conexión a internet.");
         return;
       }
       try {
@@ -5962,7 +5962,7 @@ function BotonGoogleReal({ clientId, onCredencial }) {
           window.google.accounts.id.renderButton(divRef.current, { theme: "outline", size: "large", width: 280 });
         }
       } catch {
-        setError("No se pudo iniciar el botÃ³n de Google. Revisa que el Client ID configurado sea correcto.");
+        setError("No se pudo iniciar el botón de Google. Revisa que el Client ID configurado sea correcto.");
       }
     }
 
@@ -6042,7 +6042,7 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
     setEmpError("");
     const esPrimerAcceso = usuarios.length === 0;
     if (!empUsuario || !empPassword) {
-      setEmpError("Completa usuario y contraseÃ±a.");
+      setEmpError("Completa usuario y contraseña.");
       return;
     }
     if (esPrimerAcceso) {
@@ -6056,7 +6056,7 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
       (u) => u.nombre.trim().toLowerCase() === empUsuario.trim().toLowerCase() && u.password === empPassword
     );
     if (!encontrado) {
-      setEmpError("Usuario o contraseÃ±a incorrectos.");
+      setEmpError("Usuario o contraseña incorrectos.");
       return;
     }
     onLoginEmpleado({ nombre: encontrado.nombre, rol: encontrado.rol });
@@ -6076,12 +6076,12 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
   function iniciarSesionCliente() {
     setClienteError("");
     if (!loginContacto.trim()) {
-      setClienteError("Escribe el telÃ©fono o correo con el que te registraste.");
+      setClienteError("Escribe el teléfono o correo con el que te registraste.");
       return;
     }
     const paciente = buscarPacientePorContacto(loginContacto);
     if (!paciente) {
-      setClienteError("No encontramos ninguna cuenta con ese dato. Â¿AÃºn no tienes cuenta? CrÃ©ala abajo.");
+      setClienteError("No encontramos ninguna cuenta con ese dato. ¿Aún no tienes cuenta? Créala abajo.");
       return;
     }
     if (!paciente.cuentaActiva) {
@@ -6096,7 +6096,7 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
     const telefono = clienteTelefono.trim();
     const mail = clienteMail.trim();
     if (!clienteNombre.trim() || !mail) {
-      setClienteError("Escribe tu nombre y tu correo â€” es obligatorio para poder verificar tu cuenta.");
+      setClienteError("Escribe tu nombre y tu correo — es obligatorio para poder verificar tu cuenta.");
       return;
     }
     const yaExiste = pacientes.find(
@@ -6105,11 +6105,11 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
         (mail && p.mail && String(p.mail).trim().toLowerCase() === mail.toLowerCase())
     );
     if (yaExiste) {
-      setClienteError("Ya existe una cuenta con ese telÃ©fono o correo. Usa 'Iniciar sesiÃ³n' en su lugar.");
+      setClienteError("Ya existe una cuenta con ese teléfono o correo. Usa 'Iniciar sesión' en su lugar.");
       return;
     }
 
-    // Requiere verificar el correo con un cÃ³digo antes de crear la cuenta
+    // Requiere verificar el correo con un código antes de crear la cuenta
     enviarCodigoAlCorreo(mail, clienteNombre.trim(), telefono);
   }
 
@@ -6137,7 +6137,7 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
     const enviado = await enviarCodigoPorCorreo(mail, codigo, nombre);
     setEnviandoCodigo(false);
     if (!enviado) {
-      setClienteError("No se pudo enviar el cÃ³digo de verificaciÃ³n. Intenta de nuevo en un momento.");
+      setClienteError("No se pudo enviar el código de verificación. Intenta de nuevo en un momento.");
       return;
     }
     setCodigoEsperado(codigo);
@@ -6149,7 +6149,7 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
   function verificarCodigoIngresado() {
     setClienteError("");
     if (codigoIngresado.trim() !== codigoEsperado) {
-      setClienteError("El cÃ³digo no es correcto. Revisa tu correo e intÃ©ntalo de nuevo.");
+      setClienteError("El código no es correcto. Revisa tu correo e inténtalo de nuevo.");
       return;
     }
     crearCuentaFinal(datosPendientes);
@@ -6186,7 +6186,7 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
     <DrawerLateral open={open} onClose={cerrar} title={paso === "elegir" ? "Ingresa a tu cuenta" : undefined}>
       {paso === "elegir" && (
         <div className="space-y-3">
-          <p className="text-sm text-slate-500 mb-4">Â¿CÃ³mo quieres ingresar?</p>
+          <p className="text-sm text-slate-500 mb-4">¿Cómo quieres ingresar?</p>
           <BotonNegro onClick={() => setPaso("empleado")}>Soy empleado</BotonNegro>
           <BotonContorno onClick={() => setPaso("cliente")}>Soy cliente</BotonContorno>
         </div>
@@ -6194,31 +6194,31 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
 
       {paso === "empleado" && (
         <div>
-          <button onClick={() => setPaso("elegir")} className="text-xs text-slate-400 mb-3">â† Volver</button>
+          <button onClick={() => setPaso("elegir")} className="text-xs text-slate-400 mb-3">← Volver</button>
           <h2 className="text-xl font-semibold mb-1">Acceso de personal</h2>
           <p className="text-sm text-slate-500 mb-4">
-            {usuarios.length === 0 ? "Primer acceso â€” crea la cuenta de administrador." : "Usa tu usuario y contraseÃ±a asignados."}
+            {usuarios.length === 0 ? "Primer acceso — crea la cuenta de administrador." : "Usa tu usuario y contraseña asignados."}
           </p>
           <Field label="Usuario" value={empUsuario} onChange={(e) => setEmpUsuario(e.target.value)} onKeyDown={enterActiva(entrarEmpleado)} />
-          <Field label="ContraseÃ±a" type="password" value={empPassword} onChange={(e) => setEmpPassword(e.target.value)} onKeyDown={enterActiva(entrarEmpleado)} />
+          <Field label="Contraseña" type="password" value={empPassword} onChange={(e) => setEmpPassword(e.target.value)} onKeyDown={enterActiva(entrarEmpleado)} />
           {empError && <p className="text-xs text-red-600 mb-2">{empError}</p>}
           <BotonNegro onClick={entrarEmpleado} className="mt-2">
-            {usuarios.length === 0 ? "Crear cuenta y entrar" : "Iniciar sesiÃ³n"}
+            {usuarios.length === 0 ? "Crear cuenta y entrar" : "Iniciar sesión"}
           </BotonNegro>
         </div>
       )}
 
       {paso === "cliente" && (
         <div>
-          <button onClick={() => setPaso("elegir")} className="text-xs text-slate-400 mb-3">â† Volver</button>
+          <button onClick={() => setPaso("elegir")} className="text-xs text-slate-400 mb-3">← Volver</button>
 
           {clienteModo === "login" ? (
             <>
-              <h2 className="text-xl font-semibold mb-1">Iniciar sesiÃ³n</h2>
-              <p className="text-sm text-slate-500 mb-4">Escribe el telÃ©fono o correo con el que ya tienes cuenta.</p>
-              <Field label="TelÃ©fono o correo" value={loginContacto} onChange={(e) => setLoginContacto(e.target.value)} onKeyDown={enterActiva(iniciarSesionCliente)} />
+              <h2 className="text-xl font-semibold mb-1">Iniciar sesión</h2>
+              <p className="text-sm text-slate-500 mb-4">Escribe el teléfono o correo con el que ya tienes cuenta.</p>
+              <Field label="Teléfono o correo" value={loginContacto} onChange={(e) => setLoginContacto(e.target.value)} onKeyDown={enterActiva(iniciarSesionCliente)} />
               {clienteError && <p className="text-xs text-red-600 mb-2">{clienteError}</p>}
-              <BotonNegro onClick={iniciarSesionCliente} className="mt-2">Iniciar sesiÃ³n</BotonNegro>
+              <BotonNegro onClick={iniciarSesionCliente} className="mt-2">Iniciar sesión</BotonNegro>
 
               <div className="flex items-center gap-2 my-3">
                 <div className="flex-1 h-px bg-slate-200" />
@@ -6228,13 +6228,13 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
               {config?.googleClientId ? (
                 <BotonGoogleReal clientId={config.googleClientId} onCredencial={entrarConGoogle} />
               ) : (
-                <BotonContorno onClick={() => setClienteError("El registro con Google todavÃ­a no estÃ¡ conectado â€” pide al administrador que configure el Client ID de Google en ConfiguraciÃ³n.")}>
+                <BotonContorno onClick={() => setClienteError("El registro con Google todavía no está conectado — pide al administrador que configure el Client ID de Google en Configuración.")}>
                   Continuar con Google
                 </BotonContorno>
               )}
 
               <p className="text-sm text-slate-500 mt-4 text-center">
-                Â¿AÃºn no tienes cuenta?{" "}
+                ¿Aún no tienes cuenta?{" "}
                 <button
                   onClick={() => {
                     setClienteError("");
@@ -6250,9 +6250,9 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
             <>
               <h2 className="text-xl font-semibold mb-1">Verifica tu correo</h2>
               <p className="text-sm text-slate-500 mb-4">
-                Te enviamos un cÃ³digo de 6 dÃ­gitos a <b>{datosPendientes?.mail}</b>. EscrÃ­belo aquÃ­ para activar tu cuenta.
+                Te enviamos un código de 6 dígitos a <b>{datosPendientes?.mail}</b>. Escríbelo aquí para activar tu cuenta.
               </p>
-              <Field label="CÃ³digo de verificaciÃ³n" value={codigoIngresado} onChange={(e) => setCodigoIngresado(e.target.value)} onKeyDown={enterActiva(verificarCodigoIngresado)} />
+              <Field label="Código de verificación" value={codigoIngresado} onChange={(e) => setCodigoIngresado(e.target.value)} onKeyDown={enterActiva(verificarCodigoIngresado)} />
               {clienteError && <p className="text-xs text-red-600 mb-2">{clienteError}</p>}
               <BotonNegro onClick={verificarCodigoIngresado} className="mt-2">Verificar y crear cuenta</BotonNegro>
               <button
@@ -6260,7 +6260,7 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
                 disabled={enviandoCodigo}
                 className="text-sm text-slate-500 underline mt-3 block mx-auto disabled:opacity-40"
               >
-                {enviandoCodigo ? "Reenviandoâ€¦" : "Reenviar cÃ³digo"}
+                {enviandoCodigo ? "Reenviando…" : "Reenviar código"}
               </button>
               <button
                 onClick={() => {
@@ -6269,22 +6269,22 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
                 }}
                 className="text-xs text-slate-400 mt-4 block mx-auto"
               >
-                â† Corregir mis datos
+                ← Corregir mis datos
               </button>
             </>
           ) : (
             <>
               <h2 className="text-xl font-semibold mb-1">Crear cuenta nueva</h2>
               <p className="text-sm text-slate-500 mb-4">
-                Con tu nombre y tu correo guardamos tus pedidos, tu receta y tu historial para la prÃ³xima vez. Te
-                vamos a pedir confirmar tu correo con un cÃ³digo antes de activar tu cuenta.
+                Con tu nombre y tu correo guardamos tus pedidos, tu receta y tu historial para la próxima vez. Te
+                vamos a pedir confirmar tu correo con un código antes de activar tu cuenta.
               </p>
               <Field label="Nombre" value={clienteNombre} onChange={(e) => setClienteNombre(e.target.value)} onKeyDown={enterActiva(registrarCliente)} />
               <Field label="Correo (obligatorio)" value={clienteMail} onChange={(e) => setClienteMail(e.target.value)} onKeyDown={enterActiva(registrarCliente)} />
-              <Field label="TelÃ©fono (WhatsApp) â€” opcional" value={clienteTelefono} onChange={(e) => setClienteTelefono(e.target.value)} onKeyDown={enterActiva(registrarCliente)} />
+              <Field label="Teléfono (WhatsApp) — opcional" value={clienteTelefono} onChange={(e) => setClienteTelefono(e.target.value)} onKeyDown={enterActiva(registrarCliente)} />
               {clienteError && <p className="text-xs text-red-600 mb-2">{clienteError}</p>}
               <BotonNegro onClick={registrarCliente} disabled={enviandoCodigo} className="mt-2">
-                {enviandoCodigo ? "Enviando cÃ³digoâ€¦" : "Crear cuenta"}
+                {enviandoCodigo ? "Enviando código…" : "Crear cuenta"}
               </BotonNegro>
 
               <div className="flex items-center gap-2 my-3">
@@ -6295,13 +6295,13 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
               {config?.googleClientId ? (
                 <BotonGoogleReal clientId={config.googleClientId} onCredencial={entrarConGoogle} />
               ) : (
-                <BotonContorno onClick={() => setClienteError("El registro con Google todavÃ­a no estÃ¡ conectado â€” pide al administrador que configure el Client ID de Google en ConfiguraciÃ³n.")}>
+                <BotonContorno onClick={() => setClienteError("El registro con Google todavía no está conectado — pide al administrador que configure el Client ID de Google en Configuración.")}>
                   Continuar con Google
                 </BotonContorno>
               )}
 
               <p className="text-sm text-slate-500 mt-4 text-center">
-                Â¿Ya tienes cuenta?{" "}
+                ¿Ya tienes cuenta?{" "}
                 <button
                   onClick={() => {
                     setClienteError("");
@@ -6309,7 +6309,7 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
                   }}
                   className="underline font-medium text-black"
                 >
-                  Iniciar sesiÃ³n
+                  Iniciar sesión
                 </button>
               </p>
             </>
@@ -6332,7 +6332,7 @@ function TiendaHeader({ config, sesionCliente, sesionStaff, carritoCount, onAbri
   ];
   return (
     <div className="bg-white border-b sticky top-0 z-30">
-      <div className="text-center text-xs bg-black text-white py-1.5">Bienvenido a {NOMBRE_OPTICA} â€” agenda tu examen de la vista gratis</div>
+      <div className="text-center text-xs bg-black text-white py-1.5">Bienvenido a {NOMBRE_OPTICA} — agenda tu examen de la vista gratis</div>
       <div className="flex items-center justify-between px-4 sm:px-8 py-4">
         <button onClick={onIrInicio} className="flex items-center gap-2">
           {config?.logo ? <img src={config.logo} alt="logo" style={{ height: 36 }} /> : <span className="font-bold text-lg tracking-wide">{NOMBRE_OPTICA.toUpperCase()}</span>}
@@ -6370,11 +6370,11 @@ function TiendaHeader({ config, sesionCliente, sesionStaff, carritoCount, onAbri
                   <button
                     onClick={() => {
                       setMenuCuentaAbierto(false);
-                      if (window.confirm("Â¿Cerrar sesiÃ³n?")) onCerrarSesionCliente();
+                      if (window.confirm("¿Cerrar sesión?")) onCerrarSesionCliente();
                     }}
                     className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50"
                   >
-                    Cerrar sesiÃ³n
+                    Cerrar sesión
                   </button>
                 </div>
               </>
@@ -6409,7 +6409,7 @@ function TarjetaArmazonCarrusel({ a, onVerProducto, onAgregarCarrito }) {
         <div className="rounded-xl mb-2 overflow-hidden" style={{ background: "#f4f4f4", height: 110 }}>
           {a.imagen && <img src={a.imagen} alt={a.nombre} className="w-full h-full object-cover" />}
         </div>
-        <p className="text-sm font-medium truncate">{a.marcaArmazon ? `${a.marcaArmazon}${a.modeloArmazon ? " Â· " + a.modeloArmazon : ""}` : a.nombre}</p>
+        <p className="text-sm font-medium truncate">{a.marcaArmazon ? `${a.marcaArmazon}${a.modeloArmazon ? " · " + a.modeloArmazon : ""}` : a.nombre}</p>
         <p className="text-sm text-slate-500">${a.precio} MXN</p>
       </button>
       <button
@@ -6433,7 +6433,7 @@ function CarruselLineaArmazones({ titulo, articulos, onVerProducto, onAgregarCar
           ))}
         </div>
       ) : (
-        <p className="text-sm text-slate-400">AÃºn no hay armazones dados de alta en esta lÃ­nea.</p>
+        <p className="text-sm text-slate-400">Aún no hay armazones dados de alta en esta línea.</p>
       )}
     </div>
   );
@@ -6441,9 +6441,9 @@ function CarruselLineaArmazones({ titulo, articulos, onVerProducto, onAgregarCar
 
 function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProducto, onAgregarCarrito }) {
   const armazones = inventario?.armazones || [];
-  const premium = armazones.filter((a) => a.tipoLinea === "ArmazÃ³n LÃ­nea Premium");
-  const media = armazones.filter((a) => a.tipoLinea === "ArmazÃ³n LÃ­nea EstÃ¡ndar");
-  const economica = armazones.filter((a) => a.tipoLinea === "ArmazÃ³n LÃ­nea EconÃ³mica");
+  const premium = armazones.filter((a) => a.tipoLinea === "Armazón Línea Premium");
+  const media = armazones.filter((a) => a.tipoLinea === "Armazón Línea Estándar");
+  const economica = armazones.filter((a) => a.tipoLinea === "Armazón Línea Económica");
 
   return (
     <div>
@@ -6453,26 +6453,26 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
           <div className="w-full overflow-hidden" style={{ height: 220 }}>
             <img
               src={config.imagenPrincipal}
-              alt="Spektrum Ã“pticas"
+              alt="Spektrum Ópticas"
               className="w-full h-full object-cover"
               style={{ objectPosition: "center 25%" }}
             />
           </div>
         ) : (
           <div className="w-full flex items-center justify-center" style={{ height: 220, background: "#f4f4f4" }}>
-            <p className="text-xs text-slate-300">Sube tu imagen principal desde ConfiguraciÃ³n</p>
+            <p className="text-xs text-slate-300">Sube tu imagen principal desde Configuración</p>
           </div>
         )}
         <div className="text-center px-4 py-6">
           {config?.logo ? (
-            <img src={config.logo} alt="Spektrum Ã“pticas" style={{ mixBlendMode: "multiply" }} className="h-16 mx-auto mb-1" />
+            <img src={config.logo} alt="Spektrum Ópticas" style={{ mixBlendMode: "multiply" }} className="h-16 mx-auto mb-1" />
           ) : (
-            <h1 className="text-2xl font-semibold mb-1">Spektrum Ã“pticas</h1>
+            <h1 className="text-2xl font-semibold mb-1">Spektrum Ópticas</h1>
           )}
           <p className="italic font-serif mb-4 text-lg" style={{ lineHeight: 1.1 }}>Mi mirada. Mi estilo</p>
           <div className="flex flex-col gap-2 max-w-[220px] mx-auto">
             <button onClick={onAgendar} className="px-5 py-2.5 rounded-full bg-white border border-black text-sm font-medium">Agendar examen</button>
-            <button onClick={() => onIrCategoria("armazones")} className="px-5 py-2.5 rounded-full bg-black text-white text-sm font-medium">Â¡Yo quiero!</button>
+            <button onClick={() => onIrCategoria("armazones")} className="px-5 py-2.5 rounded-full bg-black text-white text-sm font-medium">¡Yo quiero!</button>
           </div>
         </div>
       </div>
@@ -6480,10 +6480,10 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
       {/* Vista para tablet/escritorio: logo y botones superpuestos sobre la imagen completa */}
       <div className="hidden sm:block relative">
         {config?.imagenPrincipal ? (
-          <img src={config.imagenPrincipal} alt="Spektrum Ã“pticas" className="w-full h-auto block" />
+          <img src={config.imagenPrincipal} alt="Spektrum Ópticas" className="w-full h-auto block" />
         ) : (
           <div className="w-full flex items-center justify-center" style={{ height: 380, background: "#f4f4f4" }}>
-            <p className="text-xs text-slate-300">Sube tu imagen principal desde ConfiguraciÃ³n</p>
+            <p className="text-xs text-slate-300">Sube tu imagen principal desde Configuración</p>
           </div>
         )}
         <div className="absolute inset-0 flex items-center">
@@ -6491,25 +6491,25 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
             {config?.logo ? (
               <img
                 src={config.logo}
-                alt="Spektrum Ã“pticas"
+                alt="Spektrum Ópticas"
                 style={{ mixBlendMode: "multiply" }}
                 className="mb-1 h-36 md:h-[143px]"
               />
             ) : (
-              <h1 className="text-4xl md:text-5xl font-semibold mb-1">Spektrum Ã“pticas</h1>
+              <h1 className="text-4xl md:text-5xl font-semibold mb-1">Spektrum Ópticas</h1>
             )}
             <p className="italic font-serif mb-5 text-2xl md:text-[28px]" style={{ lineHeight: 1.1 }}>Mi mirada. Mi estilo</p>
             <div className="flex flex-col gap-4 max-w-[264px]">
               <button onClick={onAgendar} className="px-8 py-4 rounded-full bg-white border border-black text-base font-medium">Agendar examen</button>
-              <button onClick={() => onIrCategoria("armazones")} className="px-8 py-4 rounded-full bg-black text-white text-base font-medium">Â¡Yo quiero!</button>
+              <button onClick={() => onIrCategoria("armazones")} className="px-8 py-4 rounded-full bg-black text-white text-base font-medium">¡Yo quiero!</button>
             </div>
           </div>
         </div>
       </div>
 
-      <CarruselLineaArmazones titulo="LÃ­nea Premium" articulos={premium} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
-      <CarruselLineaArmazones titulo="LÃ­nea Media" articulos={media} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
-      <CarruselLineaArmazones titulo="LÃ­nea EconÃ³mica" articulos={economica} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
+      <CarruselLineaArmazones titulo="Línea Premium" articulos={premium} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
+      <CarruselLineaArmazones titulo="Línea Media" articulos={media} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
+      <CarruselLineaArmazones titulo="Línea Económica" articulos={economica} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
 
       <div className="max-w-5xl mx-auto px-6 py-10 grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
@@ -6528,27 +6528,27 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
   );
 }
 
-/* ---------- CategorÃ­a: filtros + grid ---------- */
-/* ---------- Visor de pÃ¡ginas de contenido (CMS ligero) ---------- */
+/* ---------- Categoría: filtros + grid ---------- */
+/* ---------- Visor de páginas de contenido (CMS ligero) ---------- */
 function ContenidoPaginaDrawer({ open, onClose, titulo, contenido }) {
   return (
     <DrawerLateral open={open} onClose={onClose} title={titulo}>
       {contenido ? (
         <p className="text-sm text-slate-600 whitespace-pre-wrap">{contenido}</p>
       ) : (
-        <p className="text-sm text-slate-400">Contenido prÃ³ximamente.</p>
+        <p className="text-sm text-slate-400">Contenido próximamente.</p>
       )}
     </DrawerLateral>
   );
 }
 
-/* ---------- Mapa de ubicaciÃ³n ---------- */
+/* ---------- Mapa de ubicación ---------- */
 function MapaUbicacion({ direccion }) {
   return (
     <div className="rounded-2xl overflow-hidden border" style={{ height: 260 }}>
       {direccion ? (
         <iframe
-          title="UbicaciÃ³n"
+          title="Ubicación"
           width="100%"
           height="100%"
           style={{ border: 0 }}
@@ -6557,14 +6557,14 @@ function MapaUbicacion({ direccion }) {
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center text-xs text-slate-400 bg-slate-50">
-          Agrega tu direcciÃ³n en ConfiguraciÃ³n para mostrar el mapa
+          Agrega tu dirección en Configuración para mostrar el mapa
         </div>
       )}
     </div>
   );
 }
 
-/* ---------- Pie de pÃ¡gina ---------- */
+/* ---------- Pie de página ---------- */
 function TiendaFooter({ config, setConfig, onIrInicio, onIrCategoria, onAbrirCuenta, onAbrirExamen, onAbrirReceta }) {
   const [paginaAbierta, setPaginaAbierta] = useState(null); // {titulo, contenido}
   const [mapaAbierto, setMapaAbierto] = useState(false);
@@ -6587,7 +6587,7 @@ function TiendaFooter({ config, setConfig, onIrInicio, onIrCategoria, onAbrirCue
     }
     setConfig({ ...config, suscriptores: [...suscriptores, { email: correoNewsletter.trim(), fecha: new Date().toISOString() }] });
     setCorreoNewsletter("");
-    setMensajeNewsletter("Â¡Listo! Ya estÃ¡s suscrito.");
+    setMensajeNewsletter("¡Listo! Ya estás suscrito.");
   }
 
   const enlace = "text-left hover:underline text-slate-300 hover:text-white text-sm";
@@ -6609,41 +6609,41 @@ function TiendaFooter({ config, setConfig, onIrInicio, onIrCategoria, onAbrirCue
         <div className="flex flex-col gap-2">
           <h4 className="font-semibold mb-1">Nosotros</h4>
           <button onClick={() => abrirPagina("manifiesto", "Nuestro manifiesto")} className={enlace}>Nuestro Manifiesto</button>
-          <button onClick={() => abrirPagina("politicaIntegridad", "PolÃ­tica de integridad")} className={enlace}>PolÃ­tica de integridad</button>
+          <button onClick={() => abrirPagina("politicaIntegridad", "Política de integridad")} className={enlace}>Política de integridad</button>
           <button onClick={() => abrirPagina("avisoPrivacidad", "Aviso de Privacidad", AVISO_PRIVACIDAD_DEFAULT)} className={enlace}>Aviso de Privacidad</button>
           <button onClick={() => abrirPagina("rastreoPedido", "Rastrear mi pedido")} className={enlace}>Rastrear mi Pedido</button>
           <button onClick={() => abrirPagina("trabajaConNosotros", "Trabaja con nosotros")} className={enlace}>Trabaja con nosotros</button>
         </div>
 
         <div className="flex flex-col gap-2">
-          <h4 className="font-semibold mb-1">MÃ¡s enlaces</h4>
+          <h4 className="font-semibold mb-1">Más enlaces</h4>
           <button onClick={onAbrirCuenta} className={enlace}>Mi cuenta {NOMBRE_OPTICA}</button>
           <button onClick={() => abrirPagina("preguntasFrecuentes", "Preguntas frecuentes")} className={enlace}>Preguntas frecuentes</button>
-          <button onClick={onAbrirReceta} className={enlace}>CÃ³mo subir tu receta</button>
-          <button onClick={() => abrirPagina("devolucionesGarantias", "Devoluciones y garantÃ­as")} className={enlace}>Devoluciones y garantÃ­as</button>
-          <button onClick={() => abrirPagina("terminosCondiciones", "TÃ©rminos y condiciones")} className={enlace}>TÃ©rminos y condiciones</button>
+          <button onClick={onAbrirReceta} className={enlace}>Cómo subir tu receta</button>
+          <button onClick={() => abrirPagina("devolucionesGarantias", "Devoluciones y garantías")} className={enlace}>Devoluciones y garantías</button>
+          <button onClick={() => abrirPagina("terminosCondiciones", "Términos y condiciones")} className={enlace}>Términos y condiciones</button>
           <button onClick={() => abrirPagina("lentesComputadora", "Lentes pa' la compu")} className={enlace}>Lentes pa' la compu</button>
-          <button onClick={() => abrirPagina("facturacionElectronica", "FacturaciÃ³n electrÃ³nica")} className={enlace}>FacturaciÃ³n electrÃ³nica</button>
+          <button onClick={() => abrirPagina("facturacionElectronica", "Facturación electrónica")} className={enlace}>Facturación electrónica</button>
         </div>
 
         <div className="flex flex-col gap-3">
-          <h4 className="font-semibold mb-1">Â¿Tienes alguna duda?</h4>
+          <h4 className="font-semibold mb-1">¿Tienes alguna duda?</h4>
           {config?.telefono && (
             <a href={`https://wa.me/52${config.telefono.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className={enlace}>
               WhatsApp
             </a>
           )}
-          <h4 className="font-semibold mb-1 mt-2">SÃ­guenos</h4>
+          <h4 className="font-semibold mb-1 mt-2">Síguenos</h4>
           <div className="flex gap-3 text-slate-300">
             {redes.facebook && <a href={redes.facebook} target="_blank" rel="noreferrer" className="hover:text-white">Facebook</a>}
             {redes.x && <a href={redes.x} target="_blank" rel="noreferrer" className="hover:text-white">X</a>}
             {redes.instagram && <a href={redes.instagram} target="_blank" rel="noreferrer" className="hover:text-white">Instagram</a>}
             {redes.tiktok && <a href={redes.tiktok} target="_blank" rel="noreferrer" className="hover:text-white">TikTok</a>}
             {!redes.facebook && !redes.x && !redes.instagram && !redes.tiktok && (
-              <span className="text-xs text-slate-500">Agrega tus redes desde ConfiguraciÃ³n</span>
+              <span className="text-xs text-slate-500">Agrega tus redes desde Configuración</span>
             )}
           </div>
-          <h4 className="font-semibold mb-1 mt-2">ContÃ¡ctanos</h4>
+          <h4 className="font-semibold mb-1 mt-2">Contáctanos</h4>
           <p className="text-sm text-slate-300">{config?.mail || "optispektrum@hotmail.com"}</p>
           <p className="text-sm text-slate-300">{config?.telefono}</p>
         </div>
@@ -6664,14 +6664,14 @@ function TiendaFooter({ config, setConfig, onIrInicio, onIrCategoria, onAbrirCue
           </div>
           {mensajeNewsletter && <p className="text-xs text-emerald-400 mt-2">{mensajeNewsletter}</p>}
           <p className="text-xs text-slate-500 mt-2">
-            Al registrarte estÃ¡s aceptando los{" "}
-            <button onClick={() => abrirPagina("terminosCondiciones", "TÃ©rminos y condiciones")} className="underline">tÃ©rminos y condiciones</button> y el{" "}
+            Al registrarte estás aceptando los{" "}
+            <button onClick={() => abrirPagina("terminosCondiciones", "Términos y condiciones")} className="underline">términos y condiciones</button> y el{" "}
             <button onClick={() => abrirPagina("avisoPrivacidad", "Aviso de Privacidad", AVISO_PRIVACIDAD_DEFAULT)} className="underline">aviso de privacidad</button> de {NOMBRE_OPTICA}.
           </p>
         </div>
         <div className="border-t border-slate-700 mt-6 pt-6 text-xs text-slate-500 flex flex-wrap justify-between gap-2">
           <p>{config?.direccion}</p>
-          <p>Derechos Reservados {NOMBRE_OPTICA} Â© {new Date().getFullYear()}</p>
+          <p>Derechos Reservados {NOMBRE_OPTICA} © {new Date().getFullYear()}</p>
         </div>
       </div>
 
@@ -6681,7 +6681,7 @@ function TiendaFooter({ config, setConfig, onIrInicio, onIrCategoria, onAbrirCue
         titulo={paginaAbierta?.titulo}
         contenido={paginaAbierta?.contenido}
       />
-      <DrawerLateral open={mapaAbierto} onClose={() => setMapaAbierto(false)} title="Nuestra ubicaciÃ³n">
+      <DrawerLateral open={mapaAbierto} onClose={() => setMapaAbierto(false)} title="Nuestra ubicación">
         <MapaUbicacion direccion={config?.direccion} />
         <p className="text-sm text-slate-600 mt-3">{config?.direccion}</p>
       </DrawerLateral>
@@ -6743,7 +6743,7 @@ function TiendaCategoria({ categoriaActiva, inventario, onVerProducto, onAgregar
           </select>
           <select value={filtroTratamiento} onChange={(e) => setFiltroTratamiento(e.target.value)} className="border rounded-full px-3 py-1.5 text-xs">
             <option value="">Tratamiento (todos)</option>
-            <option>Antireflejante</option><option>Antiblue</option><option>FotocromÃ¡tico</option>
+            <option>Antireflejante</option><option>Antiblue</option><option>Fotocromático</option>
           </select>
         </div>
       )}
@@ -6755,14 +6755,14 @@ function TiendaCategoria({ categoriaActiva, inventario, onVerProducto, onAgregar
           </select>
           <select value={filtroCosmetico} onChange={(e) => setFiltroCosmetico(e.target.value)} className="border rounded-full px-3 py-1.5 text-xs">
             <option value="">Tipo de lente (todos)</option>
-            <option>EsfÃ©rico</option>
-            <option>TÃ³rico (Astigmatismo)</option>
-            <option>CosmÃ©tico / Color</option>
+            <option>Esférico</option>
+            <option>Tórico (Astigmatismo)</option>
+            <option>Cosmético / Color</option>
           </select>
         </div>
       )}
 
-      <p className="text-sm text-slate-400 mb-4">{lista.length} artÃ­culo(s)</p>
+      <p className="text-sm text-slate-400 mb-4">{lista.length} artículo(s)</p>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
         {lista.map((a) => (
@@ -6782,7 +6782,7 @@ function TiendaCategoria({ categoriaActiva, inventario, onVerProducto, onAgregar
             </button>
           </div>
         ))}
-        {lista.length === 0 && <p className="text-sm text-slate-400 col-span-full text-center py-10">Sin artÃ­culos disponibles con esos filtros.</p>}
+        {lista.length === 0 && <p className="text-sm text-slate-400 col-span-full text-center py-10">Sin artículos disponibles con esos filtros.</p>}
       </div>
     </div>
   );
@@ -6791,8 +6791,8 @@ function TiendaCategoria({ categoriaActiva, inventario, onVerProducto, onAgregar
 /* ---------- Detalle de producto (drawer) ---------- */
 function colorHex(nombre) {
   const mapa = {
-    Negro: "#1a1a1a", CafÃ©: "#6b4423", Azul: "#3b6ea5", Transparente: "#eaeaea",
-    Rosa: "#e6a8c4", TraslÃºcido: "#d8d8d8", Verde: "#4a7c59", Morado: "#6b4c9a",
+    Negro: "#1a1a1a", Café: "#6b4423", Azul: "#3b6ea5", Transparente: "#eaeaea",
+    Rosa: "#e6a8c4", Traslúcido: "#d8d8d8", Verde: "#4a7c59", Morado: "#6b4c9a",
     Lila: "#b19cd9", "Animal print": "#c9a876", Dorado: "#c9a227", Plata: "#c0c0c0",
     Rojo: "#b5352f", Combinado: "#8a8a8a",
   };
@@ -6807,7 +6807,7 @@ function materialArmazonDesde(categoriaArmazon) {
   return "";
 }
 
-/* ---------- Probador virtual (cÃ¡mara + detecciÃ³n de rostro en tiempo real) ---------- */
+/* ---------- Probador virtual (cámara + detección de rostro en tiempo real) ---------- */
 function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -6851,7 +6851,7 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
             const ojoDer = kp[263];
 
             if (modo === "contacto") {
-              // Lente de contacto cosmÃ©tico: se coloca un pequeÃ±o cÃ­rculo del color/imagen sobre cada iris
+              // Lente de contacto cosmético: se coloca un pequeño círculo del color/imagen sobre cada iris
               const irisIzq = kp[468] || ojoIzq;
               const irisDer = kp[473] || ojoDer;
               const dist = ojoIzq && ojoDer ? Math.hypot(ojoDer.x - ojoIzq.x, ojoDer.y - ojoIzq.y) : 60;
@@ -6867,7 +6867,7 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
                 ctx.restore();
               });
             } else if (ojoIzq && ojoDer) {
-              // ArmazÃ³n: se coloca la imagen del producto abarcando ambos ojos
+              // Armazón: se coloca la imagen del producto abarcando ambos ojos
               const cx = (ojoIzq.x + ojoDer.x) / 2;
               const cy = (ojoIzq.y + ojoDer.y) / 2;
               const dist = Math.hypot(ojoDer.x - ojoIzq.x, ojoDer.y - ojoIzq.y);
@@ -6892,7 +6892,7 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
     async function iniciar() {
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
-          throw new Error("Este navegador no soporta acceso a la cÃ¡mara.");
+          throw new Error("Este navegador no soporta acceso a la cámara.");
         }
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
         if (cancelado) {
@@ -6930,7 +6930,7 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
         setEstado("listo");
         loop();
       } catch (e) {
-        setMensajeError(e?.message || "No se pudo acceder a la cÃ¡mara.");
+        setMensajeError(e?.message || "No se pudo acceder a la cámara.");
         setEstado("error");
       }
     }
@@ -6948,12 +6948,12 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
       <button onClick={onCerrar} className="absolute top-5 right-5 text-white">
         <X size={28} />
       </button>
-      {estado === "iniciando" && <p className="text-white text-sm mb-4">Cargando cÃ¡mara y modelo de rostroâ€¦ (puede tardar unos segundos la primera vez)</p>}
+      {estado === "iniciando" && <p className="text-white text-sm mb-4">Cargando cámara y modelo de rostro… (puede tardar unos segundos la primera vez)</p>}
       {estado === "error" && (
         <div className="text-white text-center px-6 max-w-sm">
           <p className="mb-2">No se pudo abrir la prueba virtual.</p>
           <p className="text-xs text-slate-400">{mensajeError}</p>
-          <p className="text-xs text-slate-400 mt-2">Revisa que le hayas dado permiso de cÃ¡mara a esta pÃ¡gina.</p>
+          <p className="text-xs text-slate-400 mt-2">Revisa que le hayas dado permiso de cámara a esta página.</p>
         </div>
       )}
       <div className="relative" style={{ maxWidth: "100%", maxHeight: "75vh", display: estado === "listo" ? "block" : "none" }}>
@@ -6972,7 +6972,7 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
         />
         {sinRostro && !errorDetector && (
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
-            No detectamos tu rostro â€” acÃ©rcate a la cÃ¡mara con buena iluminaciÃ³n de frente.
+            No detectamos tu rostro — acércate a la cámara con buena iluminación de frente.
           </div>
         )}
         {errorDetector && (
@@ -6983,8 +6983,8 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
       </div>
       <p className="text-slate-400 text-xs mt-4 max-w-sm text-center">
         {modo === "contacto"
-          ? "Prueba virtual del color de tus lentes de contacto en tiempo real usando tu cÃ¡mara."
-          : "Prueba virtual en tiempo real usando tu cÃ¡mara. Para mejores resultados, sube fotos del armazÃ³n de frente y con fondo simple desde Inventario."}
+          ? "Prueba virtual del color de tus lentes de contacto en tiempo real usando tu cámara."
+          : "Prueba virtual en tiempo real usando tu cámara. Para mejores resultados, sube fotos del armazón de frente y con fondo simple desde Inventario."}
       </p>
     </div>
   );
@@ -7015,22 +7015,22 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onAgregarCar
   if (producto.clipOnCompatible) specsBase.push(["Clip-on compatible", producto.clipOnCompatible]);
   if (esContactoProducto && producto.tipoLente) specsBase.push(["Tipo de lente", producto.tipoLente]);
   if (esContactoProducto && producto.reemplazo) specsBase.push(["Reemplazo", producto.reemplazo]);
-  if (esContactoProducto && producto.presentacion) specsBase.push(["PresentaciÃ³n", producto.presentacion]);
+  if (esContactoProducto && producto.presentacion) specsBase.push(["Presentación", producto.presentacion]);
 
   const specsExtra = [];
   if (esArmazonProducto) {
-    if (producto.tipoLinea) specsExtra.push(["LÃ­nea", producto.tipoLinea]);
-    if (producto.categoriaArmazon) specsExtra.push(["CategorÃ­a", producto.categoriaArmazon]);
+    if (producto.tipoLinea) specsExtra.push(["Línea", producto.tipoLinea]);
+    if (producto.categoriaArmazon) specsExtra.push(["Categoría", producto.categoriaArmazon]);
   } else if (esContactoProducto) {
-    if (producto.caracteristicas) specsExtra.push(["CaracterÃ­sticas principales", producto.caracteristicas]);
-    if (producto.rangos) specsExtra.push(["Rangos de graduaciÃ³n", producto.rangos]);
+    if (producto.caracteristicas) specsExtra.push(["Características principales", producto.caracteristicas]);
+    if (producto.rangos) specsExtra.push(["Rangos de graduación", producto.rangos]);
   } else {
     if (producto.tipo) specsExtra.push(["Tipo", producto.tipo]);
     if (producto.tratamiento) specsExtra.push(["Tratamiento", producto.tratamiento]);
-    if (producto.rango) specsExtra.push(["Rango de graduaciÃ³n", producto.rango]);
+    if (producto.rango) specsExtra.push(["Rango de graduación", producto.rango]);
   }
 
-  const esCosmeticoContacto = esContactoProducto && producto.tipoLente === "CosmÃ©tico / Color";
+  const esCosmeticoContacto = esContactoProducto && producto.tipoLente === "Cosmético / Color";
   const puedeProbarse = esArmazonProducto || esCosmeticoContacto;
 
   return (
@@ -7048,20 +7048,20 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onAgregarCar
             {galeria.length > 0 ? (
               <img src={galeria[indiceFoto]} alt={producto.nombre} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-xs text-slate-300">Sin fotos todavÃ­a</div>
+              <div className="w-full h-full flex items-center justify-center text-xs text-slate-300">Sin fotos todavía</div>
             )}
             {puedeProbarse && (
               <button
                 onClick={() => {
                   if (galeria.length === 0) {
-                    window.alert("Este producto todavÃ­a no tiene foto â€” sube una desde Inventario para poder probÃ¡rtelo.");
+                    window.alert("Este producto todavía no tiene foto — sube una desde Inventario para poder probártelo.");
                     return;
                   }
                   setProbadorAbierto(true);
                 }}
                 className="absolute bottom-4 right-4 flex items-center gap-1 bg-white rounded-full px-3 py-1.5 text-xs font-medium shadow"
               >
-                <Eye size={14} /> PruÃ©batelos
+                <Eye size={14} /> Pruébatelos
               </button>
             )}
           </div>
@@ -7090,7 +7090,7 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onAgregarCar
         <div>
           <div className="flex items-start justify-between">
             <h1 className="text-3xl font-semibold mb-1">{producto.nombre}</h1>
-            <button className="text-slate-300 hover:text-black mt-1">â™¡</button>
+            <button className="text-slate-300 hover:text-black mt-1">♡</button>
           </div>
           <p className="text-lg mb-4">
             ${producto.precio} MXN {esArmazonProducto && <span className="text-sm text-slate-400">| Incluye micas graduadas</span>}
@@ -7130,9 +7130,9 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onAgregarCar
           </BotonNegro>
 
           <div className="space-y-2 text-sm text-slate-600">
-            <p>ðŸšš EnvÃ­o GRATIS en un mÃ¡ximo de 10 dÃ­as hÃ¡biles</p>
-            <p>ðŸ›¡ï¸ 30 dÃ­as para cambios y devoluciones</p>
-            {(esArmazonProducto || producto.categoria === "lentesSolares") && <p>ðŸ‘“ PruÃ©batelos en nuestras tiendas</p>}
+            <p>🚚 Envío GRATIS en un máximo de 10 días hábiles</p>
+            <p>🛡️ 30 días para cambios y devoluciones</p>
+            {(esArmazonProducto || producto.categoria === "lentesSolares") && <p>👓 Pruébatelos en nuestras tiendas</p>}
           </div>
         </div>
       </div>
@@ -7141,14 +7141,14 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onAgregarCar
         <h2 className="text-2xl font-semibold mb-4">Acerca de {producto.nombre}</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <p className="text-sm text-slate-600">
-            {producto.acercaDe || (esContactoProducto && producto.caracteristicas) || producto.rangoDescripcion || "AÃºn no se ha escrito la descripciÃ³n de este producto â€” se puede agregar desde Inventario."}
+            {producto.acercaDe || (esContactoProducto && producto.caracteristicas) || producto.rangoDescripcion || "Aún no se ha escrito la descripción de este producto — se puede agregar desde Inventario."}
           </p>
           <div>
             <table className="w-full text-sm">
               <tbody>
                 {specsBase.length === 0 && specsExtra.length === 0 && (
                   <tr>
-                    <td className="py-2 text-slate-400">Sin especificaciones capturadas todavÃ­a.</td>
+                    <td className="py-2 text-slate-400">Sin especificaciones capturadas todavía.</td>
                   </tr>
                 )}
                 {specsBase.map(([k, v]) => (
@@ -7194,7 +7194,7 @@ function TiendaCarrito({ open, onClose, carrito, setCarrito, onIrCheckout }) {
   return (
     <DrawerLateral open={open} onClose={onClose} title="Tu carrito">
       {carrito.length === 0 ? (
-        <p className="text-sm text-slate-400">Tu carrito estÃ¡ vacÃ­o.</p>
+        <p className="text-sm text-slate-400">Tu carrito está vacío.</p>
       ) : (
         <>
           <div className="space-y-3 mb-6">
@@ -7245,7 +7245,7 @@ function BotonesPayPal({ clientId, total, onAprobado, onError }) {
               onAprobado(detalles);
             },
             onError: (err) => {
-              setError("OcurriÃ³ un problema con PayPal. Intenta de nuevo.");
+              setError("Ocurrió un problema con PayPal. Intenta de nuevo.");
               if (onError) onError(err);
             },
           })
@@ -7267,7 +7267,7 @@ function BotonesPayPal({ clientId, total, onAprobado, onError }) {
         document.body.appendChild(script);
       }
       script.addEventListener("load", renderizar);
-      script.addEventListener("error", () => setError("No se pudo cargar PayPal. Revisa tu conexiÃ³n."));
+      script.addEventListener("error", () => setError("No se pudo cargar PayPal. Revisa tu conexión."));
       return () => {
         script.removeEventListener("load", renderizar);
       };
@@ -7309,7 +7309,7 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
             <p className="text-sm font-semibold text-amber-800">Para comprar o crear una cita, primero crea una cuenta.</p>
           </div>
-          <p className="text-sm text-slate-500 mb-4">Es rÃ¡pido: solo necesitas tu nombre y tu telÃ©fono.</p>
+          <p className="text-sm text-slate-500 mb-4">Es rápido: solo necesitas tu nombre y tu teléfono.</p>
           <BotonNegro onClick={onAbrirAcceso}>Crear cuenta / Ingresar</BotonNegro>
         </div>
       ) : (
@@ -7336,12 +7336,12 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
           )}
           {faltaReceta && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700 mb-4">
-              Necesitas subir tu receta para pedir lentes graduados o de contacto en lÃ­nea.
+              Necesitas subir tu receta para pedir lentes graduados o de contacto en línea.
             </div>
           )}
 
           <div className="mb-4">
-            <p className="text-xs font-medium text-slate-500 uppercase mb-2">Â¿CÃ³mo quieres pagar?</p>
+            <p className="text-xs font-medium text-slate-500 uppercase mb-2">¿Cómo quieres pagar?</p>
             <div className="flex gap-2 mb-3">
               <button
                 onClick={() => setFormaPagoElegida("entrega")}
@@ -7353,9 +7353,9 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
                 onClick={() => setFormaPagoElegida("linea")}
                 disabled={!config?.paypalClientId}
                 className={`flex-1 py-2 rounded-full text-xs font-medium border disabled:opacity-40 ${formaPagoElegida === "linea" ? "bg-black text-white border-black" : "border-slate-300"}`}
-                title={!config?.paypalClientId ? "El pago en lÃ­nea todavÃ­a no estÃ¡ configurado" : ""}
+                title={!config?.paypalClientId ? "El pago en línea todavía no está configurado" : ""}
               >
-                Pagar en lÃ­nea ahora
+                Pagar en línea ahora
               </button>
             </div>
 
@@ -7371,7 +7371,7 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
           {formaPagoElegida === "linea" && config?.paypalClientId ? (
             <>
               {!config?.paypalModoProduccion && (
-                <p className="text-xs text-amber-600 mb-2">Modo de pruebas: este cobro no usa dinero real todavÃ­a.</p>
+                <p className="text-xs text-amber-600 mb-2">Modo de pruebas: este cobro no usa dinero real todavía.</p>
               )}
               <BotonesPayPal
                 clientId={config.paypalClientId}
@@ -7412,7 +7412,7 @@ function TiendaAgendar({ open, onClose, agenda, setAgenda, pacientes, setPacient
     const msj = mensajeCitaConfirmada(sesionCliente.nombre, fecha, hora, consultorio, urlSitio);
     if (sesionCliente.telefono) abrirWhatsApp(sesionCliente.telefono, msj.whatsapp);
     if (sesionCliente.mail) abrirEmail(sesionCliente.mail, msj.email.asunto, msj.email.cuerpo);
-    onListo(`Tu cita quedÃ³ agendada para el ${fecha} a las ${hora} (${consultorio}). Te enviamos la confirmaciÃ³n.`);
+    onListo(`Tu cita quedó agendada para el ${fecha} a las ${hora} (${consultorio}). Te enviamos la confirmación.`);
     onClose();
   }
 
@@ -7423,7 +7423,7 @@ function TiendaAgendar({ open, onClose, agenda, setAgenda, pacientes, setPacient
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
             <p className="text-sm font-semibold text-amber-800">Para comprar o crear una cita, primero crea una cuenta.</p>
           </div>
-          <p className="text-sm text-slate-500 mb-4">Es rÃ¡pido: solo necesitas tu nombre y tu telÃ©fono.</p>
+          <p className="text-sm text-slate-500 mb-4">Es rápido: solo necesitas tu nombre y tu teléfono.</p>
           <BotonNegro onClick={onAbrirAcceso}>Crear cuenta / Ingresar</BotonNegro>
         </div>
       ) : (
@@ -7445,7 +7445,7 @@ function TiendaAgendar({ open, onClose, agenda, setAgenda, pacientes, setPacient
                 {h}
               </button>
             ))}
-            {disponibles.length === 0 && <p className="text-xs text-slate-400 col-span-4">Sin horarios libres ese dÃ­a.</p>}
+            {disponibles.length === 0 && <p className="text-xs text-slate-400 col-span-4">Sin horarios libres ese día.</p>}
           </div>
           <BotonNegro onClick={agendar} disabled={!hora}>Confirmar cita</BotonNegro>
         </div>
@@ -7523,7 +7523,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
       estatus: pagadoEnLinea ? "venta" : "presupuesto",
       formaPago: infoPago?.formaPago || "pendiente",
       referenciaPago: infoPago?.referenciaPago || "",
-      vendedor: "Tienda en lÃ­nea",
+      vendedor: "Tienda en línea",
       origen: "portal",
       recetaArchivo: receta,
     };
@@ -7535,8 +7535,8 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
     setCheckoutAbierto(false);
     setMensajeFinal(
       pagadoEnLinea
-        ? `Â¡Pago recibido! Tu pedido #${folio} quedÃ³ confirmado. Te avisamos por WhatsApp o correo cuando estÃ© listo.`
-        : `Â¡Listo! Tu pedido quedÃ³ registrado con folio #${folio}. Te avisamos por WhatsApp o correo en cuanto estÃ© confirmado.`
+        ? `¡Pago recibido! Tu pedido #${folio} quedó confirmado. Te avisamos por WhatsApp o correo cuando esté listo.`
+        : `¡Listo! Tu pedido quedó registrado con folio #${folio}. Te avisamos por WhatsApp o correo en cuanto esté confirmado.`
     );
   }
 
@@ -7555,7 +7555,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         categoriaActiva={vista === "categoria" ? categoriaActiva : null}
         onCerrarSesionCliente={() => {
           setSesionCliente(null);
-          setMensajeFinal("Cerraste sesiÃ³n correctamente.");
+          setMensajeFinal("Cerraste sesión correctamente.");
         }}
       />
 
@@ -7659,11 +7659,11 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
           setSesionCliente(datos);
           if (accionPendienteTrasLogin === "agendar") setAgendarAbierto(true);
           else if (accionPendienteTrasLogin === "checkout") setCheckoutAbierto(true);
-          else setMensajeFinal(`Â¡Listo, ${datos.nombre.split(" ")[0]}! Tu cuenta ya estÃ¡ activa.`);
+          else setMensajeFinal(`¡Listo, ${datos.nombre.split(" ")[0]}! Tu cuenta ya está activa.`);
           setAccionPendienteTrasLogin(null);
         }}
       />
-      <DrawerLateral open={recetaInfoAbierto} onClose={() => setRecetaInfoAbierto(false)} title="CÃ³mo subir tu receta">
+      <DrawerLateral open={recetaInfoAbierto} onClose={() => setRecetaInfoAbierto(false)} title="Cómo subir tu receta">
         <p className="text-sm text-slate-600 mb-4">
           Agrega tus lentes graduados o de contacto al carrito y da clic en "Continuar". En el paso de confirmar
           pedido vas a poder subir la foto o el PDF de tu receta antes de terminar tu compra.
@@ -7694,7 +7694,7 @@ function aplicarModificadorMeta(comisionBase, pctMeta) {
 
 function barraTexto(pct) {
   const bloques = Math.max(0, Math.min(10, Math.round(pct / 10)));
-  return `[${"â–ˆ".repeat(bloques)}${"â–‘".repeat(10 - bloques)}] ${pct.toFixed(0)}%`;
+  return `[${"█".repeat(bloques)}${"░".repeat(10 - bloques)}] ${pct.toFixed(0)}%`;
 }
 
 function calcOptometrista(o, pctMeta, montoAuto) {
@@ -7789,7 +7789,7 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
 
   const datosMes = datosDelMes(mesAnalisis, ventas, dashboard, pagosProveedores);
   const meta = datosMes.meta;
-  const alcanzado = datosMes.vendido; // siempre automÃ¡tico: vendido real del mes
+  const alcanzado = datosMes.vendido; // siempre automático: vendido real del mes
   const pctMeta = meta > 0 ? (alcanzado / meta) * 100 : 0;
 
   const esMesActual = mesAnalisis === mesISO(new Date());
@@ -7923,7 +7923,7 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
       ) : (
       <>
       <div className="bg-white border rounded-xl p-4 flex items-center gap-2 flex-wrap">
-        <label className="text-xs font-medium text-slate-500 uppercase">Mes de anÃ¡lisis</label>
+        <label className="text-xs font-medium text-slate-500 uppercase">Mes de análisis</label>
         <input type="month" value={mesAnalisis} onChange={(e) => setMesAnalisis(e.target.value)} className="border rounded-lg px-2 py-1.5 text-sm" />
         {datosMes.origen === "manual" && <span className="text-xs text-amber-600">Usando datos cargados manualmente (sin ventas reales en el sistema para este mes)</span>}
         <button
@@ -7935,17 +7935,17 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
       </div>
 
       <div id="dashboard-mensual-imprimible" className="dashboard-print-compact space-y-6">
-      <p className="hidden print:block font-bold mb-1">Dashboard mensual â€” {mesAnalisis}</p>
+      <p className="hidden print:block font-bold mb-1">Dashboard mensual — {mesAnalisis}</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white border rounded-xl p-4">
-          <h3 className="font-semibold text-slate-700 mb-3">Meta mensual de la Ã³ptica</h3>
+          <h3 className="font-semibold text-slate-700 mb-3">Meta mensual de la óptica</h3>
           <div className="flex flex-wrap gap-3 items-end mb-3">
             <div>
               <label className="text-xs text-slate-500">Meta ($ MXN)</label>
               <input type="number" value={metasPorMes[mesAnalisis] || ""} onChange={(e) => actualizarMetaMes(e.target.value)} className="block border rounded-lg px-2 py-1.5 text-sm w-32" />
             </div>
             <div>
-              <label className="text-xs text-slate-500">Alcanzado (automÃ¡tico)</label>
+              <label className="text-xs text-slate-500">Alcanzado (automático)</label>
               <p className="font-semibold text-lg" style={{ color: SKY_DARK }}>${alcanzado.toFixed(2)}</p>
             </div>
             <div className="text-2xl font-bold" style={{ color: SKY_DARK }}>{pctMeta.toFixed(1)}%</div>
@@ -7955,16 +7955,16 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
           </div>
           <p className="font-mono text-xs text-slate-500">{barraTexto(pctMeta)}</p>
           <p className="text-xs text-slate-400 mt-2">
-            â‰¤79%: 50% de comisiÃ³n Â· 80-90%: 75% Â· 91-99%: 90% Â· 100-105%: 100% + hasta 5% de bono adicional
+            ≤79%: 50% de comisión · 80-90%: 75% · 91-99%: 90% · 100-105%: 100% + hasta 5% de bono adicional
           </p>
         </div>
 
         <div className="bg-white border rounded-xl p-4">
           <h3 className="font-semibold text-slate-700 mb-3">Proyectado del mes</h3>
           {esMesActual ? (
-            <p className="text-xs text-slate-400 mb-2">Con base en el ritmo de venta de los primeros {diaActual} de {diasTotalesMes} dÃ­as del mes.</p>
+            <p className="text-xs text-slate-400 mb-2">Con base en el ritmo de venta de los primeros {diaActual} de {diasTotalesMes} días del mes.</p>
           ) : (
-            <p className="text-xs text-slate-400 mb-2">Mes ya cerrado â€” se muestra el resultado final, no una proyecciÃ³n.</p>
+            <p className="text-xs text-slate-400 mb-2">Mes ya cerrado — se muestra el resultado final, no una proyección.</p>
           )}
           <div className="flex flex-wrap gap-4 mb-2">
             <div>
@@ -8034,10 +8034,10 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
                 <th className="px-2 py-2">Citas sin compra</th>
                 <th className="px-2 py-2">Compras canceladas</th>
                 <th className="px-2 py-2">Retrabajos</th>
-                <th className="px-2 py-2">Monto exÃ¡menes con venta (automÃ¡tico)</th>
+                <th className="px-2 py-2">Monto exámenes con venta (automático)</th>
                 <th className="px-2 py-2">% Efectividad</th>
-                <th className="px-2 py-2">ComisiÃ³n base</th>
-                <th className="px-2 py-2">ComisiÃ³n ajustada</th>
+                <th className="px-2 py-2">Comisión base</th>
+                <th className="px-2 py-2">Comisión ajustada</th>
                 <th className="px-2 py-2"></th>
               </tr>
             </thead>
@@ -8054,7 +8054,7 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
                     <td className="px-2 py-2"><input type="number" value={o.comprasCanceladas} onChange={(e) => actualizarOptometrista(o.id, "comprasCanceladas", e.target.value)} className={inputCelda} /></td>
                     <td className="px-2 py-2">
                       <input type="number" value={o.retrabajos} onChange={(e) => actualizarOptometrista(o.id, "retrabajos", e.target.value)} className={inputCelda} />
-                      {r.penalizado && <p className="text-[10px] text-red-500 mt-0.5">Supera 10% â€” penalizado</p>}
+                      {r.penalizado && <p className="text-[10px] text-red-500 mt-0.5">Supera 10% — penalizado</p>}
                     </td>
                     <td className="px-2 py-2 text-center">
                       <p className="font-semibold" style={{ color: SKY_DARK }}>${montoAuto.toFixed(2)}</p>
@@ -8078,8 +8078,8 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
           </table>
         </div>
         <p className="text-xs text-slate-400 mt-2">
-          El monto de exÃ¡menes con venta se calcula solo, sumando las ventas reales del POS del mes elegido cuyo
-          campo "Optometrista que atendiÃ³" coincida exactamente con este nombre.
+          El monto de exámenes con venta se calcula solo, sumando las ventas reales del POS del mes elegido cuyo
+          campo "Optometrista que atendió" coincida exactamente con este nombre.
         </p>
       </div>
 
@@ -8101,10 +8101,10 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
                 <th className="text-left px-2 py-2">Nombre</th>
                 <th className="px-2 py-2">Pacientes asignados</th>
                 <th className="px-2 py-2">Posibles ventas</th>
-                <th className="px-2 py-2">Ventas hechas (automÃ¡tico)</th>
-                <th className="px-2 py-2">Monto ventas (automÃ¡tico)</th>
+                <th className="px-2 py-2">Ventas hechas (automático)</th>
+                <th className="px-2 py-2">Monto ventas (automático)</th>
                 <th className="px-2 py-2">% Efectividad</th>
-                <th className="px-2 py-2">ComisiÃ³n ajustada</th>
+                <th className="px-2 py-2">Comisión ajustada</th>
                 <th className="px-2 py-2"></th>
               </tr>
             </thead>
@@ -8149,7 +8149,7 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
           </select>
         </label>
         <button onClick={confirmarAsignacion} disabled={!vendedorAsignado} className="w-full py-2 rounded-lg text-white text-sm font-medium disabled:opacity-40" style={{ background: SKY_DARK }}>
-          Confirmar asignaciÃ³n
+          Confirmar asignación
         </button>
       </Modal>
       </>
@@ -8181,7 +8181,7 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, ca
   return (
     <div className="space-y-4">
       <div className="bg-white border rounded-xl p-4 flex items-center gap-2 flex-wrap">
-        <label className="text-xs font-medium text-slate-500 uppercase">AÃ±o</label>
+        <label className="text-xs font-medium text-slate-500 uppercase">Año</label>
         <button onClick={() => setAnio(anio - 1)} className="p-1.5 rounded-lg hover:bg-slate-100"><ChevronLeft size={16} /></button>
         <span className="font-semibold text-lg">{anio}</span>
         <button onClick={() => setAnio(anio + 1)} className="p-1.5 rounded-lg hover:bg-slate-100"><ChevronRight size={16} /></button>
@@ -8194,13 +8194,13 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, ca
       </div>
 
       <div id="dashboard-anual-imprimible" className="dashboard-print-compact space-y-4">
-      <p className="hidden print:block font-bold mb-1">Dashboard anual â€” {anio}</p>
+      <p className="hidden print:block font-bold mb-1">Dashboard anual — {anio}</p>
       <div className="flex gap-3 overflow-x-auto pb-1">
         <TotalBox titulo="Meta anual" monto={totalAnioMeta} color="#111827" />
         <TotalBox titulo="Vendido anual" monto={totalAnioVendido} color="#0f766e" subtitulo={`${pctAnio.toFixed(1)}% de la meta`} />
         <TotalBox titulo="Cobrado anual" monto={totalAnioCobrado} color="#059669" />
         <TotalBox titulo="Pago a proveedores anual" monto={totalAnioGastos} color="#7c3aed" />
-        <TotalBox titulo="Debe haber en caja" monto={debeHaberCajaAnual} color={debeHaberCajaAnual >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado anual âˆ’ pago a proveedores" />
+        <TotalBox titulo="Debe haber en caja" monto={debeHaberCajaAnual} color={debeHaberCajaAnual >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado anual − pago a proveedores" />
         <TotalBox titulo="Promedio mensual" monto={promedioMensual} color="#7c3aed" subtitulo={`${mesesConDatos.length} mes(es) con datos`} />
       </div>
 
@@ -8233,7 +8233,7 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, ca
           />
         </div>
         <p className="text-xs text-slate-400 mt-3">
-          El proyectado anual se calcula extendiendo el promedio mensual real (${promedioMensual.toFixed(2)}) a los 12 meses del aÃ±o.
+          El proyectado anual se calcula extendiendo el promedio mensual real (${promedioMensual.toFixed(2)}) a los 12 meses del año.
         </p>
       </div>
 
@@ -8287,7 +8287,7 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, ca
         <h3 className="font-semibold text-slate-700 mb-2">Cargar datos de un mes pasado (antes de usar el sistema)</h3>
         <p className="text-xs text-slate-500 mb-3">
           Solo se usa para meses donde no hay ventas reales capturadas en el POS. Si el mes ya tiene ventas reales, esos
-          datos tienen prioridad y esta carga se ignora en los cÃ¡lculos.
+          datos tienen prioridad y esta carga se ignora en los cálculos.
         </p>
         <div className="flex flex-wrap gap-2 items-end">
           <div>
@@ -8343,7 +8343,7 @@ export default function App() {
     { nombre: "Agenda", status: statusA, error: errorA, retry: retryA },
     { nombre: "Ventas", status: statusV, error: errorV, retry: retryV },
     { nombre: "Usuarios", status: statusU, error: errorU, retry: retryU },
-    { nombre: "ConfiguraciÃ³n", status: statusC, error: errorC, retry: retryC },
+    { nombre: "Configuración", status: statusC, error: errorC, retry: retryC },
     { nombre: "Laboratorio", status: statusL, error: errorL, retry: retryL },
     { nombre: "Pagos a proveedores", status: statusPP, error: errorPP, retry: retryPP },
     { nombre: "Dashboard", status: statusD, error: errorD, retry: retryD },
@@ -8363,7 +8363,7 @@ export default function App() {
   if (!todoListo) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <p className="text-slate-400 text-sm">Cargando plataformaâ€¦</p>
+        <p className="text-slate-400 text-sm">Cargando plataforma…</p>
       </div>
     );
   }
@@ -8371,8 +8371,8 @@ export default function App() {
   const bannerGuardado = seccionesConError.length > 0 && (
     <div className="bg-red-50 border-b border-red-200 px-4 py-2 text-sm text-red-700 flex flex-wrap items-center gap-2">
       <span>
-        âš  No se pudo guardar: <b>{seccionesConError.map((s) => s.nombre).join(", ")}</b>. Tus Ãºltimos cambios en{" "}
-        {seccionesConError.length > 1 ? "esas secciones" : "esa secciÃ³n"} podrÃ­an no haberse guardado.
+        ⚠ No se pudo guardar: <b>{seccionesConError.map((s) => s.nombre).join(", ")}</b>. Tus últimos cambios en{" "}
+        {seccionesConError.length > 1 ? "esas secciones" : "esa sección"} podrían no haberse guardado.
       </span>
       <button
         onClick={() => seccionesConError.forEach((s) => s.retry())}
@@ -8420,7 +8420,7 @@ export default function App() {
       <GlobalPrintStyles />
       {bannerGuardado}
       {guardandoAlgo && !bannerGuardado && (
-        <div className="bg-slate-50 border-b border-slate-200 px-4 py-1 text-xs text-slate-600">Guardando cambiosâ€¦</div>
+        <div className="bg-slate-50 border-b border-slate-200 px-4 py-1 text-xs text-slate-600">Guardando cambios…</div>
       )}
       <div className="flex items-center justify-between bg-white border-b px-6 pt-2">
         <div className="flex-1">
@@ -8428,24 +8428,24 @@ export default function App() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs text-slate-400 hidden sm:inline">
-            {sesion.nombre} Â· {sesion.rol}
+            {sesion.nombre} · {sesion.rol}
           </span>
           <button
             onClick={recargarTodo}
             className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600"
             title="Trae los cambios hechos desde otro equipo o celular"
           >
-            â†» Actualizar
+            ↻ Actualizar
           </button>
           <button
             onClick={() => setPrevisualizarTienda(true)}
             className="text-xs px-3 py-1.5 rounded-lg text-white"
             style={{ background: SKY_DARK }}
           >
-            Ver tienda en lÃ­nea
+            Ver tienda en línea
           </button>
           <button onClick={() => setSesion(null)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600">
-            Cerrar sesiÃ³n
+            Cerrar sesión
           </button>
         </div>
       </div>
