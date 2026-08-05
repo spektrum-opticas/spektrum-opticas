@@ -7589,9 +7589,10 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
     const folio = (ventas[ventas.length - 1]?.folio || 0) + 1;
     const total = carrito.reduce((s, c) => s + Number(c.precio || 0), 0);
     const pagadoEnLinea = infoPago?.pagadoEnLinea;
+    const ahora = new Date().toISOString();
     const nota = {
       folio,
-      fecha: new Date().toISOString(),
+      fecha: ahora,
       pacienteId: sesionCliente.pacienteId,
       nombreCliente: paciente?.nombre || sesionCliente.nombre,
       items: carrito,
@@ -7604,6 +7605,9 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
       vendedor: "Tienda en línea",
       origen: "portal",
       recetaArchivo: receta,
+      pagos: pagadoEnLinea
+        ? [{ fecha: ahora, monto: total, formaPago: infoPago?.formaPago || "PayPal", tipo: "venta_completa" }]
+        : [],
     };
     setVentas([...ventas, nota]);
     const msj = pagadoEnLinea ? mensajeAgradecimiento(nota.nombreCliente) : mensajePedidoRecibido(nota.nombreCliente, folio);
