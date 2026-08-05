@@ -85,8 +85,23 @@ function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-function siguienteFolioOrden(laboratorio) {
-  return laboratorio.reduce((m, o) => Math.max(m, o.folioOrden || 0), 0) + 1;
+// El folio NO es un consecutivo propio de cada orden: es el mismo número (el folio del
+// expediente/venta) al que se le van agregando siglas conforme avanza de etapa:
+// EXP-123 (expediente) -> EXP-OT-123 (ya tiene orden de trabajo) -> EXP-OT-L-123 (ya se envió a laboratorio)
+function folioBase(o, pacientes) {
+  if (o.folioVenta) return o.folioVenta;
+  const p = pacientes?.find((x) => x.id === o.pacienteId);
+  if (p?.folio) return p.folio;
+  return o.folioOrden || "?";
+}
+
+function folioOrdenEtiqueta(o, pacientes) {
+  const base = folioBase(o, pacientes);
+  return o.fechaEnvio ? `EXP-OT-L-${base}` : `EXP-OT-${base}`;
+}
+
+function folioExpedienteEtiqueta(p) {
+  return `EXP-${p.folio}`;
 }
 
 // Imprime SOLO el elemento indicado. Al llamar window.print(), el navegador
@@ -1381,7 +1396,6 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
           ...laboratorio,
           {
             id: uid(),
-            folioOrden: siguienteFolioOrden(laboratorio),
             pacienteId: clienteSel?.id || null,
             nombreCliente: nota.nombreCliente,
             folioVenta: folio,
@@ -3212,7 +3226,7 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, set
           <tbody>
             {filtrados.map((p) => (
               <tr key={p.id} className="border-t align-top">
-                <td className="px-3 py-2">{p.folio}</td>
+                <td className="px-3 py-2">{folioExpedienteEtiqueta(p)}</td>
                 <td className="px-3 py-2 font-medium">
                   <button onClick={() => setAbierto(p.id)} className="text-slate-700 hover:underline print:no-underline print:text-slate-800">
                     {p.nombre}
@@ -3436,7 +3450,6 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laborat
         ...laboratorio,
         {
           id: uid(),
-          folioOrden: siguienteFolioOrden(laboratorio),
           pacienteId: paciente.id,
           nombreCliente: paciente.nombre,
           folioVenta: "",
@@ -3752,7 +3765,6 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
       {
         ...nueva,
         id: uid(),
-        folioOrden: siguienteFolioOrden(laboratorio),
         nombreCliente: paciente?.nombre || "",
         fechaVenta: "",
         origen: "manual",
@@ -3913,8 +3925,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
         <table className="w-full text-sm">
           <thead style={{ background: BEIGE }}>
             <tr>
-              <th className="text-left px-3 py-2">Folio orden</th>
-              <th className="text-left px-3 py-2">Folio venta</th>
+              <th className="text-left px-3 py-2">Folio</th>
               <th className="text-left px-3 py-2">Paciente</th>
               <th className="text-left px-3 py-2">Receta</th>
               <th className="text-left px-3 py-2">Material</th>
@@ -3931,8 +3942,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
               const bloqueada = !!o.fechaRecepcion;
               return (
               <tr key={o.id} className={`border-t align-top ${o.cancelada ? "opacity-50" : ""}`}>
-                <td className="px-3 py-2 font-medium">{o.folioOrden || "—"}</td>
-                <td className="px-3 py-2 text-slate-500">{o.folioVenta || "—"}</td>
+                <td className="px-3 py-2 font-medium">{folioOrdenEtiqueta(o, pacientes)}</td>
                 <td className="px-3 py-2">
                   <button
                     onClick={() => setVerExpediente(o.pacienteId)}
@@ -3988,7 +3998,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
             })}
             {laboratorio.length === 0 && (
               <tr>
-                <td colSpan={10} className="text-center text-slate-400 py-6">Sin órdenes de laboratorio todavía.</td>
+                <td colSpan={9} className="text-center text-slate-400 py-6">Sin órdenes de laboratorio todavía.</td>
               </tr>
             )}
           </tbody>
@@ -4021,7 +4031,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
                 <table style={{ width: "100%", fontSize: 13, marginBottom: 12 }}>
                   <tbody>
                     <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Paciente:</td><td>{o.nombreCliente || paciente?.nombre || "—"}</td></tr>
-                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Folio de venta:</td><td>{o.folioVenta || "—"}</td></tr>
+                    <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Folio:</td><td>{folioOrdenEtiqueta(o, pacientes)}</td></tr>
                   </tbody>
                 </table>
                 <div style={{ border: "1px solid #ccc", borderRadius: 6, padding: "8px 10px", marginBottom: 12 }}>
@@ -4060,7 +4070,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
               <table style={{ width: "100%", fontSize: 13, marginBottom: 12 }}>
                 <tbody>
                   <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Paciente:</td><td>{o.nombreCliente || paciente?.nombre || "—"}</td></tr>
-                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Folio de venta:</td><td>{o.folioVenta || "—"}</td></tr>
+                  <tr><td style={{ fontWeight: "bold", padding: "4px 8px 4px 0" }}>Folio:</td><td>{folioOrdenEtiqueta(o, pacientes)}</td></tr>
                 </tbody>
               </table>
               <div style={{ border: "1px solid #ccc", borderRadius: 6, padding: "8px 10px", marginBottom: 12 }}>
@@ -4445,8 +4455,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
         <table className="w-full text-sm">
           <thead style={{ background: BEIGE }}>
             <tr>
-              <th className="text-left px-3 py-2">Folio orden</th>
-              <th className="text-left px-3 py-2">Folio venta</th>
+              <th className="text-left px-3 py-2">Folio</th>
               <th className="text-left px-3 py-2">Paciente</th>
               <th className="text-left px-3 py-2">Estatus</th>
               <th className="text-left px-3 py-2">Apartados</th>
@@ -4467,8 +4476,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
 
               return (
                 <tr key={o.id} className="border-t align-top">
-                  <td className="px-3 py-2 font-medium">{o.folioOrden || "—"}</td>
-                  <td className="px-3 py-2 text-slate-500">{o.folioVenta || "—"}</td>
+                  <td className="px-3 py-2 font-medium">{folioOrdenEtiqueta(o, pacientes)}</td>
                   <td className="px-3 py-2">
                     <button
                       onClick={() => setVerExpediente(o.pacienteId)}
@@ -4604,7 +4612,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
             })}
             {activas.length === 0 && (
               <tr>
-                <td colSpan={8} className="text-center text-slate-400 py-6">Sin órdenes activas todavía.</td>
+                <td colSpan={7} className="text-center text-slate-400 py-6">Sin órdenes activas todavía.</td>
               </tr>
             )}
           </tbody>
@@ -7854,7 +7862,6 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
           ...laboratorio,
           {
             id: uid(),
-            folioOrden: siguienteFolioOrden(laboratorio),
             pacienteId: sesionCliente.pacienteId,
             nombreCliente: nota.nombreCliente,
             folioVenta: folio,
