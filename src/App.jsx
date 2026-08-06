@@ -7107,8 +7107,8 @@ function TiendaCategoria({ categoriaActiva, inventario, config, onVerProducto, o
         className="rounded-2xl overflow-hidden mb-6 relative flex items-end"
         style={
           config?.imagenesCategorias?.[categoriaActiva]
-            ? { backgroundImage: `url(${config.imagenesCategorias[categoriaActiva]})`, backgroundSize: "cover", backgroundPosition: "center", height: 180 }
-            : { background: "#f4f4f4", height: 180 }
+            ? { backgroundImage: `url(${config.imagenesCategorias[categoriaActiva]})`, backgroundSize: "cover", backgroundPosition: "center", height: 360 }
+            : { background: "#f4f4f4", height: 360 }
         }
       >
         {!config?.imagenesCategorias?.[categoriaActiva] && (
