@@ -7140,7 +7140,9 @@ function TiendaCategoria({ categoriaActiva, inventario, config, onVerProducto, o
       <button onClick={onVolver} className="flex items-center gap-1 text-sm font-medium mb-3 hover:underline">
         <ChevronLeft size={16} /> Volver
       </button>
-      <p className="text-xs text-slate-400 mb-2">Inicio / {nombresCategoria[categoriaActiva]}</p>
+      <p className="text-xs text-slate-400 mb-2">
+        <button onClick={onVolver} className="hover:underline hover:text-slate-600">Inicio</button> / {nombresCategoria[categoriaActiva]}
+      </p>
       <div
         className="rounded-2xl overflow-hidden mb-6 relative flex items-end"
         style={
@@ -7418,7 +7420,7 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
   );
 }
 
-function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onAgregarCarrito }) {
+function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onIrInicio, onAgregarCarrito }) {
   const [indiceFoto, setIndiceFoto] = useState(0);
   const [tallaSel, setTallaSel] = useState(producto.tallas?.[0] || "");
   const [mostrarTodo, setMostrarTodo] = useState(false);
@@ -7467,7 +7469,7 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onAgregarCar
         <ChevronLeft size={16} /> Volver
       </button>
       <p className="text-xs text-slate-400 mb-4">
-        Inicio / {categoriaLabel} / {producto.nombre}
+        <button onClick={onIrInicio} className="hover:underline hover:text-slate-600">Inicio</button> / {categoriaLabel} / {producto.nombre}
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -8061,6 +8063,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
             ] || ""
           }
           onVolver={() => setVista(vistaOrigenProducto)}
+          onIrInicio={() => setVista("inicio")}
           onAgregarCarrito={(p) => {
             agregarCarrito(p);
             setCarritoAbierto(true);
