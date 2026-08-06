@@ -6075,11 +6075,14 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
         </div>
         <div>
           <label className="text-xs font-medium text-slate-500 uppercase block mb-1">Eslogan sobre la imagen principal</label>
-          <p className="text-xs text-slate-400 mb-1">Se muestra en grande, sin marco, encima del botón "Agendar examen".</p>
-          <input
+          <p className="text-xs text-slate-400 mb-1">
+            Se muestra en grande, sin marco, centrado sobre la imagen. Presiona Enter para pasar a un renglón nuevo.
+          </p>
+          <textarea
             value={local.eslogan || ""}
             onChange={(e) => setLocal({ ...local, eslogan: e.target.value })}
-            placeholder="Mi mirada. Mi estilo"
+            placeholder={"Mi mirada.\nMi estilo"}
+            rows={3}
             className="w-full border rounded-lg px-3 py-2 text-sm"
           />
         </div>
@@ -6853,7 +6856,7 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
           </div>
         )}
         <div className="text-center px-4 py-6">
-          <p className="font-serif font-semibold mb-4 text-3xl leading-tight">{config?.eslogan || "Mi mirada. Mi estilo"}</p>
+          <p className="font-serif font-semibold mb-4 text-3xl leading-tight whitespace-pre-line">{config?.eslogan || "Mi mirada. Mi estilo"}</p>
           <div className="flex flex-col gap-2 max-w-[220px] mx-auto">
             <button onClick={onAgendar} className="px-5 py-2.5 rounded-full bg-white border border-black text-sm font-medium">Agendar examen</button>
             <button onClick={() => onIrCategoria("armazones")} className="px-5 py-2.5 rounded-full bg-black text-white text-sm font-medium">¡Yo quiero!</button>
@@ -6870,8 +6873,8 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
             <p className="text-xs text-slate-300">Sube tu imagen principal desde Configuración</p>
           </div>
         )}
-        <div className="absolute -translate-x-1/2 left-[80%] top-8 bottom-[38%] max-w-xs md:max-w-sm px-4 flex items-start">
-          <p className="font-serif font-semibold text-left" style={{ fontSize: "clamp(30px, 4vw, 50px)", lineHeight: 1.08 }}>
+        <div className="absolute -translate-x-1/2 left-[80%] top-0 bottom-[38%] max-w-xs md:max-w-sm px-4 flex items-center">
+          <p className="font-serif font-semibold text-left whitespace-pre-line" style={{ fontSize: "clamp(30px, 4vw, 50px)", lineHeight: 1.15 }}>
             {config?.eslogan || "Mi mirada. Mi estilo"}
           </p>
         </div>
