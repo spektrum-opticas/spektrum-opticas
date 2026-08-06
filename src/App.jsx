@@ -6073,6 +6073,61 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
           )}
           <input type="file" accept="image/*" onChange={subirImagenPrincipal} className="text-sm" />
         </div>
+        <div>
+          <label className="text-xs font-medium text-slate-500 uppercase block mb-1">Eslogan sobre la imagen principal</label>
+          <p className="text-xs text-slate-400 mb-1">Se muestra en grande, sin marco, encima del botón "Agendar examen".</p>
+          <input
+            value={local.eslogan || ""}
+            onChange={(e) => setLocal({ ...local, eslogan: e.target.value })}
+            placeholder="Mi mirada. Mi estilo"
+            className="w-full border rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-slate-500 uppercase block mb-1">Imagen de cada categoría</label>
+          <p className="text-xs text-slate-400 mb-2">Se muestra como encabezado al entrar a cada categoría de la tienda. Mientras no la subas, se ve un fondo liso.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[
+              { key: "armazones", label: "Armazones" },
+              { key: "lentesGraduados", label: "Lentes graduados" },
+              { key: "lentesContacto", label: "Lentes de contacto" },
+              { key: "lentesSolares", label: "Lentes solares" },
+              { key: "accesorios", label: "Accesorios" },
+            ].map((c) => (
+              <div key={c.key} className="border rounded-lg p-2">
+                <p className="text-xs font-medium mb-1">{c.label}</p>
+                {local.imagenesCategorias?.[c.key] ? (
+                  <div className="mb-1">
+                    <img src={local.imagenesCategorias[c.key]} alt={c.label} style={{ height: 70 }} className="rounded mb-1 w-full object-cover" />
+                    <button
+                      onClick={() => setLocal({ ...local, imagenesCategorias: { ...local.imagenesCategorias, [c.key]: "" } })}
+                      className="text-xs text-red-500 underline"
+                    >
+                      Quitar imagen
+                    </button>
+                  </div>
+                ) : (
+                  <div className="h-16 rounded bg-slate-100 border border-dashed flex items-center justify-center text-xs text-slate-400 mb-1">
+                    Sin imagen
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="text-xs w-full"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () =>
+                      setLocal((l) => ({ ...l, imagenesCategorias: { ...l.imagenesCategorias, [c.key]: reader.result } }));
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
         <Field label="Dirección" value={local.direccion} onChange={(e) => setLocal({ ...local, direccion: e.target.value })} />
         <Field label="Teléfono" value={local.telefono} onChange={(e) => setLocal({ ...local, telefono: e.target.value })} />
         <Field label="Correo de contacto" value={local.mail} onChange={(e) => setLocal({ ...local, mail: e.target.value })} />
@@ -6781,7 +6836,7 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
 
   return (
     <div>
-      {/* Vista para celular: imagen centrada en la chica + logo/botones debajo, sin encimarse */}
+      {/* Vista para celular: imagen centrada en la chica + eslogan/botones debajo, sin encimarse */}
       <div className="sm:hidden">
         {config?.imagenPrincipal ? (
           <div className="w-full overflow-hidden" style={{ height: 220 }}>
@@ -6798,12 +6853,7 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
           </div>
         )}
         <div className="text-center px-4 py-6">
-          {config?.logo ? (
-            <img src={config.logo} alt="Spektrum Ópticas" style={{ mixBlendMode: "multiply" }} className="h-16 mx-auto mb-1" />
-          ) : (
-            <h1 className="text-2xl font-semibold mb-1">Spektrum Ópticas</h1>
-          )}
-          <p className="italic font-serif mb-4 text-lg" style={{ lineHeight: 1.1 }}>Mi mirada. Mi estilo</p>
+          <p className="font-serif font-semibold mb-4 text-3xl leading-tight">{config?.eslogan || "Mi mirada. Mi estilo"}</p>
           <div className="flex flex-col gap-2 max-w-[220px] mx-auto">
             <button onClick={onAgendar} className="px-5 py-2.5 rounded-full bg-white border border-black text-sm font-medium">Agendar examen</button>
             <button onClick={() => onIrCategoria("armazones")} className="px-5 py-2.5 rounded-full bg-black text-white text-sm font-medium">¡Yo quiero!</button>
@@ -6811,7 +6861,7 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
         </div>
       </div>
 
-      {/* Vista para tablet/escritorio: logo y botones superpuestos sobre la imagen completa */}
+      {/* Vista para tablet/escritorio: eslogan grande y botones superpuestos sobre la imagen completa */}
       <div className="hidden sm:block relative">
         {config?.imagenPrincipal ? (
           <img src={config.imagenPrincipal} alt="Spektrum Ópticas" className="w-full h-auto block" />
@@ -6820,23 +6870,15 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
             <p className="text-xs text-slate-300">Sube tu imagen principal desde Configuración</p>
           </div>
         )}
-        <div className="absolute inset-0 flex items-center">
-          <div className="absolute -translate-x-1/2 left-[80%] max-w-xs md:max-w-sm text-left px-4">
-            {config?.logo ? (
-              <img
-                src={config.logo}
-                alt="Spektrum Ópticas"
-                style={{ mixBlendMode: "multiply" }}
-                className="mb-1 h-36 md:h-[143px]"
-              />
-            ) : (
-              <h1 className="text-4xl md:text-5xl font-semibold mb-1">Spektrum Ópticas</h1>
-            )}
-            <p className="italic font-serif mb-5 text-2xl md:text-[28px]" style={{ lineHeight: 1.1 }}>Mi mirada. Mi estilo</p>
-            <div className="flex flex-col gap-4 max-w-[264px]">
-              <button onClick={onAgendar} className="px-8 py-4 rounded-full bg-white border border-black text-base font-medium">Agendar examen</button>
-              <button onClick={() => onIrCategoria("armazones")} className="px-8 py-4 rounded-full bg-black text-white text-base font-medium">¡Yo quiero!</button>
-            </div>
+        <div className="absolute -translate-x-1/2 left-[80%] top-8 bottom-[38%] max-w-xs md:max-w-sm px-4 flex items-start">
+          <p className="font-serif font-semibold text-left" style={{ fontSize: "clamp(30px, 4vw, 50px)", lineHeight: 1.08 }}>
+            {config?.eslogan || "Mi mirada. Mi estilo"}
+          </p>
+        </div>
+        <div className="absolute -translate-x-1/2 left-[80%] bottom-10 max-w-xs md:max-w-sm px-4">
+          <div className="flex flex-col gap-4 max-w-[264px]">
+            <button onClick={onAgendar} className="px-8 py-4 rounded-full bg-white border border-black text-base font-medium">Agendar examen</button>
+            <button onClick={() => onIrCategoria("armazones")} className="px-8 py-4 rounded-full bg-black text-white text-base font-medium">¡Yo quiero!</button>
           </div>
         </div>
       </div>
@@ -7023,7 +7065,7 @@ function TiendaFooter({ config, setConfig, onIrInicio, onIrCategoria, onAbrirCue
   );
 }
 
-function TiendaCategoria({ categoriaActiva, inventario, onVerProducto, onAgregarCarrito, onVolver }) {
+function TiendaCategoria({ categoriaActiva, inventario, config, onVerProducto, onAgregarCarrito, onVolver }) {
   const [filtroTipo, setFiltroTipo] = useState("");
   const [filtroMaterial, setFiltroMaterial] = useState("");
   const [filtroTratamiento, setFiltroTratamiento] = useState("");
@@ -7061,8 +7103,22 @@ function TiendaCategoria({ categoriaActiva, inventario, onVerProducto, onAgregar
         <ChevronLeft size={16} /> Volver
       </button>
       <p className="text-xs text-slate-400 mb-2">Inicio / {nombresCategoria[categoriaActiva]}</p>
-      <div className="rounded-2xl overflow-hidden mb-6" style={{ background: "linear-gradient(135deg,#cfeaf5,#eaf6fb)", padding: "40px 24px" }}>
-        <h1 className="text-2xl sm:text-3xl font-semibold">{nombresCategoria[categoriaActiva]}</h1>
+      <div
+        className="rounded-2xl overflow-hidden mb-6 relative flex items-end"
+        style={
+          config?.imagenesCategorias?.[categoriaActiva]
+            ? { backgroundImage: `url(${config.imagenesCategorias[categoriaActiva]})`, backgroundSize: "cover", backgroundPosition: "center", height: 180 }
+            : { background: "#f4f4f4", height: 180 }
+        }
+      >
+        {!config?.imagenesCategorias?.[categoriaActiva] && (
+          <p className="absolute inset-0 flex items-center justify-center text-xs text-slate-300">
+            Sube la imagen de esta categoría desde Configuración
+          </p>
+        )}
+        <div className="relative w-full" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0))" }}>
+          <h1 className="text-2xl sm:text-3xl font-semibold px-6 py-5 text-white">{nombresCategoria[categoriaActiva]}</h1>
+        </div>
       </div>
 
       {categoriaActiva === "lentesGraduados" && (
@@ -7970,6 +8026,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         <TiendaCategoria
           categoriaActiva={categoriaActiva}
           inventario={inventario}
+          config={config}
           onVerProducto={verProducto}
           onAgregarCarrito={agregarCarrito}
           onVolver={() => setVista("inicio")}
