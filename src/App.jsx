@@ -20,6 +20,31 @@ const BEIGE_DARK = "#E4D4B5";
 const SUPABASE_URL = "https://mxlmobpziadhpxwpxerr.supabase.co";
 const SUPABASE_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14bG1vYnB6aWFkaHB4d3B4ZXJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ5MzU3MDUsImV4cCI6MjEwMDUxMTcwNX0.MUd_qyCv7cxOwOBLF_m-awL6HhE2fEYblI9G5JhY5aY";
+const SUPABASE_BUCKET = "imagenes";
+
+// Sube el archivo real a Supabase Storage y regresa la URL pública corta,
+// en vez de guardar la imagen completa (pesadísima) dentro de los datos.
+async function subirImagenStorage(file, carpeta) {
+  try {
+    const nombreLimpio = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+    const ruta = `${carpeta}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${nombreLimpio}`;
+    const resp = await fetch(`${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${ruta}`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": file.type || "application/octet-stream",
+        "x-upsert": "true",
+      },
+      body: file,
+    });
+    if (!resp.ok) throw new Error(`No se pudo subir la imagen (HTTP ${resp.status})`);
+    return `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_BUCKET}/${ruta}`;
+  } catch (err) {
+    console.error("Error subiendo imagen:", err);
+    return null;
+  }
+}
 
 const STORAGE_KEYS = {
   pacientes: "pacientes",
@@ -2154,9 +2179,14 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
   function subirImagenArticulo(e) {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setNuevo((n) => ({ ...n, imagen: reader.result }));
-    reader.readAsDataURL(file);
+    setNuevo((n) => ({ ...n, subiendoImagen: true }));
+    subirImagenStorage(file, "productos").then((url) => {
+      if (url) setNuevo((n) => ({ ...n, imagen: url, subiendoImagen: false }));
+      else {
+        setNuevo((n) => ({ ...n, subiendoImagen: false }));
+        alert("No se pudo subir la imagen. Intenta de nuevo.");
+      }
+    });
   }
 
   function agregar() {
@@ -2711,6 +2741,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
               <div className="w-10 h-10 rounded border border-dashed bg-slate-50" />
             )}
             <input type="file" accept="image/*" onChange={subirImagenArticulo} className="text-xs w-32" />
+            {nuevo.subiendoImagen && <span className="text-xs text-slate-400">Subiendo…</span>}
           </div>
         </div>
         {esArmazon && (
@@ -2736,9 +2767,10 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                 onChange={(e) => {
                   const files = Array.from(e.target.files || []);
                   files.forEach((file) => {
-                    const reader = new FileReader();
-                    reader.onload = () => setNuevo((n) => ({ ...n, galeriaExtra: [...n.galeriaExtra, reader.result] }));
-                    reader.readAsDataURL(file);
+                    subirImagenStorage(file, "productos").then((url) => {
+                      if (url) setNuevo((n) => ({ ...n, galeriaExtra: [...n.galeriaExtra, url] }));
+                      else alert("No se pudo subir una de las imágenes. Intenta de nuevo.");
+                    });
                   });
                 }}
                 className="text-xs w-32"
@@ -2791,10 +2823,10 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                         onChange={(e) => {
                           const file = e.target.files[0];
                           if (!file) return;
-                          const reader = new FileReader();
-                          reader.onload = () =>
-                            setInventario({ ...inventario, [cat]: lista.map((x) => (x.id === a.id ? { ...x, imagen: reader.result } : x)) });
-                          reader.readAsDataURL(file);
+                          subirImagenStorage(file, "productos").then((url) => {
+                            if (url) setInventario({ ...inventario, [cat]: lista.map((x) => (x.id === a.id ? { ...x, imagen: url } : x)) });
+                            else alert("No se pudo subir la imagen. Intenta de nuevo.");
+                          });
                         }}
                       />
                     </label>
@@ -2865,10 +2897,10 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                       onChange={(e) => {
                         const file = e.target.files[0];
                         if (!file) return;
-                        const reader = new FileReader();
-                        reader.onload = () =>
-                          setInventario({ ...inventario, [cat]: lista.map((x) => (x.id === a.id ? { ...x, imagen: reader.result } : x)) });
-                        reader.readAsDataURL(file);
+                        subirImagenStorage(file, "productos").then((url) => {
+                          if (url) setInventario({ ...inventario, [cat]: lista.map((x) => (x.id === a.id ? { ...x, imagen: url } : x)) });
+                          else alert("No se pudo subir la imagen. Intenta de nuevo.");
+                        });
                       }}
                     />
                   </label>
@@ -3097,9 +3129,10 @@ function EditarArticuloModal({ articulo, onCerrar, onGuardar, config, setConfig 
               onChange={(e) => {
                 const files = Array.from(e.target.files || []);
                 files.forEach((file) => {
-                  const reader = new FileReader();
-                  reader.onload = () => setDatos((d) => ({ ...d, galeriaExtra: [...d.galeriaExtra, reader.result] }));
-                  reader.readAsDataURL(file);
+                  subirImagenStorage(file, "productos").then((url) => {
+                    if (url) setDatos((d) => ({ ...d, galeriaExtra: [...d.galeriaExtra, url] }));
+                    else alert("No se pudo subir una de las imágenes. Intenta de nuevo.");
+                  });
                 });
               }}
               className="text-xs"
@@ -6017,17 +6050,19 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
   function subirLogo(e) {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setLocal({ ...local, logo: reader.result });
-    reader.readAsDataURL(file);
+    subirImagenStorage(file, "config").then((url) => {
+      if (url) setLocal((l) => ({ ...l, logo: url }));
+      else alert("No se pudo subir el logo. Intenta de nuevo.");
+    });
   }
 
   function subirImagenPrincipal(e) {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setLocal({ ...local, imagenPrincipal: reader.result });
-    reader.readAsDataURL(file);
+    subirImagenStorage(file, "config").then((url) => {
+      if (url) setLocal((l) => ({ ...l, imagenPrincipal: url }));
+      else alert("No se pudo subir la imagen. Intenta de nuevo.");
+    });
   }
 
   function quitarImagenPrincipal() {
@@ -6121,10 +6156,10 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
                   onChange={(e) => {
                     const file = e.target.files[0];
                     if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = () =>
-                      setLocal((l) => ({ ...l, imagenesCategorias: { ...l.imagenesCategorias, [c.key]: reader.result } }));
-                    reader.readAsDataURL(file);
+                    subirImagenStorage(file, "config").then((url) => {
+                      if (url) setLocal((l) => ({ ...l, imagenesCategorias: { ...l.imagenesCategorias, [c.key]: url } }));
+                      else alert("No se pudo subir la imagen. Intenta de nuevo.");
+                    });
                   }}
                 />
               </div>
@@ -7685,12 +7720,17 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
   const requiereReceta = carrito.some((c) => c.categoria === "lentesGraduados" || c.categoria === "lentesContacto");
   const total = carrito.reduce((s, c) => s + Number(c.precio || 0), 0);
 
+  const [subiendoReceta, setSubiendoReceta] = useState(false);
+
   function subirReceta(e) {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setReceta({ nombreArchivo: file.name, dataUrl: reader.result });
-    reader.readAsDataURL(file);
+    setSubiendoReceta(true);
+    subirImagenStorage(file, "recetas").then((url) => {
+      setSubiendoReceta(false);
+      if (url) setReceta({ nombreArchivo: file.name, dataUrl: url });
+      else alert("No se pudo subir tu receta. Intenta de nuevo.");
+    });
   }
 
   const faltaReceta = requiereReceta && !receta;
@@ -7724,6 +7764,7 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
             <div className="mb-4">
               <label className="text-xs text-slate-500 block mb-1">Sube tu receta (foto o PDF)</label>
               <input type="file" accept="image/*,.pdf" onChange={subirReceta} className="text-xs" />
+              {subiendoReceta && <p className="text-xs text-slate-400 mt-1">Subiendo receta…</p>}
               {receta && <p className="text-xs text-emerald-600 mt-1">Receta cargada: {receta.nombreArchivo}</p>}
             </div>
           )}
@@ -7775,7 +7816,7 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
           ) : (
             <BotonNegro
               onClick={() => onConfirmar(receta, { pagadoEnLinea: false, formaPago: formaPagoEntrega })}
-              disabled={carrito.length === 0 || faltaReceta}
+              disabled={carrito.length === 0 || faltaReceta || subiendoReceta}
             >
               Confirmar pedido
             </BotonNegro>
