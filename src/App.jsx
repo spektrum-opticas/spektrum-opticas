@@ -7246,16 +7246,27 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
   const rafRef = useRef(null);
   const imgRef = useRef(null);
   const framesSinRostroRef = useRef(0);
+  const contadorCiclosRef = useRef(0);
   const [estado, setEstado] = useState("iniciando"); // iniciando | listo | error
   const [mensajeError, setMensajeError] = useState("");
   const [sinRostro, setSinRostro] = useState(false);
   const [errorDetector, setErrorDetector] = useState("");
+  const [ciclosVisible, setCiclosVisible] = useState(0);
 
   useEffect(() => {
     let cancelado = false;
 
+    function conLimiteDeTiempo(promesa, ms) {
+      return Promise.race([
+        promesa,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(`La detección de rostro tardó más de ${ms / 1000}s y se canceló (se congeló).`)), ms)),
+      ]);
+    }
+
     async function loop() {
       if (cancelado) return;
+      contadorCiclosRef.current += 1;
+      if (contadorCiclosRef.current % 5 === 0) setCiclosVisible(contadorCiclosRef.current);
       const video = videoRef.current;
       const canvas = canvasRef.current;
       if (video && canvas && detectorRef.current && video.readyState >= 2 && video.videoWidth > 0) {
@@ -7267,7 +7278,7 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         try {
-          const caras = await detectorRef.current.estimateFaces(video);
+          const caras = await conLimiteDeTiempo(detectorRef.current.estimateFaces(video), 4000);
           if (caras.length === 0) {
             framesSinRostroRef.current += 1;
             if (framesSinRostroRef.current > 40) setSinRostro(true);
@@ -7418,6 +7429,9 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
           className="absolute inset-0 w-full h-full rounded-xl"
           style={{ transform: "scaleX(-1)", pointerEvents: "none" }}
         />
+        <div className="absolute top-2 left-2 bg-black/70 text-white text-[10px] px-2 py-1 rounded">
+          ciclos: {ciclosVisible}
+        </div>
         {sinRostro && !errorDetector && (
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
             No detectamos tu rostro — acércate a la cámara con buena iluminación de frente.
