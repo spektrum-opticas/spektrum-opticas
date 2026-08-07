@@ -7341,6 +7341,7 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
             }
           }
         } catch (errLoop) {
+          console.error("Error en el ciclo del probador virtual:", errLoop);
           setErrorDetector(String(errLoop?.message || errLoop));
         }
       }
