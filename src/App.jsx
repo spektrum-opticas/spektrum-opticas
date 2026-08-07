@@ -7275,12 +7275,29 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
             framesSinRostroRef.current = 0;
             setSinRostro(false);
           }
-          if (caras.length > 0 && imgRef.current?.complete) {
+          if (caras.length > 0) {
             const kp = caras[0].keypoints;
             const ojoIzq = kp[33];
             const ojoDer = kp[263];
 
-            if (modo === "contacto") {
+            // Punto de diagnóstico: si ves este punto rojo sobre tu rostro, la detección
+            // y las coordenadas SÍ funcionan — si la imagen no aparece, el problema es
+            // específicamente la carga de la foto del producto.
+            if (ojoIzq && ojoDer) {
+              const cxDiag = (ojoIzq.x + ojoDer.x) / 2;
+              const cyDiag = (ojoIzq.y + ojoDer.y) / 2;
+              ctx.save();
+              ctx.fillStyle = "red";
+              ctx.beginPath();
+              ctx.arc(cxDiag, cyDiag, 6, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.font = "16px sans-serif";
+              ctx.fillStyle = "#ff0000";
+              ctx.fillText(`imagen lista: ${imgRef.current?.complete ? "sí" : "no"}`, cxDiag + 15, cyDiag);
+              ctx.restore();
+            }
+
+            if (modo === "contacto" && imgRef.current?.complete) {
               // Lente de contacto cosmético: se coloca un pequeño círculo del color/imagen sobre cada iris
               const irisIzq = kp[468] || ojoIzq;
               const irisDer = kp[473] || ojoDer;
@@ -7296,7 +7313,7 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
                 ctx.drawImage(imgRef.current, p.x - radio, p.y - radio, radio * 2, radio * 2);
                 ctx.restore();
               });
-            } else if (ojoIzq && ojoDer) {
+            } else if (modo !== "contacto" && ojoIzq && ojoDer && imgRef.current?.complete) {
               // Armazón: se coloca la imagen del producto abarcando ambos ojos
               const cx = (ojoIzq.x + ojoDer.x) / 2;
               const cy = (ojoIzq.y + ojoDer.y) / 2;
@@ -7349,6 +7366,7 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
         }
 
         const img = new Image();
+        img.crossOrigin = "anonymous";
         await new Promise((resolve, reject) => {
           img.onload = resolve;
           img.onerror = () => reject(new Error("No se pudo cargar la foto subida de este producto."));
