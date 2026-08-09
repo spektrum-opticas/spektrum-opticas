@@ -84,6 +84,44 @@ async function supaSet(tabla, datos) {
   return true;
 }
 
+// --- Variante por renglones: cada registro es su propia fila (id propio + datos),
+// en vez de un solo bloque gigante. Así, guardar UN cambio solo toca ESE renglón,
+// sin importar cuántos miles de registros más existan.
+async function supaGetFilas(tabla) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${tabla}?select=id,datos`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+  });
+  if (!res.ok) throw new Error(`No se pudo leer "${tabla}" (HTTP ${res.status})`);
+  return res.json();
+}
+
+async function supaUpsertFilas(tabla, filas) {
+  if (filas.length === 0) return true;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${tabla}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates",
+    },
+    body: JSON.stringify(filas),
+  });
+  if (!res.ok) throw new Error(`No se pudo guardar cambios en "${tabla}" (HTTP ${res.status})`);
+  return true;
+}
+
+async function supaEliminarFilas(tabla, ids) {
+  if (ids.length === 0) return true;
+  const lista = ids.map((id) => `"${String(id).replace(/"/g, '\\"')}"`).join(",");
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${tabla}?id=in.(${lista})`, {
+    method: "DELETE",
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+  });
+  if (!res.ok) throw new Error(`No se pudo eliminar registros de "${tabla}" (HTTP ${res.status})`);
+  return true;
+}
+
 const emptyInventario = () => ({
   armazones: [],
   lentesGraduados: [],
@@ -579,6 +617,88 @@ function useStoredState(key, initial) {
     },
     [key]
   );
+
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const reintentar = useCallback(() => persist(valueRef.current), [persist]);
+
+  return [value, persist, loaded, status, error, reintentar, cargar];
+}
+
+// Igual que useStoredState en la forma en que se usa (mismo orden de valores
+// de regreso), pero por dentro cada paciente vive en su propio renglón de la
+// tabla — así que guardar UN cambio (agregar, editar o eliminar un paciente)
+// solo toca ESE renglón, sin importar si hay 100 o 100,000 pacientes más.
+function usePacientesStorage() {
+  const [value, setValue] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [status, setStatus] = useState("idle");
+  const [error, setError] = useState(null);
+  const prevRef = useRef([]);
+
+  const cargar = useCallback(async () => {
+    try {
+      const filas = await supaGetFilas("pacientes");
+      const datos = filas.map((f) => f.datos);
+      setValue(datos);
+      prevRef.current = datos;
+      setLoaded(true);
+      setStatus("saved");
+      setError(null);
+    } catch (e) {
+      setLoaded(true);
+      setStatus("error");
+      setError(e?.message || String(e));
+    }
+  }, []);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  const persist = useCallback(async (next) => {
+    setValue(next);
+    setStatus("saving");
+
+    const prev = prevRef.current;
+    const prevById = new Map(prev.map((p) => [p.id, p]));
+    const nextById = new Map(next.map((p) => [p.id, p]));
+
+    const cambiados = [];
+    for (const p of next) {
+      const antes = prevById.get(p.id);
+      if (!antes || JSON.stringify(antes) !== JSON.stringify(p)) {
+        cambiados.push({ id: p.id, datos: p });
+      }
+    }
+    const eliminados = [];
+    for (const id of prevById.keys()) {
+      if (!nextById.has(id)) eliminados.push(id);
+    }
+
+    async function intentar() {
+      if (cambiados.length > 0) await supaUpsertFilas("pacientes", cambiados);
+      if (eliminados.length > 0) await supaEliminarFilas("pacientes", eliminados);
+    }
+
+    try {
+      await intentar();
+      prevRef.current = next;
+      setStatus("saved");
+      setError(null);
+    } catch (e) {
+      try {
+        await intentar();
+        prevRef.current = next;
+        setStatus("saved");
+        setError(null);
+      } catch (e2) {
+        console.error("Error guardando pacientes", e2);
+        setStatus("error");
+        setError(e2?.message || String(e2));
+      }
+    }
+  }, []);
 
   const valueRef = useRef(value);
   valueRef.current = value;
@@ -8916,7 +9036,7 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, ca
 }
 
 export default function App() {
-  const [pacientes, setPacientes, loadedP, statusP, errorP, retryP, cargarP] = useStoredState(STORAGE_KEYS.pacientes, []);
+  const [pacientes, setPacientes, loadedP, statusP, errorP, retryP, cargarP] = usePacientesStorage();
   const [inventario, setInventario, loadedI, statusI, errorI, retryI, cargarI] = useStoredState(STORAGE_KEYS.inventario, emptyInventario());
   const [agenda, setAgenda, loadedA, statusA, errorA, retryA, cargarA] = useStoredState(STORAGE_KEYS.agenda, []);
   const [ventas, setVentas, loadedV, statusV, errorV, retryV, cargarV] = useStoredState(STORAGE_KEYS.ventas, []);
