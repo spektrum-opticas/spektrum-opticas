@@ -629,7 +629,7 @@ function useStoredState(key, initial) {
 // de regreso), pero por dentro cada paciente vive en su propio renglón de la
 // tabla — así que guardar UN cambio (agregar, editar o eliminar un paciente)
 // solo toca ESE renglón, sin importar si hay 100 o 100,000 pacientes más.
-function usePacientesStorage() {
+function useRowStorage(tabla) {
   const [value, setValue] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [status, setStatus] = useState("idle");
@@ -638,7 +638,7 @@ function usePacientesStorage() {
 
   const cargar = useCallback(async () => {
     try {
-      const filas = await supaGetFilas("pacientes");
+      const filas = await supaGetFilas(tabla);
       const datos = filas.map((f) => f.datos);
       setValue(datos);
       prevRef.current = datos;
@@ -650,61 +650,73 @@ function usePacientesStorage() {
       setStatus("error");
       setError(e?.message || String(e));
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabla]);
 
   useEffect(() => {
     cargar();
   }, [cargar]);
 
-  const persist = useCallback(async (next) => {
-    setValue(next);
-    setStatus("saving");
+  const persist = useCallback(
+    async (next) => {
+      setValue(next);
+      setStatus("saving");
 
-    const prev = prevRef.current;
-    const prevById = new Map(prev.map((p) => [p.id, p]));
-    const nextById = new Map(next.map((p) => [p.id, p]));
+      const prev = prevRef.current;
+      const prevById = new Map(prev.map((p) => [p.id, p]));
+      const nextById = new Map(next.map((p) => [p.id, p]));
 
-    const cambiados = [];
-    for (const p of next) {
-      const antes = prevById.get(p.id);
-      if (!antes || JSON.stringify(antes) !== JSON.stringify(p)) {
-        cambiados.push({ id: p.id, datos: p });
+      const cambiados = [];
+      for (const p of next) {
+        const antes = prevById.get(p.id);
+        if (!antes || JSON.stringify(antes) !== JSON.stringify(p)) {
+          cambiados.push({ id: p.id, datos: p });
+        }
       }
-    }
-    const eliminados = [];
-    for (const id of prevById.keys()) {
-      if (!nextById.has(id)) eliminados.push(id);
-    }
+      const eliminados = [];
+      for (const id of prevById.keys()) {
+        if (!nextById.has(id)) eliminados.push(id);
+      }
 
-    async function intentar() {
-      if (cambiados.length > 0) await supaUpsertFilas("pacientes", cambiados);
-      if (eliminados.length > 0) await supaEliminarFilas("pacientes", eliminados);
-    }
+      async function intentar() {
+        if (cambiados.length > 0) await supaUpsertFilas(tabla, cambiados);
+        if (eliminados.length > 0) await supaEliminarFilas(tabla, eliminados);
+      }
 
-    try {
-      await intentar();
-      prevRef.current = next;
-      setStatus("saved");
-      setError(null);
-    } catch (e) {
       try {
         await intentar();
         prevRef.current = next;
         setStatus("saved");
         setError(null);
-      } catch (e2) {
-        console.error("Error guardando pacientes", e2);
-        setStatus("error");
-        setError(e2?.message || String(e2));
+      } catch (e) {
+        try {
+          await intentar();
+          prevRef.current = next;
+          setStatus("saved");
+          setError(null);
+        } catch (e2) {
+          console.error(`Error guardando ${tabla}`, e2);
+          setStatus("error");
+          setError(e2?.message || String(e2));
+        }
       }
-    }
-  }, []);
+    },
+    [tabla]
+  );
 
   const valueRef = useRef(value);
   valueRef.current = value;
   const reintentar = useCallback(() => persist(valueRef.current), [persist]);
 
   return [value, persist, loaded, status, error, reintentar, cargar];
+}
+
+function usePacientesStorage() {
+  return useRowStorage("pacientes");
+}
+
+function useAsistenciaStorage() {
+  return useRowStorage("asistencia");
 }
 
 function Icon({ name, size = 20 }) {
@@ -1801,7 +1813,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
           <div className="max-h-40 overflow-y-auto grid grid-cols-2 gap-1">
             {articulosFiltrados.map((a) => (
               <button
-                key={a.sku}
+                key={`${a.categoria}-${a.id || a.sku}`}
                 onClick={() => agregarArticulo(a)}
                 className="text-left text-xs border rounded-lg px-2 py-1.5 hover:bg-slate-50 flex justify-between"
               >
@@ -5879,7 +5891,7 @@ function ProveedoresView({ proveedores, setProveedores }) {
   );
 }
 
-function AdministracionView({ usuarios, setUsuarios, proveedores, setProveedores }) {
+function AdministracionView({ usuarios, setUsuarios, proveedores, setProveedores, asistencia, setAsistencia }) {
   const [tab, setTab] = useState("usuarios");
   return (
     <div>
@@ -5890,12 +5902,156 @@ function AdministracionView({ usuarios, setUsuarios, proveedores, setProveedores
         <button onClick={() => setTab("proveedores")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${tab === "proveedores" ? "text-white" : "bg-white border"}`} style={tab === "proveedores" ? { background: SKY_DARK } : {}}>
           Proveedores
         </button>
+        <button onClick={() => setTab("asistencia")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${tab === "asistencia" ? "text-white" : "bg-white border"}`} style={tab === "asistencia" ? { background: SKY_DARK } : {}}>
+          Asistencia
+        </button>
       </div>
       {tab === "usuarios" ? (
         <UsuariosView usuarios={usuarios} setUsuarios={setUsuarios} />
-      ) : (
+      ) : tab === "proveedores" ? (
         <ProveedoresView proveedores={proveedores} setProveedores={setProveedores} />
+      ) : (
+        <AsistenciaView asistencia={asistencia} setAsistencia={setAsistencia} />
       )}
+    </div>
+  );
+}
+
+function AsistenciaView({ asistencia, setAsistencia }) {
+  const [semanaBase, setSemanaBase] = useState(() => fechaISO(new Date()));
+
+  function inicioDeSemana(fechaStr) {
+    const d = new Date(fechaStr + "T00:00:00");
+    const diaSemana = d.getDay(); // 0 = domingo
+    const diasDesdeLunes = diaSemana === 0 ? 6 : diaSemana - 1;
+    d.setDate(d.getDate() - diasDesdeLunes);
+    return d;
+  }
+
+  const inicio = inicioDeSemana(semanaBase);
+  const fin = new Date(inicio);
+  fin.setDate(fin.getDate() + 6);
+  fin.setHours(23, 59, 59, 999);
+
+  function cambiarSemana(delta) {
+    const d = new Date(semanaBase + "T00:00:00");
+    d.setDate(d.getDate() + delta * 7);
+    setSemanaBase(fechaISO(d));
+  }
+
+  const registrosSemana = asistencia
+    .filter((r) => {
+      const f = new Date(r.fecha);
+      return f >= inicio && f <= fin;
+    })
+    .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+  // Agrupa por usuario, empareja entrada->salida cronológicamente y suma horas
+  const porUsuario = {};
+  registrosSemana.forEach((r) => {
+    if (!porUsuario[r.usuario]) porUsuario[r.usuario] = [];
+    porUsuario[r.usuario].push(r);
+  });
+
+  const resumen = Object.entries(porUsuario).map(([usuario, eventos]) => {
+    let totalMs = 0;
+    let entradaAbierta = null;
+    eventos.forEach((ev) => {
+      if (ev.tipo === "entrada") {
+        entradaAbierta = new Date(ev.fecha);
+      } else if (ev.tipo === "salida" && entradaAbierta) {
+        totalMs += new Date(ev.fecha) - entradaAbierta;
+        entradaAbierta = null;
+      }
+    });
+    const horas = totalMs / 1000 / 60 / 60;
+    return { usuario, eventos, horas, sinCerrar: !!entradaAbierta };
+  });
+
+  function eliminarRegistro(id) {
+    setAsistencia(asistencia.filter((r) => r.id !== id));
+  }
+
+  return (
+    <div className="p-4">
+      <div className="flex items-center gap-3 mb-4">
+        <button onClick={() => cambiarSemana(-1)} className="px-3 py-1.5 rounded-lg bg-white border text-sm">← Semana anterior</button>
+        <p className="text-sm font-medium">
+          Semana del {inicio.toLocaleDateString("es-MX")} al {fin.toLocaleDateString("es-MX")}
+        </p>
+        <button onClick={() => cambiarSemana(1)} className="px-3 py-1.5 rounded-lg bg-white border text-sm">Semana siguiente →</button>
+        <button onClick={() => imprimirElemento("reporte-asistencia-semanal")} className="ml-auto px-3 py-1.5 rounded-lg text-white text-sm" style={{ background: SKY_DARK }}>
+          Imprimir reporte
+        </button>
+      </div>
+
+      <div id="reporte-asistencia-semanal" className="bg-white border rounded-xl overflow-hidden mb-4">
+        <p className="hidden print:block font-bold px-3 pt-3">
+          Reporte de asistencia — semana del {inicio.toLocaleDateString("es-MX")} al {fin.toLocaleDateString("es-MX")}
+        </p>
+        <table className="w-full text-sm">
+          <thead style={{ background: BEIGE }}>
+            <tr>
+              <th className="text-left px-3 py-2">Usuario</th>
+              <th className="text-left px-3 py-2">Horas trabajadas esta semana</th>
+              <th className="text-left px-3 py-2">Estatus</th>
+            </tr>
+          </thead>
+          <tbody>
+            {resumen.map((r) => (
+              <tr key={r.usuario} className="border-t">
+                <td className="px-3 py-2 font-medium">{r.usuario}</td>
+                <td className="px-3 py-2">{r.horas.toFixed(1)} h</td>
+                <td className="px-3 py-2">
+                  {r.sinCerrar ? (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Turno sin cerrar (falta check de salida)</span>
+                  ) : (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Completo</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {resumen.length === 0 && (
+              <tr><td colSpan={3} className="text-center text-slate-400 py-6">Sin registros de asistencia esta semana.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="bg-white border rounded-xl overflow-hidden">
+        <p className="text-xs font-medium text-slate-500 uppercase px-3 pt-3">Detalle de checks esta semana</p>
+        <table className="w-full text-sm">
+          <thead style={{ background: BEIGE }}>
+            <tr>
+              <th className="text-left px-3 py-2">Usuario</th>
+              <th className="text-left px-3 py-2">Tipo</th>
+              <th className="text-left px-3 py-2">Fecha y hora</th>
+              <th className="px-3 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {registrosSemana.map((r) => (
+              <tr key={r.id} className="border-t">
+                <td className="px-3 py-2">{r.usuario}</td>
+                <td className="px-3 py-2">
+                  {r.tipo === "entrada" ? (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Entrada</span>
+                  ) : (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Salida</span>
+                  )}
+                </td>
+                <td className="px-3 py-2">{new Date(r.fecha).toLocaleString("es-MX")}</td>
+                <td className="px-3 py-2 text-right">
+                  <button onClick={() => eliminarRegistro(r.id)} className="text-red-400"><Trash2 size={16} /></button>
+                </td>
+              </tr>
+            ))}
+            {registrosSemana.length === 0 && (
+              <tr><td colSpan={4} className="text-center text-slate-400 py-6">Sin checks registrados esta semana.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -9037,6 +9193,7 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, ca
 
 export default function App() {
   const [pacientes, setPacientes, loadedP, statusP, errorP, retryP, cargarP] = usePacientesStorage();
+  const [asistencia, setAsistencia, loadedAs] = useAsistenciaStorage();
   const [inventario, setInventario, loadedI, statusI, errorI, retryI, cargarI] = useStoredState(STORAGE_KEYS.inventario, emptyInventario());
   const [agenda, setAgenda, loadedA, statusA, errorA, retryA, cargarA] = useStoredState(STORAGE_KEYS.agenda, []);
   const [ventas, setVentas, loadedV, statusV, errorV, retryV, cargarV] = useStoredState(STORAGE_KEYS.ventas, []);
@@ -9077,6 +9234,30 @@ export default function App() {
   const [presetCobroFolio, setPresetCobroFolio] = useState(null);
   const [previsualizarTienda, setPrevisualizarTienda] = useState(false);
   const [sesion, setSesion] = useSesion();
+  const [pedirCheckEntrada, setPedirCheckEntrada] = useState(false);
+  const [pedirCheckSalida, setPedirCheckSalida] = useState(false);
+
+  function iniciarSesionStaff(datosSesion) {
+    setSesion(datosSesion);
+    setPedirCheckEntrada(true);
+  }
+
+  function pedirCerrarSesion() {
+    setPedirCheckSalida(true);
+  }
+
+  function registrarCheckEntrada() {
+    setAsistencia([...asistencia, { id: uid(), usuario: sesion?.nombre, tipo: "entrada", fecha: new Date().toISOString() }]);
+    setPedirCheckEntrada(false);
+  }
+
+  function registrarCheckSalidaYSalir() {
+    if (sesion?.nombre) {
+      setAsistencia([...asistencia, { id: uid(), usuario: sesion.nombre, tipo: "salida", fecha: new Date().toISOString() }]);
+    }
+    setPedirCheckSalida(false);
+    setSesion(null);
+  }
 
   useEffect(() => {
     if (!sesion || sesion.rol === "ADMIN") return;
@@ -9137,7 +9318,7 @@ export default function App() {
           setConfig={setConfig}
           usuarios={usuarios}
           setUsuarios={setUsuarios}
-          onLoginEmpleado={setSesion}
+          onLoginEmpleado={iniciarSesionStaff}
           sesionStaff={sesion}
           onVolverPanel={() => setPrevisualizarTienda(false)}
         />
@@ -9174,7 +9355,7 @@ export default function App() {
           >
             Ver tienda en línea
           </button>
-          <button onClick={() => setSesion(null)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600">
+          <button onClick={pedirCerrarSesion} className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600">
             Cerrar sesión
           </button>
         </div>
@@ -9252,7 +9433,7 @@ export default function App() {
           />
         )}
         {seccion === "administracion" && (
-          <AdministracionView usuarios={usuarios} setUsuarios={setUsuarios} proveedores={proveedores} setProveedores={setProveedores} />
+          <AdministracionView usuarios={usuarios} setUsuarios={setUsuarios} proveedores={proveedores} setProveedores={setProveedores} asistencia={asistencia} setAsistencia={setAsistencia} />
         )}
         {seccion === "importar" && (
           <ImportarView pacientes={pacientes} setPacientes={setPacientes} inventario={inventario} setInventario={setInventario} config={config} setConfig={setConfig} />
@@ -9278,6 +9459,31 @@ export default function App() {
           />
         )}
       </div>
+
+      <Modal open={pedirCheckEntrada} onClose={() => {}} title="Registro de asistencia">
+        <div className="text-center py-2">
+          <p className="text-base font-medium mb-1">¿Quieres hacer tu check de entrada, {sesion?.nombre}?</p>
+          <p className="text-xs text-slate-400 mb-4">Se va a registrar la hora de ahora mismo como tu entrada.</p>
+          <button onClick={registrarCheckEntrada} className="px-6 py-2 rounded-lg text-white text-sm font-medium" style={{ background: SKY_DARK }}>
+            Aceptar
+          </button>
+        </div>
+      </Modal>
+
+      <Modal open={pedirCheckSalida} onClose={() => setPedirCheckSalida(false)} title="Registro de asistencia">
+        <div className="text-center py-2">
+          <p className="text-base font-medium mb-1">¿Quieres hacer tu check de salida, {sesion?.nombre}?</p>
+          <p className="text-xs text-slate-400 mb-4">Se va a registrar la hora de ahora mismo como tu salida, y se cerrará tu sesión.</p>
+          <div className="flex gap-2 justify-center">
+            <button onClick={() => setPedirCheckSalida(false)} className="px-4 py-2 rounded-lg bg-slate-100 text-sm">
+              Cancelar
+            </button>
+            <button onClick={registrarCheckSalidaYSalir} className="px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ background: SKY_DARK }}>
+              Check de salida
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
