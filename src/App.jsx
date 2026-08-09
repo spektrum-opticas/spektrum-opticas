@@ -443,7 +443,7 @@ function LoginScreen({ usuarios, setUsuarios, onIngresar, config }) {
     if (esPrimerAcceso) {
       const admin = { id: uid(), nombre, password, rol: "ADMIN" };
       setUsuarios([admin]);
-      onIngresar({ nombre: admin.nombre, rol: admin.rol });
+      onIngresar({ nombre: admin.nombre, rol: admin.rol, permisos: MODULOS_ASIGNABLES.map((m) => m.id) });
       return;
     }
     const encontrado = usuarios.find(
@@ -453,7 +453,7 @@ function LoginScreen({ usuarios, setUsuarios, onIngresar, config }) {
       setError("Usuario o contraseña incorrectos.");
       return;
     }
-    onIngresar({ nombre: encontrado.nombre, rol: encontrado.rol });
+    onIngresar({ nombre: encontrado.nombre, rol: encontrado.rol, permisos: encontrado.permisos || [] });
   }
 
   return (
@@ -605,7 +605,19 @@ function Icon({ name, size = 20 }) {
 }
 
 /* ---------------- Top ribbon ---------------- */
-function Ribbon({ current, onSelect }) {
+const MODULOS_ASIGNABLES = [
+  { id: "agenda", label: "Agenda" },
+  { id: "pos", label: "POS (Ventas)" },
+  { id: "inventario", label: "Inventario" },
+  { id: "pacientes", label: "Pacientes / Recetas" },
+  { id: "laboratorio", label: "Laboratorio" },
+  { id: "entregas", label: "Entregas y Cobranza" },
+  { id: "reportes", label: "Reportes (Corte diario/mensual)" },
+  { id: "importar", label: "Importar datos" },
+  { id: "dashboard", label: "Dashboard" },
+];
+
+function Ribbon({ current, onSelect, sesion }) {
   const items = [
     { id: "agenda", label: "Agenda", icon: "calendar" },
     { id: "pos", label: "POS", icon: "cart" },
@@ -619,12 +631,16 @@ function Ribbon({ current, onSelect }) {
     { id: "administracion", label: "Administración", icon: "usercog" },
     { id: "config", label: "Configuración", icon: "settings" },
   ];
+  const esAdmin = sesion?.rol === "ADMIN";
+  const itemsVisibles = esAdmin
+    ? items
+    : items.filter((it) => it.id !== "administracion" && it.id !== "config" && (sesion?.permisos || []).includes(it.id));
   return (
     <div
       style={{ background: SKY }}
       className="w-full flex items-center gap-1 px-3 py-2 overflow-x-auto shadow-md"
     >
-      {items.map((it) => (
+      {itemsVisibles.map((it) => (
         <button
           key={it.id}
           onClick={() => onSelect(it.id)}
@@ -5577,45 +5593,101 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
    USUARIOS
    ============================================================ */
 function UsuariosView({ usuarios, setUsuarios }) {
-  const [nuevo, setNuevo] = useState({ nombre: "", password: "", rol: "VENDEDOR" });
+  const [nuevo, setNuevo] = useState({ nombre: "", password: "", rol: "VENDEDOR", permisos: [] });
+
+  function alternarPermiso(id) {
+    setNuevo((n) => ({
+      ...n,
+      permisos: n.permisos.includes(id) ? n.permisos.filter((p) => p !== id) : [...n.permisos, id],
+    }));
+  }
 
   function agregar() {
     if (!nuevo.nombre) return;
     setUsuarios([...usuarios, { ...nuevo, id: uid() }]);
-    setNuevo({ nombre: "", password: "", rol: "VENDEDOR" });
+    setNuevo({ nombre: "", password: "", rol: "VENDEDOR", permisos: [] });
   }
   function eliminar(id) {
     setUsuarios(usuarios.filter((u) => u.id !== id));
   }
+  function alternarPermisoExistente(usuarioId, moduloId) {
+    setUsuarios(
+      usuarios.map((u) => {
+        if (u.id !== usuarioId) return u;
+        const actuales = u.permisos || [];
+        const nuevos = actuales.includes(moduloId) ? actuales.filter((p) => p !== moduloId) : [...actuales, moduloId];
+        return { ...u, permisos: nuevos };
+      })
+    );
+  }
 
   return (
     <div className="p-4">
-      <div className="bg-white border rounded-xl p-3 mb-4 flex flex-wrap gap-2 items-end">
-        <Field label="Nombre" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} />
-        <Field label="Contraseña" type="password" value={nuevo.password} onChange={(e) => setNuevo({ ...nuevo, password: e.target.value })} />
-        <label className="block mb-3">
-          <span className="text-xs font-medium text-slate-500 uppercase">Rol</span>
-          <select value={nuevo.rol} onChange={(e) => setNuevo({ ...nuevo, rol: e.target.value })} className="mt-1 border rounded-lg px-2 py-2 text-sm block">
-            <option>OPTOMETRISTA</option>
-            <option>VENDEDOR</option>
-            <option>LABORATORIO</option>
-            <option>GERENTE</option>
-          </select>
-        </label>
-        <button onClick={agregar} className="px-3 py-2 rounded-lg text-white text-sm h-fit" style={{ background: SKY_DARK }}>
-          Agregar usuario
-        </button>
+      <div className="bg-white border rounded-xl p-3 mb-4">
+        <div className="flex flex-wrap gap-2 items-end mb-3">
+          <Field label="Nombre" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} />
+          <Field label="Contraseña" type="password" value={nuevo.password} onChange={(e) => setNuevo({ ...nuevo, password: e.target.value })} />
+          <label className="block mb-3">
+            <span className="text-xs font-medium text-slate-500 uppercase">Rol</span>
+            <select value={nuevo.rol} onChange={(e) => setNuevo({ ...nuevo, rol: e.target.value })} className="mt-1 border rounded-lg px-2 py-2 text-sm block">
+              <option>OPTOMETRISTA</option>
+              <option>VENDEDOR</option>
+              <option>LABORATORIO</option>
+              <option>GERENTE</option>
+            </select>
+          </label>
+          <button onClick={agregar} className="px-3 py-2 rounded-lg text-white text-sm h-fit" style={{ background: SKY_DARK }}>
+            Agregar usuario
+          </button>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-slate-500 uppercase mb-1">
+            Apartados que este usuario podrá ver y usar
+          </p>
+          <p className="text-xs text-slate-400 mb-2">
+            Solo el administrador puede modificar Configuración o Administración — ningún otro usuario tendrá acceso a esos dos, sin importar lo que marques aquí.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {MODULOS_ASIGNABLES.map((m) => (
+              <label key={m.id} className="flex items-center gap-2 text-sm bg-slate-50 rounded-lg px-2 py-1.5">
+                <input type="checkbox" checked={nuevo.permisos.includes(m.id)} onChange={() => alternarPermiso(m.id)} />
+                {m.label}
+              </label>
+            ))}
+          </div>
+        </div>
       </div>
       <div className="bg-white border rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead style={{ background: BEIGE }}>
-            <tr><th className="text-left px-3 py-2">Nombre</th><th className="text-left px-3 py-2">Rol</th><th className="px-3 py-2"></th></tr>
+            <tr><th className="text-left px-3 py-2">Nombre</th><th className="text-left px-3 py-2">Rol</th><th className="text-left px-3 py-2">Apartados permitidos</th><th className="px-3 py-2"></th></tr>
           </thead>
           <tbody>
             {usuarios.map((u) => (
-              <tr key={u.id} className="border-t">
+              <tr key={u.id} className="border-t align-top">
                 <td className="px-3 py-2">{u.nombre}</td>
                 <td className="px-3 py-2">{u.rol}</td>
+                <td className="px-3 py-2">
+                  {u.rol === "ADMIN" ? (
+                    <span className="text-xs text-slate-400">Administrador — acceso a todo</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {MODULOS_ASIGNABLES.map((m) => {
+                        const activo = (u.permisos || []).includes(m.id);
+                        return (
+                          <button
+                            key={m.id}
+                            onClick={() => alternarPermisoExistente(u.id, m.id)}
+                            className={`text-xs px-2 py-0.5 rounded-full border ${activo ? "text-white border-transparent" : "text-slate-400 bg-slate-50"}`}
+                            style={activo ? { background: SKY_DARK } : {}}
+                          >
+                            {m.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </td>
                 <td className="px-3 py-2 text-right">
                   <button onClick={() => eliminar(u.id)} className="text-red-400"><Trash2 size={16} /></button>
                 </td>
@@ -6475,7 +6547,7 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
     if (esPrimerAcceso) {
       const admin = { id: uid(), nombre: empUsuario, password: empPassword, rol: "ADMIN" };
       setUsuarios([admin]);
-      onLoginEmpleado({ nombre: admin.nombre, rol: admin.rol });
+      onLoginEmpleado({ nombre: admin.nombre, rol: admin.rol, permisos: MODULOS_ASIGNABLES.map((m) => m.id) });
       cerrar();
       return;
     }
@@ -6486,7 +6558,7 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
       setEmpError("Usuario o contraseña incorrectos.");
       return;
     }
-    onLoginEmpleado({ nombre: encontrado.nombre, rol: encontrado.rol });
+    onLoginEmpleado({ nombre: encontrado.nombre, rol: encontrado.rol, permisos: encontrado.permisos || [] });
     cerrar();
   }
 
@@ -7363,8 +7435,19 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
         await videoRef.current.play();
 
         const tf = await import("@tensorflow/tfjs");
-        await import("@tensorflow/tfjs-backend-webgl");
-        await tf.setBackend("webgl");
+        let backendUsado = "webgl";
+        try {
+          await import("@tensorflow/tfjs-backend-webgl");
+          await tf.setBackend("webgl");
+          // Algunos navegadores "aceptan" el backend pero fallan al usarlo de verdad — lo probamos con un tensor de prueba.
+          const prueba = tf.tensor1d([1, 2, 3]);
+          prueba.dataSync();
+          prueba.dispose();
+        } catch {
+          console.warn("WebGL no disponible en este dispositivo, usando CPU (más lento pero funcional).");
+          await tf.setBackend("cpu");
+          backendUsado = "cpu";
+        }
         const faceLandmarksDetection = await import("@tensorflow-models/face-landmarks-detection");
         const detector = await faceLandmarksDetection.createDetector(
           faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
@@ -8875,6 +8958,14 @@ export default function App() {
   const [previsualizarTienda, setPrevisualizarTienda] = useState(false);
   const [sesion, setSesion] = useSesion();
 
+  useEffect(() => {
+    if (!sesion || sesion.rol === "ADMIN") return;
+    const permitidos = sesion.permisos || [];
+    if (seccion === "administracion" || seccion === "config" || !permitidos.includes(seccion)) {
+      setSeccion(permitidos[0] || "agenda");
+    }
+  }, [sesion]);
+
   const todoListo = loadedP && loadedI && loadedA && loadedV && loadedU && loadedC && loadedL && loadedPP && loadedD && loadedPr;
 
   if (!todoListo) {
@@ -8968,7 +9059,7 @@ export default function App() {
           </button>
         </div>
       </div>
-      <Ribbon current={seccion} onSelect={setSeccion} />
+      <Ribbon current={seccion} onSelect={setSeccion} sesion={sesion} />
       <div>
         {seccion === "agenda" && (
           <AgendaView
