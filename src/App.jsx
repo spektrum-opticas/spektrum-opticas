@@ -1585,12 +1585,11 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
           },
         ]);
       }
-      // Mensaje de agradecimiento automático (WhatsApp y/o correo, lo que esté disponible) + PDF de la nota
+      // Mensaje de agradecimiento: el correo se envía solo si hay disponible; WhatsApp queda
+      // como botón manual en el modal de vista previa que se abre después de esto.
       const nombreParaMensaje = clienteSel?.nombre || nota.nombreCliente;
       const msj = mensajeAgradecimiento(nombreParaMensaje);
       generarPDFNota(nota, config);
-      if (clienteSel?.telefono)
-        abrirWhatsApp(clienteSel.telefono, msj.whatsapp + "\n\n📎 Te comparto tu nota en PDF (adjunta el archivo aquí).");
       if (clienteSel?.mail) abrirEmail(clienteSel.mail, msj.email.asunto, msj.email.cuerpo + "\n\n(Adjunta el PDF de tu nota que se acaba de descargar.)");
     }
     setPreview(nota);
@@ -8226,6 +8225,7 @@ function TiendaAgendar({ open, onClose, agenda, setAgenda, pacientes, setPacient
   const [fecha, setFecha] = useState(fechaISO(new Date()));
   const [consultorio, setConsultorio] = useState("Consultorio 1");
   const [hora, setHora] = useState("");
+  const [citaConfirmada, setCitaConfirmada] = useState(null); // { mensaje, telefono, mail }
 
   const ocupadas = agenda.filter((c) => c.fecha === fecha && c.consultorio === consultorio).map((c) => c.hora);
   const disponibles = HORAS.filter((h) => !ocupadas.includes(h));
@@ -8238,15 +8238,36 @@ function TiendaAgendar({ open, onClose, agenda, setAgenda, pacientes, setPacient
     ]);
     const urlSitio = typeof window !== "undefined" ? window.location.origin : "";
     const msj = mensajeCitaConfirmada(sesionCliente.nombre, fecha, hora, consultorio, urlSitio);
-    if (sesionCliente.telefono) abrirWhatsApp(sesionCliente.telefono, msj.whatsapp);
     if (sesionCliente.mail) abrirEmail(sesionCliente.mail, msj.email.asunto, msj.email.cuerpo);
-    onListo(`Tu cita quedó agendada para el ${fecha} a las ${hora} (${consultorio}). Te enviamos la confirmación.`);
-    onClose();
+    setCitaConfirmada({ mensaje: msj.whatsapp, telefono: sesionCliente.telefono, texto: `Tu cita quedó agendada para el ${fecha} a las ${hora} (${consultorio}).` });
   }
 
   return (
     <DrawerLateral open={open} onClose={onClose} title="Agendar examen">
-      {!sesionCliente ? (
+      {citaConfirmada ? (
+        <div>
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mb-4">
+            <p className="text-sm font-semibold text-emerald-800">{citaConfirmada.texto}</p>
+          </div>
+          {citaConfirmada.telefono && (
+            <button
+              onClick={() => abrirWhatsApp(citaConfirmada.telefono, citaConfirmada.mensaje)}
+              className="w-full py-2.5 mb-2 rounded-full text-white text-sm font-medium bg-emerald-500 flex items-center justify-center gap-2"
+            >
+              Enviarme la confirmación por WhatsApp
+            </button>
+          )}
+          <BotonNegro
+            onClick={() => {
+              onListo(citaConfirmada.texto);
+              setCitaConfirmada(null);
+              onClose();
+            }}
+          >
+            Listo
+          </BotonNegro>
+        </div>
+      ) : !sesionCliente ? (
         <div>
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
             <p className="text-sm font-semibold text-amber-800">Para comprar o crear una cita, primero crea una cuenta.</p>
@@ -8296,6 +8317,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
   const [recetaInfoAbierto, setRecetaInfoAbierto] = useState(false);
   const [sesionCliente, setSesionCliente] = useSesionCliente();
   const [mensajeFinal, setMensajeFinal] = useState("");
+  const [whatsappPendiente, setWhatsappPendiente] = useState(null); // { telefono, mensaje }
   const [vistaOrigenProducto, setVistaOrigenProducto] = useState("inicio");
   const [accionPendienteTrasLogin, setAccionPendienteTrasLogin] = useState(null); // 'agendar' | 'checkout' | null
 
@@ -8398,8 +8420,8 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
     const notaExtra = huboPendienteReceta
       ? "\n\nPara poder elaborar tus lentes, necesitamos tu receta vigente. Si no la subiste o no es legible, agenda tu examen de la vista gratis en nuestra tienda en línea y con gusto te la generamos."
       : "";
-    if (sesionCliente.telefono) abrirWhatsApp(sesionCliente.telefono, msj.whatsapp + notaExtra);
     if (sesionCliente.mail) abrirEmail(sesionCliente.mail, msj.email.asunto, msj.email.cuerpo + notaExtra);
+    if (sesionCliente.telefono) setWhatsappPendiente({ telefono: sesionCliente.telefono, mensaje: msj.whatsapp + notaExtra });
     setCarrito([]);
     setCheckoutAbierto(false);
     setMensajeFinal(
@@ -8431,9 +8453,20 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
       />
 
       {mensajeFinal && (
-        <div className="bg-emerald-50 border-b border-emerald-200 text-emerald-700 text-sm text-center py-2 px-4">
-          {mensajeFinal}
-          <button onClick={() => setMensajeFinal("")} className="ml-3 underline">Cerrar</button>
+        <div className="bg-emerald-50 border-b border-emerald-200 text-emerald-700 text-sm text-center py-2 px-4 flex items-center justify-center gap-3 flex-wrap">
+          <span>{mensajeFinal}</span>
+          {whatsappPendiente && (
+            <button
+              onClick={() => {
+                abrirWhatsApp(whatsappPendiente.telefono, whatsappPendiente.mensaje);
+                setWhatsappPendiente(null);
+              }}
+              className="px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-medium"
+            >
+              Enviarme esto por WhatsApp
+            </button>
+          )}
+          <button onClick={() => { setMensajeFinal(""); setWhatsappPendiente(null); }} className="underline">Cerrar</button>
         </div>
       )}
 
