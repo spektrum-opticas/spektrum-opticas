@@ -6575,7 +6575,6 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
           ["manifiesto", "Nuestro manifiesto"],
           ["politicaIntegridad", "Política de integridad"],
           ["avisoPrivacidad", "Aviso de privacidad (ya viene con un texto sugerido)"],
-          ["rastreoPedido", "Rastrear mi pedido"],
           ["trabajaConNosotros", "Trabaja con nosotros"],
           ["preguntasFrecuentes", "Preguntas frecuentes"],
           ["devolucionesGarantias", "Devoluciones y garantías"],
@@ -7303,6 +7302,104 @@ function ContenidoPaginaDrawer({ open, onClose, titulo, contenido }) {
   );
 }
 
+/* ---------- Rastrear mi pedido ---------- */
+function TiendaRastreoPedido({ open, onClose, ventas, pacientes, laboratorio }) {
+  const [folio, setFolio] = useState("");
+  const [contacto, setContacto] = useState("");
+  const [resultado, setResultado] = useState(undefined); // undefined = sin buscar, null = no encontrado, objeto = encontrado
+  const [buscando, setBuscando] = useState(false);
+
+  function buscar() {
+    setBuscando(true);
+    const folioNum = Number(folio.trim());
+    const contactoLimpio = contacto.trim().toLowerCase();
+    const venta = ventas.find((v) => v.folio === folioNum);
+    if (!venta) {
+      setResultado(null);
+      setBuscando(false);
+      return;
+    }
+    const paciente = pacientes.find((p) => p.id === venta.pacienteId);
+    const coincideContacto =
+      (paciente?.telefono && String(paciente.telefono).trim() === contactoLimpio) ||
+      (paciente?.mail && paciente.mail.trim().toLowerCase() === contactoLimpio) ||
+      (venta.nombreCliente && venta.nombreCliente.trim().toLowerCase() === contactoLimpio);
+    if (!coincideContacto) {
+      setResultado(null);
+      setBuscando(false);
+      return;
+    }
+    const orden = laboratorio.find((o) => o.folioVenta === venta.folio);
+    setResultado({ venta, orden });
+    setBuscando(false);
+  }
+
+  function estatusTrabajo(orden) {
+    if (!orden) return null;
+    if (orden.pendienteReceta && !orden.od && !orden.os) return "Pendiente de tu receta — contáctanos para continuar";
+    if (orden.fechaEntrega) return `Entregado el ${orden.fechaEntrega}`;
+    if (orden.fechaRecepcion) return "¡Listo! Ya llegó del laboratorio, puedes pasar por él";
+    if (orden.fechaEnvio) return "En laboratorio, elaborando tus lentes";
+    return "En proceso";
+  }
+
+  function cerrar() {
+    setFolio("");
+    setContacto("");
+    setResultado(undefined);
+    onClose();
+  }
+
+  return (
+    <DrawerLateral open={open} onClose={cerrar} title="Rastrear mi pedido">
+      <p className="text-sm text-slate-500 mb-4">
+        Escribe el folio de tu pedido y el teléfono o correo con el que lo hiciste, para ver en qué va.
+      </p>
+      <Field label="Folio de tu pedido" value={folio} onChange={(e) => setFolio(e.target.value)} placeholder="Ej. 128" />
+      <Field label="Teléfono o correo" value={contacto} onChange={(e) => setContacto(e.target.value)} placeholder="Con el que hiciste el pedido" />
+      <BotonNegro onClick={buscar} disabled={!folio.trim() || !contacto.trim() || buscando}>
+        {buscando ? "Buscando…" : "Buscar mi pedido"}
+      </BotonNegro>
+
+      {resultado === null && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-4 text-sm text-red-700">
+          No encontramos ningún pedido con esos datos. Revisa el folio y el teléfono/correo, o contáctanos directamente.
+        </div>
+      )}
+
+      {resultado && (
+        <div className="bg-slate-50 border rounded-xl p-4 mt-4">
+          <p className="text-sm mb-1">Folio: <b>#{resultado.venta.folio}</b></p>
+          <p className="text-sm mb-1">Fecha: {new Date(resultado.venta.fecha).toLocaleDateString("es-MX")}</p>
+          <div className="text-xs text-slate-500 my-2">
+            {resultado.venta.items?.map((it, i) => (
+              <p key={i}>{it.nombre}</p>
+            ))}
+          </div>
+          <p className="text-sm mb-1">Total: ${resultado.venta.total?.toFixed(2)}</p>
+          <p className="text-sm mb-3">
+            Pago: {resultado.venta.saldo <= 0 ? (
+              <span className="text-emerald-600 font-medium">Pagado</span>
+            ) : (
+              <span className="text-red-600 font-medium">Pendiente ${resultado.venta.saldo?.toFixed(2)}</span>
+            )}
+          </p>
+          {resultado.orden ? (
+            <div className="bg-white border rounded-lg p-3">
+              <p className="text-xs font-medium text-slate-500 uppercase mb-1">Estado de tus lentes</p>
+              <p className="text-sm font-semibold">{estatusTrabajo(resultado.orden)}</p>
+            </div>
+          ) : (
+            <div className="bg-white border rounded-lg p-3">
+              <p className="text-sm text-slate-500">Tu pedido está registrado y en proceso.</p>
+            </div>
+          )}
+        </div>
+      )}
+    </DrawerLateral>
+  );
+}
+
 /* ---------- Mapa de ubicación ---------- */
 function MapaUbicacion({ direccion }) {
   return (
@@ -7326,7 +7423,7 @@ function MapaUbicacion({ direccion }) {
 }
 
 /* ---------- Pie de página ---------- */
-function TiendaFooter({ config, setConfig, onIrInicio, onIrCategoria, onAbrirCuenta, onAbrirExamen, onAbrirReceta }) {
+function TiendaFooter({ config, setConfig, onIrInicio, onIrCategoria, onAbrirCuenta, onAbrirExamen, onAbrirReceta, onAbrirRastreo }) {
   const [paginaAbierta, setPaginaAbierta] = useState(null); // {titulo, contenido}
   const [mapaAbierto, setMapaAbierto] = useState(false);
   const [correoNewsletter, setCorreoNewsletter] = useState("");
@@ -7372,7 +7469,7 @@ function TiendaFooter({ config, setConfig, onIrInicio, onIrCategoria, onAbrirCue
           <button onClick={() => abrirPagina("manifiesto", "Nuestro manifiesto")} className={enlace}>Nuestro Manifiesto</button>
           <button onClick={() => abrirPagina("politicaIntegridad", "Política de integridad")} className={enlace}>Política de integridad</button>
           <button onClick={() => abrirPagina("avisoPrivacidad", "Aviso de Privacidad", AVISO_PRIVACIDAD_DEFAULT)} className={enlace}>Aviso de Privacidad</button>
-          <button onClick={() => abrirPagina("rastreoPedido", "Rastrear mi pedido")} className={enlace}>Rastrear mi Pedido</button>
+          <button onClick={onAbrirRastreo} className={enlace}>Rastrear mi Pedido</button>
           <button onClick={() => abrirPagina("trabajaConNosotros", "Trabaja con nosotros")} className={enlace}>Trabaja con nosotros</button>
         </div>
 
@@ -8315,6 +8412,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
   const [accesoPasoInicial, setAccesoPasoInicial] = useState("elegir");
   const [agendarAbierto, setAgendarAbierto] = useState(false);
   const [recetaInfoAbierto, setRecetaInfoAbierto] = useState(false);
+  const [rastreoAbierto, setRastreoAbierto] = useState(false);
   const [sesionCliente, setSesionCliente] = useSesionCliente();
   const [mensajeFinal, setMensajeFinal] = useState("");
   const [whatsappPendiente, setWhatsappPendiente] = useState(null); // { telefono, mensaje }
@@ -8513,6 +8611,15 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         onAbrirCuenta={abrirCuenta}
         onAbrirExamen={abrirExamen}
         onAbrirReceta={() => setRecetaInfoAbierto(true)}
+        onAbrirRastreo={() => setRastreoAbierto(true)}
+      />
+
+      <TiendaRastreoPedido
+        open={rastreoAbierto}
+        onClose={() => setRastreoAbierto(false)}
+        ventas={ventas}
+        pacientes={pacientes}
+        laboratorio={laboratorio}
       />
 
       <TiendaCarrito
