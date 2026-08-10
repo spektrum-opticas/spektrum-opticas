@@ -7313,6 +7313,8 @@ function TiendaRastreoPedido({ open, onClose, ventas, pacientes, laboratorio }) 
     setBuscando(true);
     const folioNum = Number(folio.trim());
     const contactoLimpio = contacto.trim().toLowerCase();
+    const soloDigitos = (s) => String(s || "").replace(/\D/g, "");
+    const contactoDigitos = soloDigitos(contacto);
     const venta = ventas.find((v) => v.folio === folioNum);
     if (!venta) {
       setResultado(null);
@@ -7321,7 +7323,7 @@ function TiendaRastreoPedido({ open, onClose, ventas, pacientes, laboratorio }) 
     }
     const paciente = pacientes.find((p) => p.id === venta.pacienteId);
     const coincideContacto =
-      (paciente?.telefono && String(paciente.telefono).trim() === contactoLimpio) ||
+      (paciente?.telefono && contactoDigitos.length >= 8 && soloDigitos(paciente.telefono).endsWith(contactoDigitos.slice(-10))) ||
       (paciente?.mail && paciente.mail.trim().toLowerCase() === contactoLimpio) ||
       (venta.nombreCliente && venta.nombreCliente.trim().toLowerCase() === contactoLimpio);
     if (!coincideContacto) {
@@ -7337,7 +7339,7 @@ function TiendaRastreoPedido({ open, onClose, ventas, pacientes, laboratorio }) 
   function estatusTrabajo(orden) {
     if (!orden) return null;
     if (orden.pendienteReceta && !orden.od && !orden.os) return "Pendiente de tu receta — contáctanos para continuar";
-    if (orden.fechaEntrega) return `Entregado el ${orden.fechaEntrega}`;
+    if (orden.fechaEntrega) return `Esa orden ya fue entregada, el ${new Date(orden.fechaEntrega).toLocaleDateString("es-MX")}`;
     if (orden.fechaRecepcion) return "¡Listo! Ya llegó del laboratorio, puedes pasar por él";
     if (orden.fechaEnvio) return "En laboratorio, elaborando tus lentes";
     return "En proceso";
