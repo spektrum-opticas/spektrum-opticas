@@ -8112,7 +8112,7 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onIrInicio, 
 
           <div className="space-y-2 text-sm text-slate-600">
             <p>🚚 Envío GRATIS en un máximo de 10 días hábiles</p>
-            <p>🛡️ 30 días para cambios y devoluciones</p>
+            <p>🛡️ 15 días para cambios y devoluciones</p>
             {(esArmazonProducto || producto.categoria === "lentesSolares") && <p>👓 Pruébatelos en nuestras tiendas</p>}
           </div>
         </div>
