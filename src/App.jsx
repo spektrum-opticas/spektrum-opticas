@@ -749,7 +749,7 @@ const MODULOS_ASIGNABLES = [
   { id: "dashboard", label: "Dashboard" },
 ];
 
-function Ribbon({ current, onSelect, sesion }) {
+function Ribbon({ current, onSelect, sesion, badges }) {
   const items = [
     { id: "agenda", label: "Agenda", icon: "calendar" },
     { id: "pos", label: "POS", icon: "cart" },
@@ -772,20 +772,31 @@ function Ribbon({ current, onSelect, sesion }) {
       style={{ background: SKY }}
       className="w-full flex items-center gap-1 px-3 py-2 overflow-x-auto shadow-md"
     >
-      {itemsVisibles.map((it) => (
-        <button
-          key={it.id}
-          onClick={() => onSelect(it.id)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap text-sm font-medium transition-colors ${
-            current === it.id
-              ? "bg-white text-slate-700 shadow"
-              : "text-white hover:bg-white/20"
-          }`}
-        >
-          <Icon name={it.icon} size={18} />
-          {it.label}
-        </button>
-      ))}
+      {itemsVisibles.map((it) => {
+        const contador = badges?.[it.id] || 0;
+        return (
+          <button
+            key={it.id}
+            onClick={() => onSelect(it.id)}
+            className={`relative flex items-center gap-2 px-3 py-2 rounded-lg whitespace-nowrap text-sm font-medium transition-colors ${
+              current === it.id
+                ? "bg-white text-slate-700 shadow"
+                : "text-white hover:bg-white/20"
+            }`}
+          >
+            <Icon name={it.icon} size={18} />
+            {it.label}
+            {contador > 0 && (
+              <span
+                className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white shadow"
+                title={`${contador} pendiente(s) de la tienda en línea`}
+              >
+                {contador > 99 ? "99+" : contador}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -863,11 +874,11 @@ const HORAS = Array.from({ length: 21 }, (_, i) => {
 });
 
 const ESTATUS_COLORS = {
-  proxima: "#94a3b8",
-  llego: "#4B5563",
-  en_consulta: "#f59e0b",
-  piso_ventas: "#8b5cf6",
-  no_acudio: "#ef4444",
+  proxima: "#94a3b8", // gris
+  llego: "#f97316", // naranja
+  en_consulta: "#eab308", // amarillo
+  piso_ventas: "#22c55e", // verde
+  no_acudio: "#ef4444", // rojo
 };
 const ESTATUS_LABEL = {
   proxima: "Próxima",
@@ -1096,9 +1107,17 @@ function CitaBlock({ cita, onDragStart, onClickNombre, onEliminar, onEstatus, da
       <span draggable onDragStart={onDragStart} title="Arrastrar para mover" className="cursor-move text-slate-400 shrink-0 select-none">
         ⠿
       </span>
-      <span
-        title={ESTATUS_LABEL[cita.estatus]}
-        className="w-2.5 h-2.5 rounded-full shrink-0"
+      <button
+        type="button"
+        title={`${ESTATUS_LABEL[cita.estatus]} — clic para avanzar al siguiente estatus`}
+        onClick={(e) => {
+          e.stopPropagation();
+          const claves = Object.keys(ESTATUS_LABEL);
+          const idxActual = claves.indexOf(cita.estatus);
+          const siguiente = claves[(idxActual + 1) % claves.length];
+          onEstatus(siguiente);
+        }}
+        className="w-2.5 h-2.5 rounded-full shrink-0 cursor-pointer"
         style={{ background: ESTATUS_COLORS[cita.estatus] || "#94a3b8" }}
       />
       <button
@@ -9502,7 +9521,16 @@ export default function App() {
           </button>
         </div>
       </div>
-      <Ribbon current={seccion} onSelect={setSeccion} sesion={sesion} />
+      <Ribbon
+        current={seccion}
+        onSelect={setSeccion}
+        sesion={sesion}
+        badges={{
+          pos: ventas.filter((v) => v.origen === "portal" && v.estatus === "presupuesto").length,
+          laboratorio: laboratorio.filter((o) => o.origen === "portal" && !o.cancelada && !o.fechaRecepcion).length,
+          entregas: laboratorio.filter((o) => o.origen === "portal" && !o.cancelada && !o.fechaEntrega).length,
+        }}
+      />
       <div>
         {seccion === "agenda" && (
           <AgendaView
