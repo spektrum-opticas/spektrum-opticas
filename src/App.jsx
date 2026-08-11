@@ -4634,7 +4634,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
   const [modoAbono, setModoAbono] = useState(false);
   const [verHistorialFolio, setVerHistorialFolio] = useState(null);
   const [fechaEntregaManual, setFechaEntregaManual] = useState({});
-  const [nuevoEnvio, setNuevoEnvio] = useState({ paqueteria: "", peso: "", precio: "" });
+  const [nuevoEnvio, setNuevoEnvio] = useState({ zona: "", paqueteria: "", servicio: "", peso: "", precio: "" });
 
   function agregarCostoEnvio() {
     if (!nuevoEnvio.paqueteria || !nuevoEnvio.precio) return;
@@ -4642,7 +4642,39 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
       ...config,
       costosEnvio: [...(config.costosEnvio || []), { id: uid(), ...nuevoEnvio, precio: Number(nuevoEnvio.precio) }],
     });
-    setNuevoEnvio({ paqueteria: "", peso: "", precio: "" });
+    setNuevoEnvio({ zona: "", paqueteria: "", servicio: "", peso: "", precio: "" });
+    mostrarToast("Servicio de paquetería agregado ✓");
+  }
+
+  function cargarTarifasSugeridas() {
+    const zonaLocal = "Local y Regional (Puebla, Tlaxcala, Veracruz, CDMX, Edomex, Morelos)";
+    const zonaEstandar = "Nacional Estándar (Guadalajara, Monterrey, Querétaro, León, SLP, Mérida, etc.)";
+    const zonaExtremos = "Nacional a Extremos (Tijuana, Mexicali, Hermosillo, Cancún, Los Cabos, zonas alejadas)";
+    const sugeridas = [
+      // Local y Regional
+      { zona: zonaLocal, paqueteria: "Estafeta", servicio: "Terrestre (2 a 3 días)", peso: "1 kg", precio: 100 },
+      { zona: zonaLocal, paqueteria: "Estafeta", servicio: "Día Siguiente", peso: "1 kg", precio: 165 },
+      { zona: zonaLocal, paqueteria: "FedEx", servicio: "Económico (2 a 3 días)", peso: "1 kg", precio: 114 },
+      { zona: zonaLocal, paqueteria: "FedEx", servicio: "Express", peso: "1 kg", precio: 190 },
+      { zona: zonaLocal, paqueteria: "DHL", servicio: "Express (Día siguiente)", peso: "1 kg", precio: 190 },
+      // Nacional Estándar
+      { zona: zonaEstandar, paqueteria: "Estafeta", servicio: "Terrestre (3 a 5 días)", peso: "1 kg", precio: 128 },
+      { zona: zonaEstandar, paqueteria: "Estafeta", servicio: "Día Siguiente", peso: "1 kg", precio: 215 },
+      { zona: zonaEstandar, paqueteria: "FedEx", servicio: "Económico (3 a 5 días)", peso: "1 kg", precio: 143 },
+      { zona: zonaEstandar, paqueteria: "FedEx", servicio: "Express", peso: "1 kg", precio: 255 },
+      { zona: zonaEstandar, paqueteria: "DHL", servicio: "Express (Día siguiente)", peso: "1 kg", precio: 275 },
+      // Nacional a Extremos
+      { zona: zonaExtremos, paqueteria: "Estafeta", servicio: "Terrestre", peso: "1 kg", precio: 148 },
+      { zona: zonaExtremos, paqueteria: "Estafeta", servicio: "Express / Día Siguiente", peso: "1 kg", precio: 285 },
+      { zona: zonaExtremos, paqueteria: "FedEx", servicio: "Económico", peso: "1 kg", precio: 165 },
+      { zona: zonaExtremos, paqueteria: "FedEx", servicio: "Express", peso: "1 kg", precio: 350 },
+      { zona: zonaExtremos, paqueteria: "DHL", servicio: "Express (Día siguiente)", peso: "1 kg", precio: 375 },
+    ];
+    setConfig({
+      ...config,
+      costosEnvio: [...(config.costosEnvio || []), ...sugeridas.map((s) => ({ id: uid(), ...s }))],
+    });
+    mostrarToast("Tarifas sugeridas cargadas — revisa y ajusta los precios ✓");
   }
 
   function actualizarCostoEnvio(id, campo, valor) {
@@ -4773,14 +4805,21 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
       </h2>
 
       <div className="bg-white border rounded-xl p-4 mb-6">
-        <h3 className="font-semibold text-sm mb-1">Servicios de paquetería</h3>
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
+          <h3 className="font-semibold text-sm">Servicios de paquetería</h3>
+          <button onClick={cargarTarifasSugeridas} className="text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">
+            Cargar tarifas sugeridas (Estafeta, FedEx, DHL)
+          </button>
+        </div>
         <p className="text-xs text-slate-400 mb-3">
           Estos precios se muestran al cliente en la tienda en línea cuando le da clic a "Click aquí" junto al aviso de envío — él solo puede verlos, no editarlos.
         </p>
         <table className="w-full text-sm mb-3">
           <thead style={{ background: BEIGE }}>
             <tr>
+              <th className="text-left px-3 py-2">Zona de destino</th>
               <th className="text-left px-3 py-2">Paquetería</th>
+              <th className="text-left px-3 py-2">Servicio</th>
               <th className="text-left px-3 py-2">Peso</th>
               <th className="text-left px-3 py-2">Precio</th>
               <th className="px-3 py-2"></th>
@@ -4790,7 +4829,13 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
             {(config?.costosEnvio || []).map((c) => (
               <tr key={c.id} className="border-t">
                 <td className="px-3 py-2">
+                  <input value={c.zona || ""} onChange={(e) => actualizarCostoEnvio(c.id, "zona", e.target.value)} placeholder="Ej. Nacional Estándar" className="border rounded px-2 py-1 text-sm w-full" />
+                </td>
+                <td className="px-3 py-2">
                   <input value={c.paqueteria} onChange={(e) => actualizarCostoEnvio(c.id, "paqueteria", e.target.value)} className="border rounded px-2 py-1 text-sm w-full" />
+                </td>
+                <td className="px-3 py-2">
+                  <input value={c.servicio || ""} onChange={(e) => actualizarCostoEnvio(c.id, "servicio", e.target.value)} placeholder="Ej. Nacional Express" className="border rounded px-2 py-1 text-sm w-full" />
                 </td>
                 <td className="px-3 py-2">
                   <input value={c.peso} onChange={(e) => actualizarCostoEnvio(c.id, "peso", e.target.value)} placeholder="Ej. hasta 1 kg" className="border rounded px-2 py-1 text-sm w-full" />
@@ -4804,14 +4849,22 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
               </tr>
             ))}
             {(config?.costosEnvio || []).length === 0 && (
-              <tr><td colSpan={4} className="text-center text-slate-400 py-4">Aún no agregas ningún servicio de paquetería.</td></tr>
+              <tr><td colSpan={6} className="text-center text-slate-400 py-4">Aún no agregas ningún servicio de paquetería.</td></tr>
             )}
           </tbody>
         </table>
         <div className="flex gap-2 flex-wrap items-end">
           <div>
+            <label className="text-xs text-slate-500 block mb-1">Zona de destino</label>
+            <input value={nuevoEnvio.zona} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, zona: e.target.value })} placeholder="Ej. Nacional Estándar" className="border rounded px-2 py-1.5 text-sm" />
+          </div>
+          <div>
             <label className="text-xs text-slate-500 block mb-1">Paquetería</label>
             <input value={nuevoEnvio.paqueteria} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, paqueteria: e.target.value })} placeholder="Ej. Estafeta, DHL, FedEx" className="border rounded px-2 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Servicio</label>
+            <input value={nuevoEnvio.servicio} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, servicio: e.target.value })} placeholder="Ej. Nacional Express" className="border rounded px-2 py-1.5 text-sm" />
           </div>
           <div>
             <label className="text-xs text-slate-500 block mb-1">Peso</label>
@@ -8317,42 +8370,61 @@ function TiendaProductoPagina({ producto, config, categoriaLabel, onVolver, onIr
         {(config?.costosEnvio || []).length === 0 ? (
           <p className="text-sm text-slate-400">Aún no hay costos de envío publicados — contáctanos directamente para cotizar tu envío.</p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {Object.entries(
               (config.costosEnvio || []).reduce((grupos, c) => {
-                const clave = c.paqueteria || "Otro";
+                const clave = c.zona || "Otros destinos";
                 if (!grupos[clave]) grupos[clave] = [];
                 grupos[clave].push(c);
                 return grupos;
               }, {})
-            ).map(([paqueteria, opciones]) => (
-              <div key={paqueteria} className="border rounded-xl overflow-hidden">
-                <button
-                  onClick={() => setPaqueteriaElegida(paqueteriaElegida === paqueteria ? null : paqueteria)}
-                  className="w-full flex items-center justify-between px-4 py-3"
-                  style={{ background: paqueteriaElegida === paqueteria ? BEIGE : "white" }}
-                >
-                  <span className="font-semibold text-sm">{paqueteria}</span>
-                  <span className="text-xs text-slate-400">{paqueteriaElegida === paqueteria ? "Elegida ✓" : "Ver opciones"}</span>
-                </button>
-                {paqueteriaElegida === paqueteria && (
-                  <table className="w-full text-sm border-t">
-                    <thead>
-                      <tr className="text-left text-xs text-slate-400 uppercase">
-                        <th className="px-4 py-2">Peso</th>
-                        <th className="px-4 py-2 text-right">Precio</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {opciones.map((c) => (
-                        <tr key={c.id} className="border-t">
-                          <td className="px-4 py-2">{c.peso}</td>
-                          <td className="px-4 py-2 text-right font-medium">${Number(c.precio || 0).toFixed(2)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+            ).map(([zona, itemsZona]) => (
+              <div key={zona}>
+                <p className="text-xs font-semibold text-slate-500 uppercase mb-2">{zona}</p>
+                <div className="space-y-2">
+                  {Object.entries(
+                    itemsZona.reduce((grupos, c) => {
+                      const clave = c.paqueteria || "Otro";
+                      if (!grupos[clave]) grupos[clave] = [];
+                      grupos[clave].push(c);
+                      return grupos;
+                    }, {})
+                  ).map(([paqueteria, opciones]) => {
+                    const clavePaqueteria = `${zona}__${paqueteria}`;
+                    return (
+                      <div key={clavePaqueteria} className="border rounded-xl overflow-hidden">
+                        <button
+                          onClick={() => setPaqueteriaElegida(paqueteriaElegida === clavePaqueteria ? null : clavePaqueteria)}
+                          className="w-full flex items-center justify-between px-4 py-3"
+                          style={{ background: paqueteriaElegida === clavePaqueteria ? BEIGE : "white" }}
+                        >
+                          <span className="font-semibold text-sm">{paqueteria}</span>
+                          <span className="text-xs text-slate-400">{paqueteriaElegida === clavePaqueteria ? "Elegida ✓" : "Ver opciones"}</span>
+                        </button>
+                        {paqueteriaElegida === clavePaqueteria && (
+                          <table className="w-full text-sm border-t">
+                            <thead>
+                              <tr className="text-left text-xs text-slate-400 uppercase">
+                                <th className="px-4 py-2">Servicio</th>
+                                <th className="px-4 py-2">Peso</th>
+                                <th className="px-4 py-2 text-right">Precio</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {opciones.map((c) => (
+                                <tr key={c.id} className="border-t">
+                                  <td className="px-4 py-2">{c.servicio || "—"}</td>
+                                  <td className="px-4 py-2">{c.peso}</td>
+                                  <td className="px-4 py-2 text-right font-medium">${Number(c.precio || 0).toFixed(2)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </div>
