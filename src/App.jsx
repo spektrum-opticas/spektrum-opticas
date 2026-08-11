@@ -24,8 +24,50 @@ const SUPABASE_BUCKET = "imagenes";
 
 // Sube el archivo real a Supabase Storage y regresa la URL pública corta,
 // en vez de guardar la imagen completa (pesadísima) dentro de los datos.
-async function subirImagenStorage(file, carpeta) {
+// Achica cualquier foto (por ejemplo, la que sale directo de la cámara de un celular,
+// que puede pesar varios MB) a un tamaño razonable para verse en la tienda/inventario,
+// antes de subirla — así las páginas cargan rápido sin importar cuántas fotos tengan.
+function redimensionarImagen(file, maxAncho = 1000, calidad = 0.82) {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
+      resolve(file);
+      return;
+    }
+    const img = new Image();
+    const lector = new FileReader();
+    lector.onload = () => {
+      img.onload = () => {
+        const escala = Math.min(1, maxAncho / img.width);
+        const ancho = Math.round(img.width * escala);
+        const alto = Math.round(img.height * escala);
+        const canvas = document.createElement("canvas");
+        canvas.width = ancho;
+        canvas.height = alto;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, ancho, alto);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob || blob.size >= file.size) {
+              resolve(file); // si por algo salió más pesada, mejor usar la original
+            } else {
+              resolve(new File([blob], file.name.replace(/\.(png|heic|heif)$/i, ".jpg"), { type: "image/jpeg" }));
+            }
+          },
+          "image/jpeg",
+          calidad
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = lector.result;
+    };
+    lector.onerror = () => resolve(file);
+    lector.readAsDataURL(file);
+  });
+}
+
+async function subirImagenStorage(fileOriginal, carpeta) {
   try {
+    const file = await redimensionarImagen(fileOriginal);
     const nombreLimpio = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
     const ruta = `${carpeta}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${nombreLimpio}`;
     const resp = await fetch(`${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${ruta}`, {
