@@ -4634,7 +4634,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
   const [modoAbono, setModoAbono] = useState(false);
   const [verHistorialFolio, setVerHistorialFolio] = useState(null);
   const [fechaEntregaManual, setFechaEntregaManual] = useState({});
-  const [nuevoEnvio, setNuevoEnvio] = useState({ zona: "", paqueteria: "", servicio: "", peso: "", precio: "" });
+  const [nuevoEnvio, setNuevoEnvio] = useState({ zona: "", paqueteria: "", servicio: "", peso: "", precio: "", garantia: "" });
 
   function agregarCostoEnvio() {
     if (!nuevoEnvio.paqueteria || !nuevoEnvio.precio) return;
@@ -4642,7 +4642,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
       ...config,
       costosEnvio: [...(config.costosEnvio || []), { id: uid(), ...nuevoEnvio, precio: Number(nuevoEnvio.precio) }],
     });
-    setNuevoEnvio({ zona: "", paqueteria: "", servicio: "", peso: "", precio: "" });
+    setNuevoEnvio({ zona: "", paqueteria: "", servicio: "", peso: "", precio: "", garantia: "" });
     mostrarToast("Servicio de paquetería agregado ✓");
   }
 
@@ -4650,6 +4650,11 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
     const zonaLocal = "Local y Regional (Puebla, Tlaxcala, Veracruz, CDMX, Edomex, Morelos)";
     const zonaEstandar = "Nacional Estándar (Guadalajara, Monterrey, Querétaro, León, SLP, Mérida, etc.)";
     const zonaExtremos = "Nacional a Extremos (Tijuana, Mexicali, Hermosillo, Cancún, Los Cabos, zonas alejadas)";
+    const garantiaPorPaqueteria = {
+      Estafeta: "Media - Alta (Muy buena red nacional)",
+      FedEx: "Alta (Ideal para paquetes pequeños)",
+      DHL: "Máxima (El servicio más veloz y estricto)",
+    };
     const sugeridas = [
       // Local y Regional
       { zona: zonaLocal, paqueteria: "Estafeta", servicio: "Terrestre (2 a 3 días)", peso: "1 kg", precio: 100 },
@@ -4669,7 +4674,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
       { zona: zonaExtremos, paqueteria: "FedEx", servicio: "Económico", peso: "1 kg", precio: 165 },
       { zona: zonaExtremos, paqueteria: "FedEx", servicio: "Express", peso: "1 kg", precio: 350 },
       { zona: zonaExtremos, paqueteria: "DHL", servicio: "Express (Día siguiente)", peso: "1 kg", precio: 375 },
-    ];
+    ].map((s) => ({ ...s, garantia: garantiaPorPaqueteria[s.paqueteria] || "" }));
     setConfig({
       ...config,
       costosEnvio: [...(config.costosEnvio || []), ...sugeridas.map((s) => ({ id: uid(), ...s }))],
@@ -4822,6 +4827,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
               <th className="text-left px-3 py-2">Servicio</th>
               <th className="text-left px-3 py-2">Peso</th>
               <th className="text-left px-3 py-2">Precio</th>
+              <th className="text-left px-3 py-2">Garantía de entrega</th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
@@ -4843,13 +4849,16 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
                 <td className="px-3 py-2">
                   <input type="number" value={c.precio} onChange={(e) => actualizarCostoEnvio(c.id, "precio", e.target.value)} className="border rounded px-2 py-1 text-sm w-24" />
                 </td>
+                <td className="px-3 py-2">
+                  <input value={c.garantia || ""} onChange={(e) => actualizarCostoEnvio(c.id, "garantia", e.target.value)} placeholder="Ej. Alta" className="border rounded px-2 py-1 text-sm w-full" />
+                </td>
                 <td className="px-3 py-2 text-right">
                   <button onClick={() => eliminarCostoEnvio(c.id)} className="text-red-400"><Trash2 size={16} /></button>
                 </td>
               </tr>
             ))}
             {(config?.costosEnvio || []).length === 0 && (
-              <tr><td colSpan={6} className="text-center text-slate-400 py-4">Aún no agregas ningún servicio de paquetería.</td></tr>
+              <tr><td colSpan={7} className="text-center text-slate-400 py-4">Aún no agregas ningún servicio de paquetería.</td></tr>
             )}
           </tbody>
         </table>
@@ -4873,6 +4882,10 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
           <div>
             <label className="text-xs text-slate-500 block mb-1">Precio</label>
             <input type="number" value={nuevoEnvio.precio} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, precio: e.target.value })} className="border rounded px-2 py-1.5 text-sm w-24" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Garantía de entrega</label>
+            <input value={nuevoEnvio.garantia} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, garantia: e.target.value })} placeholder="Ej. Alta" className="border rounded px-2 py-1.5 text-sm" />
           </div>
           <button onClick={agregarCostoEnvio} className="px-3 py-1.5 rounded-lg text-white text-sm h-fit" style={{ background: SKY_DARK }}>
             Agregar
@@ -8402,24 +8415,31 @@ function TiendaProductoPagina({ producto, config, categoriaLabel, onVolver, onIr
                           <span className="text-xs text-slate-400">{paqueteriaElegida === clavePaqueteria ? "Elegida ✓" : "Ver opciones"}</span>
                         </button>
                         {paqueteriaElegida === clavePaqueteria && (
-                          <table className="w-full text-sm border-t">
-                            <thead>
-                              <tr className="text-left text-xs text-slate-400 uppercase">
-                                <th className="px-4 py-2">Servicio</th>
-                                <th className="px-4 py-2">Peso</th>
-                                <th className="px-4 py-2 text-right">Precio</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {opciones.map((c) => (
-                                <tr key={c.id} className="border-t">
-                                  <td className="px-4 py-2">{c.servicio || "—"}</td>
-                                  <td className="px-4 py-2">{c.peso}</td>
-                                  <td className="px-4 py-2 text-right font-medium">${Number(c.precio || 0).toFixed(2)}</td>
+                          <>
+                            {opciones[0]?.garantia && (
+                              <p className="text-xs text-slate-500 px-4 pt-2">
+                                <span className="font-medium">Garantía de entrega:</span> {opciones[0].garantia}
+                              </p>
+                            )}
+                            <table className="w-full text-sm border-t">
+                              <thead>
+                                <tr className="text-left text-xs text-slate-400 uppercase">
+                                  <th className="px-4 py-2">Servicio</th>
+                                  <th className="px-4 py-2">Peso</th>
+                                  <th className="px-4 py-2 text-right">Precio</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody>
+                                {opciones.map((c) => (
+                                  <tr key={c.id} className="border-t">
+                                    <td className="px-4 py-2">{c.servicio || "—"}</td>
+                                    <td className="px-4 py-2">{c.peso}</td>
+                                    <td className="px-4 py-2 text-right font-medium">${Number(c.precio || 0).toFixed(2)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </>
                         )}
                       </div>
                     );
@@ -9971,3 +9991,4 @@ export default function App() {
     </div>
   );
 }
+  
