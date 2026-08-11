@@ -184,6 +184,7 @@ const emptyConfig = () => ({
   googleClientId: "",
   paypalClientId: "",
   paypalModoProduccion: false,
+  costosEnvio: [],
 });
 
 function uid() {
@@ -4569,12 +4570,33 @@ function HistorialAbonosModal({ venta, config, onCerrar }) {
   );
 }
 
-function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacientes, ventas, setVentas, config }) {
+function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacientes, ventas, setVentas, config, setConfig }) {
   const [verExpediente, setVerExpediente] = useState(null);
   const [cobrandoFolio, setCobrandoFolio] = useState(null);
   const [modoAbono, setModoAbono] = useState(false);
   const [verHistorialFolio, setVerHistorialFolio] = useState(null);
   const [fechaEntregaManual, setFechaEntregaManual] = useState({});
+  const [nuevoEnvio, setNuevoEnvio] = useState({ paqueteria: "", peso: "", precio: "" });
+
+  function agregarCostoEnvio() {
+    if (!nuevoEnvio.paqueteria || !nuevoEnvio.precio) return;
+    setConfig({
+      ...config,
+      costosEnvio: [...(config.costosEnvio || []), { id: uid(), ...nuevoEnvio, precio: Number(nuevoEnvio.precio) }],
+    });
+    setNuevoEnvio({ paqueteria: "", peso: "", precio: "" });
+  }
+
+  function actualizarCostoEnvio(id, campo, valor) {
+    setConfig({
+      ...config,
+      costosEnvio: (config.costosEnvio || []).map((c) => (c.id === id ? { ...c, [campo]: campo === "precio" ? Number(valor) : valor } : c)),
+    });
+  }
+
+  function eliminarCostoEnvio(id) {
+    setConfig({ ...config, costosEnvio: (config.costosEnvio || []).filter((c) => c.id !== id) });
+  }
 
   function estatusDe(o) {
     if (o.pendienteReceta && !o.od && !o.os) return "pendiente_receta";
@@ -4691,6 +4713,61 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
       <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
         <Truck size={20} /> Entregas y Cobranza
       </h2>
+
+      <div className="bg-white border rounded-xl p-4 mb-6">
+        <h3 className="font-semibold text-sm mb-1">Servicios de paquetería</h3>
+        <p className="text-xs text-slate-400 mb-3">
+          Estos precios se muestran al cliente en la tienda en línea cuando le da clic a "Click aquí" junto al aviso de envío — él solo puede verlos, no editarlos.
+        </p>
+        <table className="w-full text-sm mb-3">
+          <thead style={{ background: BEIGE }}>
+            <tr>
+              <th className="text-left px-3 py-2">Paquetería</th>
+              <th className="text-left px-3 py-2">Peso</th>
+              <th className="text-left px-3 py-2">Precio</th>
+              <th className="px-3 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {(config?.costosEnvio || []).map((c) => (
+              <tr key={c.id} className="border-t">
+                <td className="px-3 py-2">
+                  <input value={c.paqueteria} onChange={(e) => actualizarCostoEnvio(c.id, "paqueteria", e.target.value)} className="border rounded px-2 py-1 text-sm w-full" />
+                </td>
+                <td className="px-3 py-2">
+                  <input value={c.peso} onChange={(e) => actualizarCostoEnvio(c.id, "peso", e.target.value)} placeholder="Ej. hasta 1 kg" className="border rounded px-2 py-1 text-sm w-full" />
+                </td>
+                <td className="px-3 py-2">
+                  <input type="number" value={c.precio} onChange={(e) => actualizarCostoEnvio(c.id, "precio", e.target.value)} className="border rounded px-2 py-1 text-sm w-24" />
+                </td>
+                <td className="px-3 py-2 text-right">
+                  <button onClick={() => eliminarCostoEnvio(c.id)} className="text-red-400"><Trash2 size={16} /></button>
+                </td>
+              </tr>
+            ))}
+            {(config?.costosEnvio || []).length === 0 && (
+              <tr><td colSpan={4} className="text-center text-slate-400 py-4">Aún no agregas ningún servicio de paquetería.</td></tr>
+            )}
+          </tbody>
+        </table>
+        <div className="flex gap-2 flex-wrap items-end">
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Paquetería</label>
+            <input value={nuevoEnvio.paqueteria} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, paqueteria: e.target.value })} placeholder="Ej. Estafeta, DHL, FedEx" className="border rounded px-2 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Peso</label>
+            <input value={nuevoEnvio.peso} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, peso: e.target.value })} placeholder="Ej. hasta 1 kg" className="border rounded px-2 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Precio</label>
+            <input type="number" value={nuevoEnvio.precio} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, precio: e.target.value })} className="border rounded px-2 py-1.5 text-sm w-24" />
+          </div>
+          <button onClick={agregarCostoEnvio} className="px-3 py-1.5 rounded-lg text-white text-sm h-fit" style={{ background: SKY_DARK }}>
+            Agregar
+          </button>
+        </div>
+      </div>
 
       <div className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">
@@ -7971,7 +8048,7 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
   );
 }
 
-function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onIrInicio, onAgregarCarrito }) {
+function TiendaProductoPagina({ producto, config, categoriaLabel, onVolver, onIrInicio, onAgregarCarrito }) {
   const [indiceFoto, setIndiceFoto] = useState(0);
   const [tallaSel, setTallaSel] = useState(producto.tallas?.[0] || "");
   const [mostrarTodo, setMostrarTodo] = useState(false);
@@ -8012,6 +8089,7 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onIrInicio, 
   }
 
   const esCosmeticoContacto = esContactoProducto && producto.tipoLente === "Cosmético / Color";
+  const [costosEnvioAbierto, setCostosEnvioAbierto] = useState(false);
   const puedeProbarse = esArmazonProducto || esCosmeticoContacto;
 
   return (
@@ -8112,8 +8190,16 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onIrInicio, 
 
           <div className="space-y-2 text-sm text-slate-600">
             <p>🚚 Envío GRATIS en un máximo de 10 días hábiles (en compras mayores a $1,000 pesos)</p>
-            <p>En el resto de los artículos se cobrará envío (consultar antes de solicitar los costos de envío nacional)</p>
-            <p>No tenemos envíos internacionales</p>
+            <p className="flex items-center gap-1 flex-wrap">
+              📦 En el resto de los artículos se cobrará envío (consultar antes de solicitar los costos de envío nacional)
+              <button
+                onClick={() => setCostosEnvioAbierto(true)}
+                className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-white font-medium"
+              >
+                Click aquí
+              </button>
+            </p>
+            <p>🌎 No tenemos envíos internacionales</p>
             <p>🛡️ 15 días para cambios y devoluciones</p>
             {(esArmazonProducto || producto.categoria === "lentesSolares") && <p>👓 Pruébatelos en nuestras tiendas</p>}
           </div>
@@ -8167,6 +8253,32 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onIrInicio, 
           onCerrar={() => setProbadorAbierto(false)}
         />
       )}
+
+      <Modal open={costosEnvioAbierto} onClose={() => setCostosEnvioAbierto(false)} title="Costos de envío nacional">
+        {(config?.costosEnvio || []).length === 0 ? (
+          <p className="text-sm text-slate-400">Aún no hay costos de envío publicados — contáctanos directamente para cotizar tu envío.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-xs text-slate-400 uppercase">
+                <th className="py-2">Paquetería</th>
+                <th className="py-2">Peso</th>
+                <th className="py-2 text-right">Precio</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(config.costosEnvio || []).map((c) => (
+                <tr key={c.id} className="border-b">
+                  <td className="py-2">{c.paqueteria}</td>
+                  <td className="py-2">{c.peso}</td>
+                  <td className="py-2 text-right font-medium">${Number(c.precio || 0).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <p className="text-xs text-slate-400 mt-3">Los costos pueden variar según tu ubicación exacta — contáctanos para confirmar antes de tu pedido.</p>
+      </Modal>
     </div>
   );
 }
@@ -8645,6 +8757,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
       ) : vista === "producto" ? (
         <TiendaProductoPagina
           producto={productoVer}
+          config={config}
           categoriaLabel={
             { armazones: "Armazones", lentesGraduados: "Lentes graduados", lentesContacto: "Lentes de contacto", lentesSolares: "Lentes solares", accesorios: "Accesorios" }[
               productoVer?.categoria
@@ -9630,6 +9743,7 @@ export default function App() {
             ventas={ventas}
             setVentas={setVentas}
             config={config}
+            setConfig={setConfig}
           />
         )}
         {seccion === "reportes" && (
