@@ -187,6 +187,46 @@ const emptyConfig = () => ({
   costosEnvio: [],
 });
 
+// --- Avisos ("toast") reutilizables: cualquier componente puede llamar mostrarToast(...)
+// sin necesitar que le pasen props especiales, y aparece un mensaje visible arriba a la derecha.
+let toastListeners = [];
+function mostrarToast(mensaje, tipo = "exito") {
+  const t = { id: uid(), mensaje, tipo };
+  toastListeners.forEach((fn) => fn(t));
+}
+function useToastListener() {
+  const [toasts, setToasts] = useState([]);
+  useEffect(() => {
+    const listener = (t) => {
+      setToasts((prev) => [...prev, t]);
+      setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== t.id)), 2600);
+    };
+    toastListeners.push(listener);
+    return () => {
+      toastListeners = toastListeners.filter((l) => l !== listener);
+    };
+  }, []);
+  return toasts;
+}
+function ToastContainer() {
+  const toasts = useToastListener();
+  return (
+    <div className="fixed top-4 right-4 z-[300] flex flex-col gap-2 items-end pointer-events-none">
+      {toasts.map((t) => (
+        <div
+          key={t.id}
+          className={`px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium text-white flex items-center gap-2 ${
+            t.tipo === "error" ? "bg-red-600" : "bg-emerald-600"
+          }`}
+          style={{ animation: "spektrumToastIn 0.2s ease-out" }}
+        >
+          {t.tipo === "error" ? "⚠️" : "✓"} {t.mensaje}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
@@ -608,6 +648,24 @@ function GlobalPrintStyles() {
           size: auto;
           margin: 12mm;
         }
+      }
+    `}</style>
+  );
+}
+
+function GlobalUIStyles() {
+  return (
+    <style>{`
+      button:not(:disabled) {
+        transition: transform 0.08s ease, opacity 0.08s ease;
+      }
+      button:not(:disabled):active {
+        transform: scale(0.95);
+        opacity: 0.9;
+      }
+      @keyframes spektrumToastIn {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
       }
     `}</style>
   );
@@ -6654,7 +6712,7 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
         <Field label="Dirección" value={local.direccion} onChange={(e) => setLocal({ ...local, direccion: e.target.value })} />
         <Field label="Teléfono" value={local.telefono} onChange={(e) => setLocal({ ...local, telefono: e.target.value })} />
         <Field label="Correo de contacto" value={local.mail} onChange={(e) => setLocal({ ...local, mail: e.target.value })} />
-        <button onClick={() => setConfig(local)} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
+        <button onClick={() => { setConfig(local); mostrarToast("Configuración guardada ✓"); }} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
           <Save size={16} /> Guardar configuración
         </button>
       </div>
@@ -6665,7 +6723,7 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
         <Field label="X / Twitter (URL)" value={local.redesSociales?.x || ""} onChange={(e) => setLocal({ ...local, redesSociales: { ...local.redesSociales, x: e.target.value } })} />
         <Field label="Instagram (URL)" value={local.redesSociales?.instagram || ""} onChange={(e) => setLocal({ ...local, redesSociales: { ...local.redesSociales, instagram: e.target.value } })} />
         <Field label="TikTok (URL)" value={local.redesSociales?.tiktok || ""} onChange={(e) => setLocal({ ...local, redesSociales: { ...local.redesSociales, tiktok: e.target.value } })} />
-        <button onClick={() => setConfig(local)} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
+        <button onClick={() => { setConfig(local); mostrarToast("Redes sociales guardadas ✓"); }} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
           <Save size={16} /> Guardar redes sociales
         </button>
       </div>
@@ -6678,7 +6736,7 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
           nombre y teléfono sin problema.
         </p>
         <Field label="Google Client ID" value={local.googleClientId || ""} onChange={(e) => setLocal({ ...local, googleClientId: e.target.value })} />
-        <button onClick={() => setConfig(local)} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
+        <button onClick={() => { setConfig(local); mostrarToast("Client ID guardado ✓"); }} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
           <Save size={16} /> Guardar Client ID
         </button>
       </div>
@@ -6699,7 +6757,7 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
           />
           Este Client ID es de producción (Live) — cobros con dinero real
         </label>
-        <button onClick={() => setConfig(local)} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
+        <button onClick={() => { setConfig(local); mostrarToast("Datos de PayPal guardados ✓"); }} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
           <Save size={16} /> Guardar PayPal
         </button>
       </div>
@@ -6730,7 +6788,7 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
             />
           </div>
         ))}
-        <button onClick={() => setConfig(local)} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
+        <button onClick={() => { setConfig(local); mostrarToast("Contenido guardado ✓"); }} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
           <Save size={16} /> Guardar contenido
         </button>
       </div>
@@ -9643,6 +9701,8 @@ export default function App() {
   if (!sesion || previsualizarTienda) {
     return (
       <div>
+        <GlobalUIStyles />
+        <ToastContainer />
         {sesion && bannerGuardado}
         <Tienda
           pacientes={pacientes}
@@ -9669,6 +9729,8 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50">
       <GlobalPrintStyles />
+      <GlobalUIStyles />
+      <ToastContainer />
       {bannerGuardado}
       {guardandoAlgo && !bannerGuardado && (
         <div className="bg-slate-50 border-b border-slate-200 px-4 py-1 text-xs text-slate-600">Guardando cambios…</div>
