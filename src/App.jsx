@@ -8111,7 +8111,9 @@ function TiendaProductoPagina({ producto, categoriaLabel, onVolver, onIrInicio, 
           </BotonNegro>
 
           <div className="space-y-2 text-sm text-slate-600">
-            <p>🚚 Envío GRATIS en un máximo de 10 días hábiles</p>
+            <p>🚚 Envío GRATIS en un máximo de 10 días hábiles (en compras mayores a $1,000 pesos)</p>
+            <p>En el resto de los artículos se cobrará envío (consultar antes de solicitar los costos de envío nacional)</p>
+            <p>No tenemos envíos internacionales</p>
             <p>🛡️ 15 días para cambios y devoluciones</p>
             {(esArmazonProducto || producto.categoria === "lentesSolares") && <p>👓 Pruébatelos en nuestras tiendas</p>}
           </div>
