@@ -8090,6 +8090,7 @@ function TiendaProductoPagina({ producto, config, categoriaLabel, onVolver, onIr
 
   const esCosmeticoContacto = esContactoProducto && producto.tipoLente === "Cosmético / Color";
   const [costosEnvioAbierto, setCostosEnvioAbierto] = useState(false);
+  const [paqueteriaElegida, setPaqueteriaElegida] = useState(null);
   const puedeProbarse = esArmazonProducto || esCosmeticoContacto;
 
   return (
@@ -8258,24 +8259,45 @@ function TiendaProductoPagina({ producto, config, categoriaLabel, onVolver, onIr
         {(config?.costosEnvio || []).length === 0 ? (
           <p className="text-sm text-slate-400">Aún no hay costos de envío publicados — contáctanos directamente para cotizar tu envío.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-xs text-slate-400 uppercase">
-                <th className="py-2">Paquetería</th>
-                <th className="py-2">Peso</th>
-                <th className="py-2 text-right">Precio</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(config.costosEnvio || []).map((c) => (
-                <tr key={c.id} className="border-b">
-                  <td className="py-2">{c.paqueteria}</td>
-                  <td className="py-2">{c.peso}</td>
-                  <td className="py-2 text-right font-medium">${Number(c.precio || 0).toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="space-y-3">
+            {Object.entries(
+              (config.costosEnvio || []).reduce((grupos, c) => {
+                const clave = c.paqueteria || "Otro";
+                if (!grupos[clave]) grupos[clave] = [];
+                grupos[clave].push(c);
+                return grupos;
+              }, {})
+            ).map(([paqueteria, opciones]) => (
+              <div key={paqueteria} className="border rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setPaqueteriaElegida(paqueteriaElegida === paqueteria ? null : paqueteria)}
+                  className="w-full flex items-center justify-between px-4 py-3"
+                  style={{ background: paqueteriaElegida === paqueteria ? BEIGE : "white" }}
+                >
+                  <span className="font-semibold text-sm">{paqueteria}</span>
+                  <span className="text-xs text-slate-400">{paqueteriaElegida === paqueteria ? "Elegida ✓" : "Ver opciones"}</span>
+                </button>
+                {paqueteriaElegida === paqueteria && (
+                  <table className="w-full text-sm border-t">
+                    <thead>
+                      <tr className="text-left text-xs text-slate-400 uppercase">
+                        <th className="px-4 py-2">Peso</th>
+                        <th className="px-4 py-2 text-right">Precio</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {opciones.map((c) => (
+                        <tr key={c.id} className="border-t">
+                          <td className="px-4 py-2">{c.peso}</td>
+                          <td className="px-4 py-2 text-right font-medium">${Number(c.precio || 0).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            ))}
+          </div>
         )}
         <p className="text-xs text-slate-400 mt-3">Los costos pueden variar según tu ubicación exacta — contáctanos para confirmar antes de tu pedido.</p>
       </Modal>
