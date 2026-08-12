@@ -1539,7 +1539,7 @@ function ExpedientePaciente({ paciente, pacientes, setPacientes, laboratorio, se
 /* ============================================================
    POS
    ============================================================ */
-function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, presetPacienteId, clearPreset, presetCobroFolio, clearPresetCobro, config, laboratorio, setLaboratorio, sesion }) {
+function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, setVentas, presetPacienteId, clearPreset, presetCobroFolio, clearPresetCobro, config, laboratorio, setLaboratorio, usuarios, sesion }) {
   const [busquedaCliente, setBusquedaCliente] = useState("");
   const [clienteSel, setClienteSel] = useState(null);
   const [busquedaArt, setBusquedaArt] = useState("");
@@ -1554,6 +1554,7 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
   const [preview, setPreview] = useState(null);
   const [telefonoManual, setTelefonoManual] = useState("");
   const [busquedaNota, setBusquedaNota] = useState("");
+  const [mostrarCancelaciones, setMostrarCancelaciones] = useState(false);
   const [modoFechaPasada, setModoFechaPasada] = useState(false);
   const [fechaVentaManual, setFechaVentaManual] = useState(fechaISO(new Date()));
 
@@ -1725,6 +1726,31 @@ function POSView({ pacientes, setPacientes, inventario, ventas, setVentas, prese
 
   return (
     <div className="p-4">
+      <div className="flex justify-end mb-3">
+        <button
+          onClick={() => setMostrarCancelaciones(!mostrarCancelaciones)}
+          className="text-xs px-3 py-1.5 rounded-full bg-red-50 text-red-600 font-medium border border-red-200"
+        >
+          {mostrarCancelaciones ? "Ocultar" : "Cancelar una venta hecha previamente"}
+        </button>
+      </div>
+
+      {mostrarCancelaciones && (
+        <div className="mb-6 bg-slate-50 border rounded-xl p-4">
+          <h3 className="font-semibold text-sm mb-3">Cancelar o devolver una venta</h3>
+          <CancelacionesTab
+            ventas={ventas}
+            setVentas={setVentas}
+            inventario={inventario}
+            setInventario={setInventario}
+            pacientes={pacientes}
+            laboratorio={laboratorio}
+            usuarios={usuarios}
+            canceladas={ventas.filter((v) => v.estatus === "cancelada" || v.estatus === "devolucion")}
+          />
+        </div>
+      )}
+
       {pedidosPortal.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
           <h3 className="font-semibold text-amber-800 text-sm mb-2">
@@ -3864,12 +3890,6 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laborat
             Historial de visitas / compras — <span className="text-slate-700">Número de compras: {visitasOrdenadas.length}</span>
           </h3>
           <div className="flex gap-2">
-            <button onClick={() => setCreandoReceta(true)} className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600 flex items-center gap-1">
-              <Plus size={14} /> Crear nueva receta
-            </button>
-            <button onClick={() => setAgregandoVisita(true)} className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600 flex items-center gap-1">
-              <Plus size={14} /> Agregar visita manualmente
-            </button>
             <button onClick={() => setAgendandoCita(true)} className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600 flex items-center gap-1">
               <Plus size={14} /> Agendar cita
             </button>
@@ -5253,7 +5273,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
 /* ============================================================
    REPORTES
    ============================================================ */
-function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes, laboratorio, pagosProveedores, setPagosProveedores, proveedores, sesion }) {
+function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes, laboratorio, pagosProveedores, setPagosProveedores, proveedores, usuarios, sesion }) {
   const [modo, setModo] = useState("corte");
   const canceladas = ventas.filter((v) => v.estatus === "cancelada" || v.estatus === "devolucion");
 
@@ -5291,6 +5311,7 @@ function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes,
           setInventario={setInventario}
           pacientes={pacientes}
           laboratorio={laboratorio}
+          usuarios={usuarios}
           canceladas={canceladas}
         />
       )}
@@ -5362,7 +5383,11 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
 
   const pagosProvDelDia = pagosProveedores.filter((p) => esDelDia(p.fecha) && !p.esAjusteMayor);
   const totalProveedores = pagosProvDelDia.reduce((s, p) => s + Number(p.monto || 0), 0);
-  const debeHaberCaja = totalCobradoHoy - totalProveedores;
+
+  const cancelacionesDelDia = ventas.flatMap((v) => (v.historialCancelacion || []).filter((c) => esDelDia(c.fecha)).map((c) => ({ ...c, folio: v.folio, cliente: v.nombreCliente })));
+  const totalCancelacionesDia = cancelacionesDelDia.reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
+
+  const debeHaberCaja = totalCobradoHoy - totalProveedores - totalCancelacionesDia;
 
   function cambiarDia(delta) {
     const d = new Date(fecha);
@@ -5455,7 +5480,8 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
           <TotalBox titulo="Total cobrado hoy" monto={totalCobradoHoy} color="#047857" subtitulo="Anticipos + liquidaciones + abonos + contado" />
           <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
           <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelDia.length} pago(s)`} />
-          <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado hoy − pago a proveedores" />
+          <TotalBox titulo="Cancelaciones y devoluciones" monto={totalCancelacionesDia} color="#dc2626" subtitulo={`${cancelacionesDelDia.length} evento(s)`} />
+          <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado hoy − proveedores − cancelaciones" />
         </div>
 
         <div className="hidden print:grid" style={{ gridTemplateColumns: "1fr 1fr", columnGap: 24, rowGap: 2, fontSize: 12, marginBottom: 16 }}>
@@ -5471,6 +5497,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
             <p><b>Total cobrado hoy:</b> ${totalCobradoHoy.toFixed(2)}</p>
             <p><b>Saldo pendiente:</b> ${totalSaldoPendiente.toFixed(2)}</p>
             <p><b>Pago a proveedores:</b> ${totalProveedores.toFixed(2)}</p>
+            <p><b>Cancelaciones y devoluciones:</b> ${totalCancelacionesDia.toFixed(2)}</p>
             <p><b>Debe haber en caja:</b> ${debeHaberCaja.toFixed(2)}</p>
           </div>
         </div>
@@ -5541,6 +5568,25 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
                 <tr key={i} className="border-t"><td className="py-1">#{p.folio} {p.cliente} — {p.tipo.replace("_", " ")}</td><td className="text-right py-1">${p.monto.toFixed(2)}</td></tr>
               ))}
               {pagosDelDia.length === 0 && <tr><td className="text-slate-400 py-2">Sin cobros este día.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="bg-white border rounded-xl p-3">
+          <h4 className="font-semibold text-sm mb-2">Desglose — Cancelaciones y devoluciones</h4>
+          <table className="w-full text-xs">
+            <tbody>
+              {cancelacionesDelDia.map((c, i) => (
+                <tr key={i} className="border-t">
+                  <td className="py-1">
+                    #{c.folio} {c.cliente}
+                    {c.montoRetenido > 0 && <span className="text-amber-600"> (retenido ${c.montoRetenido.toFixed(2)})</span>}
+                    {c.autorizadoAdmin && <span className="text-slate-400"> · autorizado por admin</span>}
+                  </td>
+                  <td className="text-right py-1">${c.montoReembolsado.toFixed(2)}</td>
+                </tr>
+              ))}
+              {cancelacionesDelDia.length === 0 && <tr><td className="text-slate-400 py-2">Sin cancelaciones ni devoluciones este día.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -5753,7 +5799,11 @@ function CorteMensual({ ventas, pagosProveedores }) {
 
   const pagosProvDelMes = pagosProveedores.filter((p) => esDelMes(p.fecha) && !p.esAjusteMayor);
   const totalProveedores = pagosProvDelMes.reduce((s, p) => s + Number(p.monto || 0), 0);
-  const debeHaberCaja = totalCobradoMes - totalProveedores;
+
+  const cancelacionesDelMes = ventas.flatMap((v) => (v.historialCancelacion || []).filter((c) => esDelMes(c.fecha)).map((c) => ({ ...c, folio: v.folio, cliente: v.nombreCliente })));
+  const totalCancelacionesMes = cancelacionesDelMes.reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
+
+  const debeHaberCaja = totalCobradoMes - totalProveedores - totalCancelacionesMes;
 
   function cambiarMes(delta) {
     const [y, m] = mes.split("-").map(Number);
@@ -5795,7 +5845,8 @@ function CorteMensual({ ventas, pagosProveedores }) {
           <TotalBox titulo="Total cobrado en el mes" monto={totalCobradoMes} color="#047857" subtitulo="Anticipos + liquidaciones + abonos + contado" />
           <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
           <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelMes.length} pago(s)`} />
-          <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado del mes − pago a proveedores" />
+          <TotalBox titulo="Cancelaciones y devoluciones" monto={totalCancelacionesMes} color="#dc2626" subtitulo={`${cancelacionesDelMes.length} evento(s)`} />
+          <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado del mes − proveedores − cancelaciones" />
         </div>
 
         <div className="hidden print:grid" style={{ gridTemplateColumns: "1fr 1fr", columnGap: 24, rowGap: 2, fontSize: 12, marginBottom: 16 }}>
@@ -5811,6 +5862,7 @@ function CorteMensual({ ventas, pagosProveedores }) {
             <p><b>Total cobrado en el mes:</b> ${totalCobradoMes.toFixed(2)}</p>
             <p><b>Saldo pendiente:</b> ${totalSaldoPendiente.toFixed(2)}</p>
             <p><b>Pago a proveedores:</b> ${totalProveedores.toFixed(2)}</p>
+            <p><b>Cancelaciones y devoluciones:</b> ${totalCancelacionesMes.toFixed(2)}</p>
             <p><b>Debe haber en caja:</b> ${debeHaberCaja.toFixed(2)}</p>
           </div>
         </div>
@@ -5909,6 +5961,30 @@ function CorteMensual({ ventas, pagosProveedores }) {
           </div>
 
           <div className="bg-white border rounded-xl p-3">
+            <h4 className="font-semibold text-sm mb-2">Desglose — Cancelaciones y devoluciones</h4>
+            <table className="w-full text-xs">
+              <tbody>
+                {cancelacionesDelMes.map((c, i) => (
+                  <tr key={i} className="border-t">
+                    <td className="py-1">
+                      #{c.folio} {c.cliente}
+                      {c.montoRetenido > 0 && <span className="text-amber-600"> (retenido ${c.montoRetenido.toFixed(2)})</span>}
+                      {c.autorizadoAdmin && <span className="text-slate-400"> · autorizado por admin</span>}
+                    </td>
+                    <td className="text-right py-1">${c.montoReembolsado.toFixed(2)}</td>
+                  </tr>
+                ))}
+                {cancelacionesDelMes.length === 0 && <tr><td className="text-slate-400 py-2">Sin cancelaciones ni devoluciones este mes.</td></tr>}
+              </tbody>
+              {cancelacionesDelMes.length > 0 && (
+                <tfoot>
+                  <tr className="border-t font-semibold"><td className="py-1">Total</td><td className="text-right py-1">${totalCancelacionesMes.toFixed(2)}</td></tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+
+          <div className="bg-white border rounded-xl p-3">
             <h4 className="font-semibold text-sm mb-2">Desglose — Saldo pendiente</h4>
             <table className="w-full text-xs">
               <tbody>
@@ -5942,7 +6018,48 @@ function CorteMensual({ ventas, pagosProveedores }) {
   );
 }
 
-function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacientes, laboratorio, canceladas }) {
+/* ---------- Autorización con contraseña de administrador ---------- */
+function ModalAutorizacionAdmin({ open, onClose, onAutorizado, usuarios, mensaje }) {
+  const [clave, setClave] = useState("");
+  const [error, setError] = useState("");
+
+  function verificar() {
+    const admin = (usuarios || []).find((u) => u.rol === "ADMIN" && u.password === clave);
+    if (!admin) {
+      setError("Contraseña incorrecta.");
+      return;
+    }
+    setClave("");
+    setError("");
+    onAutorizado();
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={() => {
+        setClave("");
+        setError("");
+        onClose();
+      }}
+      title="Autorización del administrador"
+    >
+      <p className="text-sm text-slate-600 mb-3">{mensaje}</p>
+      <Field
+        label="Contraseña de la cuenta de administrador"
+        type="password"
+        value={clave}
+        onChange={(e) => setClave(e.target.value)}
+      />
+      {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
+      <button onClick={verificar} className="w-full py-2 rounded-lg text-white text-sm font-medium" style={{ background: SKY_DARK }}>
+        Autorizar
+      </button>
+    </Modal>
+  );
+}
+
+function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacientes, laboratorio, usuarios, canceladas }) {
   const [busqueda, setBusqueda] = useState("");
   const [folioSel, setFolioSel] = useState(null);
   const [marcados, setMarcados] = useState({}); // uidLinea -> true (a devolver)
@@ -5964,7 +6081,12 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
 
   const nota = resultados.find((v) => v.folio === folioSel);
   const paciente = nota ? pacientes.find((p) => p.id === nota.pacienteId) : null;
-  const ordenesLab = nota ? laboratorio.filter((o) => o.pacienteId === nota.pacienteId) : [];
+  const ordenesLab = nota ? laboratorio.filter((o) => o.folioVenta === nota.folio) : [];
+
+  const [pedirConfirmar, setPedirConfirmar] = useState(null); // "completa" | "parcial" | null
+  const [pedirAutorizar, setPedirAutorizar] = useState(false);
+  const [autorizadoAdmin, setAutorizadoAdmin] = useState(false);
+  const [avisoRetencion, setAvisoRetencion] = useState(null);
 
   function reintegrarInventario(items) {
     let inv = { ...inventario };
@@ -5979,37 +6101,123 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
     setInventario(inv);
   }
 
-  function cancelarCompleta() {
-    reintegrarInventario(nota.items);
-    setVentas(
-      ventas.map((v) => (v.folio === nota.folio ? { ...v, estatus: "cancelada", total: 0, saldo: 0 } : v))
-    );
-    setFolioSel(null);
-    setMarcados({});
+  // Calcula cuánto se reembolsa de verdad, aplicando la retención del 30% en lentes graduados
+  // que ya están en laboratorio, y bloqueando lentes de contacto — a menos que el admin autorice.
+  function calcularReembolso(items, autorizado) {
+    let totalReembolso = 0;
+    let totalRetenido = 0;
+    const itemsBloqueados = [];
+    const itemsProcesables = [];
+    const enLaboratorio = ordenesLab.some((o) => !!o.fechaEnvio);
+    items.forEach((it) => {
+      if (it.categoria === "lentesContacto" && !autorizado) {
+        itemsBloqueados.push(it);
+        return;
+      }
+      if (it.categoria === "lentesGraduados" && enLaboratorio && !autorizado) {
+        const retenido = Number(it.precio || 0) * 0.3;
+        totalRetenido += retenido;
+        totalReembolso += Number(it.precio || 0) - retenido;
+        itemsProcesables.push(it);
+        return;
+      }
+      totalReembolso += Number(it.precio || 0);
+      itemsProcesables.push(it);
+    });
+    return { totalReembolso, totalRetenido, itemsBloqueados, itemsProcesables };
   }
 
-  function devolucionParcial() {
-    const itemsADevolver = nota.items.filter((it) => marcados[it.uidLinea]);
-    if (itemsADevolver.length === 0) return;
-    reintegrarInventario(itemsADevolver);
-    const itemsRestantes = nota.items.filter((it) => !marcados[it.uidLinea]);
-    const nuevoTotal = itemsRestantes.reduce((s, it) => s + Number(it.precio || 0), 0);
-    const todoDevuelto = itemsRestantes.length === 0;
-    setVentas(
-      ventas.map((v) =>
-        v.folio === nota.folio
+  function registrarEventoCancelacion(folio, calculo, autorizado) {
+    setVentas((prev) =>
+      prev.map((v) =>
+        v.folio === folio
           ? {
               ...v,
-              items: itemsRestantes,
-              total: nuevoTotal,
-              saldo: Math.max(0, nuevoTotal - v.abono),
-              estatus: todoDevuelto ? "cancelada" : "devolucion",
+              historialCancelacion: [
+                ...(v.historialCancelacion || []),
+                {
+                  fecha: new Date().toISOString(),
+                  montoReembolsado: calculo.totalReembolso,
+                  montoRetenido: calculo.totalRetenido,
+                  autorizadoAdmin: autorizado,
+                },
+              ],
             }
           : v
       )
     );
+  }
+
+  function ejecutarCancelacionCompleta(autorizado) {
+    const calculo = calcularReembolso(nota.items, autorizado);
+    if (calculo.itemsProcesables.length === 0) {
+      setAvisoRetencion({ tipo: "completa", mensaje: "No se puede cancelar: todos los artículos son lentes de contacto y requieren autorización del administrador.", sinOpciones: true });
+      return;
+    }
+    reintegrarInventario(calculo.itemsProcesables);
+    const itemsRestantes = nota.items.filter((it) => !calculo.itemsProcesables.includes(it));
+    const todoDevuelto = itemsRestantes.length === 0;
+    setVentas((prev) =>
+      prev.map((v) =>
+        v.folio === nota.folio
+          ? { ...v, items: itemsRestantes, total: itemsRestantes.reduce((s, it) => s + Number(it.precio || 0), 0), saldo: 0, estatus: todoDevuelto ? "cancelada" : "devolucion" }
+          : v
+      )
+    );
+    registrarEventoCancelacion(nota.folio, calculo, autorizado);
     setFolioSel(null);
     setMarcados({});
+    setAutorizadoAdmin(false);
+    setAvisoRetencion(null);
+    mostrarToast(calculo.totalRetenido > 0 ? `Cancelado — se retuvieron $${calculo.totalRetenido.toFixed(2)} por trabajo ya iniciado en laboratorio` : "Nota cancelada ✓");
+  }
+
+  function ejecutarDevolucionParcial(autorizado) {
+    const itemsMarcados = nota.items.filter((it) => marcados[it.uidLinea]);
+    if (itemsMarcados.length === 0) return;
+    const calculo = calcularReembolso(itemsMarcados, autorizado);
+    if (calculo.itemsProcesables.length === 0) {
+      setAvisoRetencion({ tipo: "parcial", mensaje: "No se puede devolver: los artículos marcados son lentes de contacto y requieren autorización del administrador.", sinOpciones: true });
+      return;
+    }
+    reintegrarInventario(calculo.itemsProcesables);
+    const itemsRestantes = nota.items.filter((it) => !calculo.itemsProcesables.includes(it));
+    const nuevoTotal = itemsRestantes.reduce((s, it) => s + Number(it.precio || 0), 0);
+    const todoDevuelto = itemsRestantes.length === 0;
+    setVentas((prev) =>
+      prev.map((v) =>
+        v.folio === nota.folio
+          ? { ...v, items: itemsRestantes, total: nuevoTotal, saldo: Math.max(0, nuevoTotal - v.abono), estatus: todoDevuelto ? "cancelada" : "devolucion" }
+          : v
+      )
+    );
+    registrarEventoCancelacion(nota.folio, calculo, autorizado);
+    setFolioSel(null);
+    setMarcados({});
+    setAutorizadoAdmin(false);
+    setAvisoRetencion(null);
+    mostrarToast(calculo.totalRetenido > 0 ? `Devuelto — se retuvieron $${calculo.totalRetenido.toFixed(2)} por trabajo ya iniciado en laboratorio` : "Devolución registrada ✓");
+  }
+
+  function confirmarAccion() {
+    const items = pedirConfirmar === "parcial" ? nota.items.filter((it) => marcados[it.uidLinea]) : nota.items;
+    const calculo = calcularReembolso(items, false);
+    const tipo = pedirConfirmar;
+    setPedirConfirmar(null);
+
+    if (calculo.totalRetenido > 0 || calculo.itemsBloqueados.length > 0) {
+      const partes = [];
+      if (calculo.itemsBloqueados.length > 0 && calculo.itemsProcesables.length === 0) {
+        partes.push("todos los artículos son lentes de contacto y no se pueden cancelar sin autorización del administrador");
+      } else {
+        if (calculo.totalRetenido > 0) partes.push(`se retendrá $${calculo.totalRetenido.toFixed(2)} por trabajo ya iniciado en laboratorio`);
+        if (calculo.itemsBloqueados.length > 0) partes.push("los lentes de contacto marcados no se van a cancelar");
+      }
+      setAvisoRetencion({ tipo, mensaje: `Al continuar sin autorización, ${partes.join(" y ")}.`, sinOpciones: calculo.itemsProcesables.length === 0 });
+      return;
+    }
+    if (tipo === "completa") ejecutarCancelacionCompleta(false);
+    else ejecutarDevolucionParcial(false);
   }
 
   return (
@@ -6112,22 +6320,72 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
 
             <div className="flex gap-2 mt-4">
               <button
-                onClick={devolucionParcial}
+                onClick={() => setPedirConfirmar("parcial")}
                 disabled={Object.values(marcados).every((v) => !v)}
                 className="flex-1 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium disabled:opacity-40"
               >
                 Devolución parcial (marcados)
               </button>
-              <button onClick={cancelarCompleta} className="flex-1 py-2 rounded-lg bg-red-500 text-white text-sm font-medium">
+              <button onClick={() => setPedirConfirmar("completa")} className="flex-1 py-2 rounded-lg bg-red-500 text-white text-sm font-medium">
                 Cancelar nota completa
               </button>
             </div>
             <p className="text-xs text-slate-400 mt-2">
-              Los artículos devueltos se reintegran al inventario de inmediato y el monto se descuenta del corte del día.
+              Los artículos devueltos se reintegran al inventario de inmediato y el monto se descuenta del corte del día. Si la orden ya está en laboratorio, se retiene el 30% del costo de los lentes graduados; los lentes de contacto no se pueden cancelar sin autorización del administrador.
             </p>
+
+            {pedirConfirmar && (
+              <div className="bg-red-50 border border-red-300 rounded-lg p-3 mt-3">
+                <p className="text-sm font-bold text-red-700 mb-2">¿Estás seguro de querer cancelar esta orden?</p>
+                <div className="flex gap-2">
+                  <button onClick={confirmarAccion} className="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm font-medium">Sí, cancelar</button>
+                  <button onClick={() => setPedirConfirmar(null)} className="flex-1 py-2 rounded-lg bg-slate-100 text-sm">No</button>
+                </div>
+              </div>
+            )}
+
+            {avisoRetencion && (
+              <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 mt-3">
+                <p className="text-sm font-medium text-amber-800 mb-2">{avisoRetencion.mensaje}</p>
+                <div className="flex gap-2">
+                  {!avisoRetencion.sinOpciones && (
+                    <button
+                      onClick={() => {
+                        if (avisoRetencion.tipo === "completa") ejecutarCancelacionCompleta(false);
+                        else ejecutarDevolucionParcial(false);
+                      }}
+                      className="flex-1 py-2 rounded-lg bg-slate-600 text-white text-sm font-medium"
+                    >
+                      Continuar con estas condiciones
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setPedirAutorizar(true)}
+                    className="flex-1 py-2 rounded-lg text-white text-sm font-medium"
+                    style={{ background: SKY_DARK }}
+                  >
+                    Solicitar autorización del administrador
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      <ModalAutorizacionAdmin
+        open={pedirAutorizar}
+        onClose={() => setPedirAutorizar(false)}
+        usuarios={usuarios}
+        mensaje="Esta acción va a devolver el 100% del costo, incluyendo lentes de contacto y/o lo retenido por trabajo ya iniciado en laboratorio. Se necesita la contraseña de una cuenta de administrador."
+        onAutorizado={() => {
+          setPedirAutorizar(false);
+          const tipo = avisoRetencion?.tipo;
+          setAvisoRetencion(null);
+          if (tipo === "parcial") ejecutarDevolucionParcial(true);
+          else ejecutarCancelacionCompleta(true);
+        }}
+      />
     </div>
   );
 }
@@ -10034,6 +10292,7 @@ export default function App() {
             pacientes={pacientes}
             setPacientes={setPacientes}
             inventario={inventario}
+            setInventario={setInventario}
             ventas={ventas}
             setVentas={setVentas}
             presetPacienteId={presetPacienteId}
@@ -10043,6 +10302,7 @@ export default function App() {
             config={config}
             laboratorio={laboratorio}
             setLaboratorio={setLaboratorio}
+            usuarios={usuarios}
             sesion={sesion}
           />
         )}
@@ -10090,6 +10350,7 @@ export default function App() {
             pagosProveedores={pagosProveedores}
             setPagosProveedores={setPagosProveedores}
             proveedores={proveedores}
+            usuarios={usuarios}
             sesion={sesion}
           />
         )}
