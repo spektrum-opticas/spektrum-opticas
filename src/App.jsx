@@ -845,6 +845,7 @@ const MODULOS_ASIGNABLES = [
   { id: "pacientes", label: "Pacientes / Recetas" },
   { id: "laboratorio", label: "Laboratorio" },
   { id: "entregas", label: "Entregas y Cobranza" },
+  { id: "paqueteria", label: "Paquetería" },
   { id: "reportes", label: "Reportes (Corte diario/mensual)" },
   { id: "importar", label: "Importar datos" },
   { id: "dashboard", label: "Dashboard" },
@@ -858,6 +859,7 @@ function Ribbon({ current, onSelect, sesion, badges }) {
     { id: "pacientes", label: "Pacientes", icon: "users" },
     { id: "laboratorio", label: "Laboratorio", icon: "lab" },
     { id: "entregas", label: "Entregas y Cobranza", icon: "truck" },
+    { id: "paqueteria", label: "Paquetería", icon: "truck" },
     { id: "reportes", label: "Reportes", icon: "report" },
     { id: "importar", label: "Importar datos", icon: "upload" },
     { id: "dashboard", label: "Dashboard", icon: "report" },
@@ -4760,12 +4762,7 @@ function HistorialAbonosModal({ venta, config, onCerrar }) {
   );
 }
 
-function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacientes, agenda, setAgenda, onIrAgenda, ventas, setVentas, config, setConfig }) {
-  const [verExpediente, setVerExpediente] = useState(null);
-  const [cobrandoFolio, setCobrandoFolio] = useState(null);
-  const [modoAbono, setModoAbono] = useState(false);
-  const [verHistorialFolio, setVerHistorialFolio] = useState(null);
-  const [fechaEntregaManual, setFechaEntregaManual] = useState({});
+function PaqueteriaView({ config, setConfig }) {
   const [nuevoEnvio, setNuevoEnvio] = useState({ zona: "", paqueteria: "", servicio: "", peso: "", precio: "", garantia: "" });
 
   function agregarCostoEnvio() {
@@ -4824,6 +4821,107 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
   function eliminarCostoEnvio(id) {
     setConfig({ ...config, costosEnvio: (config.costosEnvio || []).filter((c) => c.id !== id) });
   }
+
+  return (
+    <div className="p-4">
+      <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
+        <Truck size={20} /> Servicios de Paquetería
+      </h2>
+
+      <div className="bg-white border rounded-xl p-4 mb-6">
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
+          <h3 className="font-semibold text-sm">Servicios de paquetería</h3>
+          <button onClick={cargarTarifasSugeridas} className="text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">
+            Cargar tarifas sugeridas (Estafeta, FedEx, DHL)
+          </button>
+        </div>
+        <p className="text-xs text-slate-400 mb-3">
+          Estos precios se muestran al cliente en la tienda en línea cuando le da clic a "Click aquí" junto al aviso de envío — él solo puede verlos, no editarlos.
+        </p>
+        <table className="w-full text-sm mb-3">
+          <thead style={{ background: BEIGE }}>
+            <tr>
+              <th className="text-left px-3 py-2">Zona de destino</th>
+              <th className="text-left px-3 py-2">Paquetería</th>
+              <th className="text-left px-3 py-2">Servicio</th>
+              <th className="text-left px-3 py-2">Peso</th>
+              <th className="text-left px-3 py-2">Precio</th>
+              <th className="text-left px-3 py-2">Garantía de entrega</th>
+              <th className="px-3 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {(config?.costosEnvio || []).map((c) => (
+              <tr key={c.id} className="border-t">
+                <td className="px-3 py-2">
+                  <input value={c.zona || ""} onChange={(e) => actualizarCostoEnvio(c.id, "zona", e.target.value)} placeholder="Ej. Nacional Estándar" className="border rounded px-2 py-1 text-sm w-full" />
+                </td>
+                <td className="px-3 py-2">
+                  <input value={c.paqueteria} onChange={(e) => actualizarCostoEnvio(c.id, "paqueteria", e.target.value)} className="border rounded px-2 py-1 text-sm w-full" />
+                </td>
+                <td className="px-3 py-2">
+                  <input value={c.servicio || ""} onChange={(e) => actualizarCostoEnvio(c.id, "servicio", e.target.value)} placeholder="Ej. Nacional Express" className="border rounded px-2 py-1 text-sm w-full" />
+                </td>
+                <td className="px-3 py-2">
+                  <input value={c.peso} onChange={(e) => actualizarCostoEnvio(c.id, "peso", e.target.value)} placeholder="Ej. hasta 1 kg" className="border rounded px-2 py-1 text-sm w-full" />
+                </td>
+                <td className="px-3 py-2">
+                  <input type="number" value={c.precio} onChange={(e) => actualizarCostoEnvio(c.id, "precio", e.target.value)} className="border rounded px-2 py-1 text-sm w-24" />
+                </td>
+                <td className="px-3 py-2">
+                  <input value={c.garantia || ""} onChange={(e) => actualizarCostoEnvio(c.id, "garantia", e.target.value)} placeholder="Ej. Alta" className="border rounded px-2 py-1 text-sm w-full" />
+                </td>
+                <td className="px-3 py-2 text-right">
+                  <button onClick={() => eliminarCostoEnvio(c.id)} className="text-red-400"><Trash2 size={16} /></button>
+                </td>
+              </tr>
+            ))}
+            {(config?.costosEnvio || []).length === 0 && (
+              <tr><td colSpan={7} className="text-center text-slate-400 py-4">Aún no agregas ningún servicio de paquetería.</td></tr>
+            )}
+          </tbody>
+        </table>
+        <div className="flex gap-2 flex-wrap items-end">
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Zona de destino</label>
+            <input value={nuevoEnvio.zona} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, zona: e.target.value })} placeholder="Ej. Nacional Estándar" className="border rounded px-2 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Paquetería</label>
+            <input value={nuevoEnvio.paqueteria} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, paqueteria: e.target.value })} placeholder="Ej. Estafeta, DHL, FedEx" className="border rounded px-2 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Servicio</label>
+            <input value={nuevoEnvio.servicio} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, servicio: e.target.value })} placeholder="Ej. Nacional Express" className="border rounded px-2 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Peso</label>
+            <input value={nuevoEnvio.peso} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, peso: e.target.value })} placeholder="Ej. hasta 1 kg" className="border rounded px-2 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Precio</label>
+            <input type="number" value={nuevoEnvio.precio} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, precio: e.target.value })} className="border rounded px-2 py-1.5 text-sm w-24" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Garantía de entrega</label>
+            <input value={nuevoEnvio.garantia} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, garantia: e.target.value })} placeholder="Ej. Alta" className="border rounded px-2 py-1.5 text-sm" />
+          </div>
+          <button onClick={agregarCostoEnvio} className="px-3 py-1.5 rounded-lg text-white text-sm h-fit" style={{ background: SKY_DARK }}>
+            Agregar
+          </button>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacientes, agenda, setAgenda, onIrAgenda, ventas, setVentas, config, setConfig }) {
+  const [verExpediente, setVerExpediente] = useState(null);
+  const [cobrandoFolio, setCobrandoFolio] = useState(null);
+  const [modoAbono, setModoAbono] = useState(false);
+  const [verHistorialFolio, setVerHistorialFolio] = useState(null);
+  const [fechaEntregaManual, setFechaEntregaManual] = useState({});
 
   function estatusDe(o) {
     if (o.pendienteReceta && !o.od && !o.os) return "pendiente_receta";
@@ -4941,89 +5039,6 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
         <Truck size={20} /> Entregas y Cobranza
       </h2>
 
-      <div className="bg-white border rounded-xl p-4 mb-6">
-        <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
-          <h3 className="font-semibold text-sm">Servicios de paquetería</h3>
-          <button onClick={cargarTarifasSugeridas} className="text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">
-            Cargar tarifas sugeridas (Estafeta, FedEx, DHL)
-          </button>
-        </div>
-        <p className="text-xs text-slate-400 mb-3">
-          Estos precios se muestran al cliente en la tienda en línea cuando le da clic a "Click aquí" junto al aviso de envío — él solo puede verlos, no editarlos.
-        </p>
-        <table className="w-full text-sm mb-3">
-          <thead style={{ background: BEIGE }}>
-            <tr>
-              <th className="text-left px-3 py-2">Zona de destino</th>
-              <th className="text-left px-3 py-2">Paquetería</th>
-              <th className="text-left px-3 py-2">Servicio</th>
-              <th className="text-left px-3 py-2">Peso</th>
-              <th className="text-left px-3 py-2">Precio</th>
-              <th className="text-left px-3 py-2">Garantía de entrega</th>
-              <th className="px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {(config?.costosEnvio || []).map((c) => (
-              <tr key={c.id} className="border-t">
-                <td className="px-3 py-2">
-                  <input value={c.zona || ""} onChange={(e) => actualizarCostoEnvio(c.id, "zona", e.target.value)} placeholder="Ej. Nacional Estándar" className="border rounded px-2 py-1 text-sm w-full" />
-                </td>
-                <td className="px-3 py-2">
-                  <input value={c.paqueteria} onChange={(e) => actualizarCostoEnvio(c.id, "paqueteria", e.target.value)} className="border rounded px-2 py-1 text-sm w-full" />
-                </td>
-                <td className="px-3 py-2">
-                  <input value={c.servicio || ""} onChange={(e) => actualizarCostoEnvio(c.id, "servicio", e.target.value)} placeholder="Ej. Nacional Express" className="border rounded px-2 py-1 text-sm w-full" />
-                </td>
-                <td className="px-3 py-2">
-                  <input value={c.peso} onChange={(e) => actualizarCostoEnvio(c.id, "peso", e.target.value)} placeholder="Ej. hasta 1 kg" className="border rounded px-2 py-1 text-sm w-full" />
-                </td>
-                <td className="px-3 py-2">
-                  <input type="number" value={c.precio} onChange={(e) => actualizarCostoEnvio(c.id, "precio", e.target.value)} className="border rounded px-2 py-1 text-sm w-24" />
-                </td>
-                <td className="px-3 py-2">
-                  <input value={c.garantia || ""} onChange={(e) => actualizarCostoEnvio(c.id, "garantia", e.target.value)} placeholder="Ej. Alta" className="border rounded px-2 py-1 text-sm w-full" />
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <button onClick={() => eliminarCostoEnvio(c.id)} className="text-red-400"><Trash2 size={16} /></button>
-                </td>
-              </tr>
-            ))}
-            {(config?.costosEnvio || []).length === 0 && (
-              <tr><td colSpan={7} className="text-center text-slate-400 py-4">Aún no agregas ningún servicio de paquetería.</td></tr>
-            )}
-          </tbody>
-        </table>
-        <div className="flex gap-2 flex-wrap items-end">
-          <div>
-            <label className="text-xs text-slate-500 block mb-1">Zona de destino</label>
-            <input value={nuevoEnvio.zona} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, zona: e.target.value })} placeholder="Ej. Nacional Estándar" className="border rounded px-2 py-1.5 text-sm" />
-          </div>
-          <div>
-            <label className="text-xs text-slate-500 block mb-1">Paquetería</label>
-            <input value={nuevoEnvio.paqueteria} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, paqueteria: e.target.value })} placeholder="Ej. Estafeta, DHL, FedEx" className="border rounded px-2 py-1.5 text-sm" />
-          </div>
-          <div>
-            <label className="text-xs text-slate-500 block mb-1">Servicio</label>
-            <input value={nuevoEnvio.servicio} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, servicio: e.target.value })} placeholder="Ej. Nacional Express" className="border rounded px-2 py-1.5 text-sm" />
-          </div>
-          <div>
-            <label className="text-xs text-slate-500 block mb-1">Peso</label>
-            <input value={nuevoEnvio.peso} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, peso: e.target.value })} placeholder="Ej. hasta 1 kg" className="border rounded px-2 py-1.5 text-sm" />
-          </div>
-          <div>
-            <label className="text-xs text-slate-500 block mb-1">Precio</label>
-            <input type="number" value={nuevoEnvio.precio} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, precio: e.target.value })} className="border rounded px-2 py-1.5 text-sm w-24" />
-          </div>
-          <div>
-            <label className="text-xs text-slate-500 block mb-1">Garantía de entrega</label>
-            <input value={nuevoEnvio.garantia} onChange={(e) => setNuevoEnvio({ ...nuevoEnvio, garantia: e.target.value })} placeholder="Ej. Alta" className="border rounded px-2 py-1.5 text-sm" />
-          </div>
-          <button onClick={agregarCostoEnvio} className="px-3 py-1.5 rounded-lg text-white text-sm h-fit" style={{ background: SKY_DARK }}>
-            Agregar
-          </button>
-        </div>
-      </div>
 
       <div className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">
@@ -10063,6 +10078,7 @@ export default function App() {
             setConfig={setConfig}
           />
         )}
+        {seccion === "paqueteria" && <PaqueteriaView config={config} setConfig={setConfig} />}
         {seccion === "reportes" && (
           <ReportesView
             ventas={ventas}
