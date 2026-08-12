@@ -3425,13 +3425,21 @@ function lineaOjo(ojo, etiqueta) {
   return `${etiqueta}: Esf ${o.esf || "-"} · Cil ${o.cil || "-"} · Eje ${o.eje || "-"} · DI ${di} · Add ${o.add || "-"} · Obs ${o.obs || "-"}`;
 }
 
-function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas, laboratorio, setLaboratorio, config }) {
+function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas, laboratorio, setLaboratorio, onIrAgenda, config }) {
   const [busqueda, setBusqueda] = useState("");
   const [abierto, setAbierto] = useState(null); // id de paciente con expediente abierto
   const [mensajeUnificar, setMensajeUnificar] = useState("");
-  const filtrados = busqueda
+  const [filtroCuenta, setFiltroCuenta] = useState("todas"); // todas | activas | inactivas
+  const porTexto = busqueda
     ? pacientes.filter((p) => p.nombre.toLowerCase().includes(busqueda.toLowerCase()))
     : pacientes;
+  const filtrados = porTexto.filter((p) => {
+    if (filtroCuenta === "activas") return !!p.cuentaActiva;
+    if (filtroCuenta === "inactivas") return !p.cuentaActiva;
+    return true;
+  });
+  const totalActivas = pacientes.filter((p) => p.cuentaActiva).length;
+  const totalInactivas = pacientes.length - totalActivas;
 
   function eliminarPaciente(id) {
     const restantes = pacientes.filter((p) => p.id !== id).map((p, i) => ({ ...p, folio: i + 1 }));
@@ -3490,6 +3498,29 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, set
 
   return (
     <div className="p-4">
+      <div className="flex gap-2 mb-3">
+        <button
+          onClick={() => setFiltroCuenta("todas")}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium ${filtroCuenta === "todas" ? "text-white" : "bg-white border text-slate-600"}`}
+          style={filtroCuenta === "todas" ? { background: SKY_DARK } : {}}
+        >
+          Todas ({pacientes.length})
+        </button>
+        <button
+          onClick={() => setFiltroCuenta("activas")}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium ${filtroCuenta === "activas" ? "text-white" : "bg-white border text-slate-600"}`}
+          style={filtroCuenta === "activas" ? { background: "#059669" } : {}}
+        >
+          Cuentas activas ({totalActivas})
+        </button>
+        <button
+          onClick={() => setFiltroCuenta("inactivas")}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium ${filtroCuenta === "inactivas" ? "text-white" : "bg-white border text-slate-600"}`}
+          style={filtroCuenta === "inactivas" ? { background: "#dc2626" } : {}}
+        >
+          Cuentas inactivas ({totalInactivas})
+        </button>
+      </div>
       <div className="flex flex-wrap gap-2 items-center mb-2">
         <input
           value={busqueda}
@@ -3595,6 +3626,9 @@ function PacientesView({ pacientes, setPacientes, agenda, setAgenda, ventas, set
             setPacientes={setPacientes}
             laboratorio={laboratorio}
             setLaboratorio={setLaboratorio}
+            agenda={agenda}
+            setAgenda={setAgenda}
+            onIrAgenda={onIrAgenda}
             onEliminar={() => eliminarPaciente(pacienteAbierto.id)}
             onCerrar={() => setAbierto(null)}
             config={config}
@@ -3685,7 +3719,7 @@ function ResumenVisita({ v, paciente, config }) {
   );
 }
 
-function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laboratorio, setLaboratorio, onEliminar, onCerrar, config }) {
+function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laboratorio, setLaboratorio, agenda, setAgenda, onIrAgenda, onEliminar, onCerrar, config }) {
   const camposPersonales = ["nombre", "domicilio", "colonia", "cp", "mail", "telefono"];
   const [datos, setDatos] = useState(() => {
     const base = { ...paciente };
@@ -3711,6 +3745,8 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laborat
     os: { esf: "", cil: "", eje: "", di: "", add: "", obs: "" },
     material: "", descripcion: "", armazon: "",
   });
+  const [agendandoCita, setAgendandoCita] = useState(false);
+  const [nuevaCitaExp, setNuevaCitaExp] = useState({ fecha: fechaISO(new Date()), hora: "", consultorio: "Consultorio 1" });
 
   const visitasOrdenadas = ordenarVisitasDesc(datos.compras);
 
@@ -3831,6 +3867,9 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laborat
             </button>
             <button onClick={() => setAgregandoVisita(true)} className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600 flex items-center gap-1">
               <Plus size={14} /> Agregar visita manualmente
+            </button>
+            <button onClick={() => setAgendandoCita(true)} className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600 flex items-center gap-1">
+              <Plus size={14} /> Agendar cita
             </button>
           </div>
         </div>
@@ -3985,6 +4024,96 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laborat
         </p>
       </Modal>
 
+      <Modal open={agendandoCita} onClose={() => setAgendandoCita(false)} title="Agendar cita para este paciente">
+        {!datos.cuentaActiva ? (
+          <div className="text-center py-4">
+            <p className="text-sm font-medium mb-1">Para continuar deberás crear primero una cuenta</p>
+            <p className="text-xs text-slate-400 mb-4">Este paciente todavía no tiene una cuenta activa en el sistema.</p>
+            <button
+              onClick={() => {
+                const actualizado = { ...datos, cuentaActiva: true };
+                setDatos(actualizado);
+                setPacientes(pacientes.map((p) => (p.id === paciente.id ? { ...p, ...actualizado } : p)));
+                mostrarToast("Cuenta activada ✓");
+              }}
+              className="px-4 py-2 rounded-lg text-white text-sm font-medium"
+              style={{ background: SKY_DARK }}
+            >
+              Crear cuenta
+            </button>
+          </div>
+        ) : (
+        <>
+        <div className="bg-slate-50 rounded-lg p-3 mb-3">
+          <p className="text-sm font-medium">{datos.nombre}</p>
+          <p className="text-xs text-slate-500">{datos.telefono || "Sin teléfono"} {datos.mail ? `· ${datos.mail}` : ""}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 mb-2">
+          <label className="block">
+            <span className="text-xs font-medium text-slate-500 uppercase">Fecha</span>
+            <input
+              type="date"
+              value={nuevaCitaExp.fecha}
+              onChange={(e) => setNuevaCitaExp({ ...nuevaCitaExp, fecha: e.target.value })}
+              className="mt-1 w-full border rounded-lg px-2 py-2 text-sm"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-slate-500 uppercase">Consultorio</span>
+            <select
+              value={nuevaCitaExp.consultorio}
+              onChange={(e) => setNuevaCitaExp({ ...nuevaCitaExp, consultorio: e.target.value })}
+              className="mt-1 w-full border rounded-lg px-2 py-2 text-sm"
+            >
+              <option>Consultorio 1</option>
+              <option>Consultorio 2</option>
+            </select>
+          </label>
+        </div>
+        <label className="block mb-3">
+          <span className="text-xs font-medium text-slate-500 uppercase">Hora</span>
+          <select
+            value={nuevaCitaExp.hora}
+            onChange={(e) => setNuevaCitaExp({ ...nuevaCitaExp, hora: e.target.value })}
+            className="mt-1 w-full border rounded-lg px-2 py-2 text-sm"
+          >
+            <option value="">Elige un horario…</option>
+            {HORAS.filter(
+              (h) => !agenda.some((c) => c.fecha === nuevaCitaExp.fecha && c.consultorio === nuevaCitaExp.consultorio && c.hora === h)
+            ).map((h) => (
+              <option key={h} value={h}>{h}</option>
+            ))}
+          </select>
+        </label>
+        <button
+          onClick={() => {
+            if (!nuevaCitaExp.hora) return;
+            setAgenda([
+              ...agenda,
+              {
+                id: uid(),
+                fecha: nuevaCitaExp.fecha,
+                hora: nuevaCitaExp.hora,
+                consultorio: nuevaCitaExp.consultorio,
+                pacienteId: paciente.id,
+                nombre: datos.nombre,
+                estatus: "proxima",
+                origen: "expediente",
+              },
+            ]);
+            setAgendandoCita(false);
+            onIrAgenda?.();
+          }}
+          disabled={!nuevaCitaExp.hora}
+          className="w-full py-2 rounded-lg text-white text-sm font-medium disabled:opacity-40"
+          style={{ background: SKY_DARK }}
+        >
+          Agendar e ir a la Agenda
+        </button>
+        </>
+        )}
+      </Modal>
+
       <Modal open={imprimiendo} onClose={() => setImprimiendo(false)} title="Elige qué imprimir">
         <div className="space-y-2 mb-3">
           <label className="flex items-center gap-2 text-sm">
@@ -4025,7 +4154,7 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laborat
 /* ============================================================
    LABORATORIO
    ============================================================ */
-function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes, inventario, config }) {
+function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes, agenda, setAgenda, onIrAgenda, inventario, config }) {
   const [verExpediente, setVerExpediente] = useState(null);
   const [fechaImprimir, setFechaImprimir] = useState(fechaISO(new Date()));
   const [nueva, setNueva] = useState({
@@ -4404,6 +4533,9 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
               setPacientes={setPacientes}
               laboratorio={laboratorio}
               setLaboratorio={setLaboratorio}
+              agenda={agenda}
+              setAgenda={setAgenda}
+              onIrAgenda={onIrAgenda}
               onEliminar={() => {
                 setPacientes(pacientes.filter((p) => p.id !== pacienteVer.id));
                 setVerExpediente(null);
@@ -4628,7 +4760,7 @@ function HistorialAbonosModal({ venta, config, onCerrar }) {
   );
 }
 
-function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacientes, ventas, setVentas, config, setConfig }) {
+function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacientes, agenda, setAgenda, onIrAgenda, ventas, setVentas, config, setConfig }) {
   const [verExpediente, setVerExpediente] = useState(null);
   const [cobrandoFolio, setCobrandoFolio] = useState(null);
   const [modoAbono, setModoAbono] = useState(false);
@@ -5086,6 +5218,9 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
               setPacientes={setPacientes}
               laboratorio={laboratorio}
               setLaboratorio={setLaboratorio}
+              agenda={agenda}
+              setAgenda={setAgenda}
+              onIrAgenda={onIrAgenda}
               onEliminar={() => {
                 setPacientes(pacientes.filter((p) => p.id !== pacienteVer.id));
                 setVerExpediente(null);
@@ -9898,7 +10033,7 @@ export default function App() {
         )}
         {seccion === "inventario" && <InventarioView inventario={inventario} setInventario={setInventario} config={config} setConfig={setConfig} />}
         {seccion === "pacientes" && (
-          <PacientesView pacientes={pacientes} setPacientes={setPacientes} agenda={agenda} setAgenda={setAgenda} ventas={ventas} setVentas={setVentas} laboratorio={laboratorio} setLaboratorio={setLaboratorio} config={config} />
+          <PacientesView pacientes={pacientes} setPacientes={setPacientes} agenda={agenda} setAgenda={setAgenda} ventas={ventas} setVentas={setVentas} laboratorio={laboratorio} setLaboratorio={setLaboratorio} onIrAgenda={() => setSeccion("agenda")} config={config} />
         )}
         {seccion === "laboratorio" && (
           <LaboratorioView
@@ -9906,6 +10041,9 @@ export default function App() {
             setLaboratorio={setLaboratorio}
             pacientes={pacientes}
             setPacientes={setPacientes}
+            agenda={agenda}
+            setAgenda={setAgenda}
+            onIrAgenda={() => setSeccion("agenda")}
             inventario={inventario}
             config={config}
           />
@@ -9916,6 +10054,9 @@ export default function App() {
             setLaboratorio={setLaboratorio}
             pacientes={pacientes}
             setPacientes={setPacientes}
+            agenda={agenda}
+            setAgenda={setAgenda}
+            onIrAgenda={() => setSeccion("agenda")}
             ventas={ventas}
             setVentas={setVentas}
             config={config}
@@ -9991,4 +10132,3 @@ export default function App() {
     </div>
   );
 }
-  
