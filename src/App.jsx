@@ -2384,6 +2384,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
     marcaSolar: "",
     modeloSolar: "",
     colorSolar: "",
+    usoSolar: "",
     imagen: "",
     descripcion: "",
     tallas: [],
@@ -2466,7 +2467,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
       tipoLinea: "", categoriaArmazon: "", tipoReemplazo: "", marcaContacto: "",
       nombreProductoContacto: "", caracteristicasContacto: "", rangosContacto: "", presentacionContacto: "",
       tipoLenteContacto: "", reemplazoContacto: "", modoManualContacto: false, cosmetico: false,
-      marcaSolar: "", modeloSolar: "", colorSolar: "", imagen: "", descripcion: "",
+      marcaSolar: "", modeloSolar: "", colorSolar: "", usoSolar: "", imagen: "", descripcion: "",
       tallas: [], marcaArmazon: "", modeloArmazon: "", clipOnCompatible: "", acercaDe: "", galeriaExtra: [],
     });
   }
@@ -2994,6 +2995,18 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
             <div>
               <label className="text-xs text-slate-500">Color</label>
               <input value={nuevo.colorSolar} onChange={(e) => setNuevo({ ...nuevo, colorSolar: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">¿Oftálmico/graduable?</label>
+              <select
+                value={nuevo.usoSolar}
+                onChange={(e) => setNuevo({ ...nuevo, usoSolar: e.target.value })}
+                className="block border rounded-lg px-2 py-1.5 text-sm"
+              >
+                <option value="">— Elige una opción —</option>
+                <option value="Oftálmico/Graduable">Oftálmico/Graduable</option>
+                <option value="Solo protección solar (no graduable)">Solo protección solar (no graduable)</option>
+              </select>
             </div>
           </>
         )}
@@ -8685,7 +8698,11 @@ function TiendaProductoPagina({ producto, config, categoriaLabel, onVolver, onIr
             <button className="text-slate-300 hover:text-black mt-1">♡</button>
           </div>
           <p className="text-lg mb-4">
-            ${producto.precio} MXN {esArmazonProducto && <span className="text-sm text-slate-400">| Incluye micas graduadas</span>}
+            ${producto.precio} MXN{" "}
+            {esArmazonProducto && <span className="text-sm text-slate-400">| Oftálmico/Graduable</span>}
+            {producto.categoria === "lentesSolares" && producto.usoSolar && (
+              <span className="text-sm text-slate-400">| {producto.usoSolar}</span>
+            )}
             {requiereReceta && <span className="text-sm text-slate-400"> | Requiere receta</span>}
           </p>
 
