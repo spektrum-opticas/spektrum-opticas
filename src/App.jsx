@@ -7950,9 +7950,9 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
         </div>
       </div>
 
-      <CarruselLineaArmazones titulo="Línea Premium" articulos={premium} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
-      <CarruselLineaArmazones titulo="Línea Media" articulos={media} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
       <CarruselLineaArmazones titulo="Línea Económica" articulos={economica} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
+      <CarruselLineaArmazones titulo="Línea Media" articulos={media} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
+      <CarruselLineaArmazones titulo="Línea Premium" articulos={premium} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
 
       <div className="max-w-5xl mx-auto px-6 py-10 grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
@@ -8323,26 +8323,67 @@ function TiendaCategoria({ categoriaActiva, inventario, config, onVerProducto, o
 
       <p className="text-sm text-slate-400 mb-4">{lista.length} artículo(s)</p>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-        {lista.map((a) => (
-          <div key={a.sku} className="border rounded-2xl p-3 hover:shadow-md transition-shadow">
-            <button onClick={() => onVerProducto({ ...a, categoria: categoriaActiva })} className="w-full text-left">
-              <div className="rounded-xl mb-2 overflow-hidden" style={{ background: "#f4f4f4", height: 110 }}>
-                {a.imagen && <img src={a.imagen} alt={a.nombre} className="w-full h-full object-cover" />}
+      {categoriaActiva === "armazones" ? (
+        <div className="space-y-10">
+          {[
+            { clave: "Armazón Línea Económica", etiqueta: "Línea Económica" },
+            { clave: "Armazón Línea Estándar", etiqueta: "Línea Media" },
+            { clave: "Armazón Línea Premium", etiqueta: "Línea Premium" },
+          ].map(({ clave, etiqueta }) => {
+            const itemsLinea = lista.filter((a) => a.tipoLinea === clave);
+            if (itemsLinea.length === 0) return null;
+            return (
+              <div key={clave}>
+                <h2 className="text-xl sm:text-2xl font-semibold border-b-2 border-black pb-2 mb-5">{etiqueta}</h2>
+                {["Dama", "Unisex", "Caballero", "Junior"].map((genero) => {
+                  const itemsGenero = itemsLinea.filter((a) => (a.categoriaArmazon || "").startsWith(genero));
+                  if (itemsGenero.length === 0) return null;
+                  return (
+                    <div key={genero} className="mb-8">
+                      <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-3">
+                        <span className="w-8 h-px bg-slate-300" /> {genero} <span className="flex-1 h-px bg-slate-100" />
+                      </h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        {itemsGenero.map((a) => (
+                          <TarjetaArmazonGrid key={a.sku} a={a} categoriaActiva={categoriaActiva} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <p className="text-sm font-medium truncate">{a.nombre}</p>
-              <p className="text-sm text-slate-500">${a.precio} MXN</p>
-            </button>
-            <button
-              onClick={() => onAgregarCarrito({ ...a, categoria: categoriaActiva })}
-              className="w-full mt-2 py-1.5 rounded-full border border-black text-xs font-medium hover:bg-black hover:text-white transition-colors"
-            >
-              Agregar
-            </button>
-          </div>
-        ))}
-        {lista.length === 0 && <p className="text-sm text-slate-400 col-span-full text-center py-10">Sin artículos disponibles con esos filtros.</p>}
-      </div>
+            );
+          })}
+          {lista.length === 0 && <p className="text-sm text-slate-400 text-center py-10">Sin artículos disponibles con esos filtros.</p>}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {lista.map((a) => (
+            <TarjetaArmazonGrid key={a.sku} a={a} categoriaActiva={categoriaActiva} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
+          ))}
+          {lista.length === 0 && <p className="text-sm text-slate-400 col-span-full text-center py-10">Sin artículos disponibles con esos filtros.</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TarjetaArmazonGrid({ a, categoriaActiva, onVerProducto, onAgregarCarrito }) {
+  return (
+    <div className="border rounded-2xl p-3 hover:shadow-md transition-shadow">
+      <button onClick={() => onVerProducto({ ...a, categoria: categoriaActiva })} className="w-full text-left">
+        <div className="rounded-xl mb-2 overflow-hidden" style={{ background: "#f4f4f4", height: 110 }}>
+          {a.imagen && <img src={a.imagen} alt={a.nombre} className="w-full h-full object-cover" />}
+        </div>
+        <p className="text-sm font-medium truncate">{a.nombre}</p>
+        <p className="text-sm text-slate-500">${a.precio} MXN</p>
+      </button>
+      <button
+        onClick={() => onAgregarCarrito({ ...a, categoria: categoriaActiva })}
+        className="w-full mt-2 py-1.5 rounded-full border border-black text-xs font-medium hover:bg-black hover:text-white transition-colors"
+      >
+        Agregar
+      </button>
     </div>
   );
 }
@@ -9191,6 +9232,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
   const [mensajeFinal, setMensajeFinal] = useState("");
   const [whatsappPendiente, setWhatsappPendiente] = useState(null); // { telefono, mensaje }
   const [vistaOrigenProducto, setVistaOrigenProducto] = useState("inicio");
+  const [scrollGuardado, setScrollGuardado] = useState(0);
   const [accionPendienteTrasLogin, setAccionPendienteTrasLogin] = useState(null); // 'agendar' | 'checkout' | null
 
   function agregarCarrito(a) {
@@ -9204,10 +9246,18 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
   }
 
   function verProducto(p) {
+    setScrollGuardado(window.scrollY);
     setVistaOrigenProducto(vista);
     setProductoVer(p);
     setVista("producto");
     window.scrollTo(0, 0);
+  }
+
+  function volverDeProducto() {
+    setVista(vistaOrigenProducto);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => window.scrollTo(0, scrollGuardado));
+    });
   }
 
   function abrirAcceso(pasoInicial) {
@@ -9360,7 +9410,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
               productoVer?.categoria
             ] || ""
           }
-          onVolver={() => setVista(vistaOrigenProducto)}
+          onVolver={volverDeProducto}
           onIrInicio={() => setVista("inicio")}
           onAgregarCarrito={(p) => {
             agregarCarrito(p);
