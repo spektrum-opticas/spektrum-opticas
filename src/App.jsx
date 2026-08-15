@@ -233,7 +233,7 @@ function uid() {
 
 // El folio NO es un consecutivo propio de cada orden: es el mismo número (el folio del
 // expediente/venta) al que se le van agregando siglas conforme avanza de etapa:
-// EXP-123 (expediente) -> EXP-OT-123 (ya tiene orden de trabajo) -> EXP-OT-L-123 (ya se envió a laboratorio)
+// EXP/123 (expediente) -> EXP/OT/123 (ya tiene orden de trabajo) -> EXP/OT/L/123 (ya se envió a laboratorio) -> EXP/OT/L/E/123 (ya se entregó)
 function folioBase(o, pacientes) {
   if (o.folioVenta) return o.folioVenta;
   const p = pacientes?.find((x) => x.id === o.pacienteId);
@@ -243,11 +243,13 @@ function folioBase(o, pacientes) {
 
 function folioOrdenEtiqueta(o, pacientes) {
   const base = folioBase(o, pacientes);
-  return o.fechaEnvio ? `EXP-OT-L-${base}` : `EXP-OT-${base}`;
+  if (o.fechaEntrega) return `EXP/OT/L/E/${base}`;
+  if (o.fechaEnvio) return `EXP/OT/L/${base}`;
+  return `EXP/OT/${base}`;
 }
 
 function folioExpedienteEtiqueta(p) {
-  return `EXP-${p.folio}`;
+  return `EXP/${p.folio}`;
 }
 
 // Imprime SOLO el elemento indicado. Al llamar window.print(), el navegador
@@ -4806,6 +4808,13 @@ function FacturacionView({ facturas, setFacturas, ventas, pacientes }) {
   const [creandoManual, setCreandoManual] = useState(false);
   const [subiendoArchivo, setSubiendoArchivo] = useState(null); // id de la solicitud a la que se le está subiendo archivo
   const [nueva, setNueva] = useState({ folio: "", rfc: "", razonSocial: "", regimenFiscal: "", usoCFDI: "", codigoPostal: "", correo: "" });
+  const [generandoReporte, setGenerandoReporte] = useState(false);
+  const [modoReporte, setModoReporte] = useState("mes"); // mes | rango | manual
+  const [mesReporte, setMesReporte] = useState(() => new Date().toISOString().slice(0, 7));
+  const [rangoDesde, setRangoDesde] = useState(fechaISO(new Date()));
+  const [rangoHasta, setRangoHasta] = useState(fechaISO(new Date()));
+  const [seleccionManual, setSeleccionManual] = useState({});
+  const [reporteListo, setReporteListo] = useState(null); // array de facturas del reporte ya generado
 
   const pendientes = facturas.filter((f) => f.estatus === "pendiente");
   const facturadas = facturas.filter((f) => f.estatus === "facturada");
@@ -4854,15 +4863,37 @@ function FacturacionView({ facturas, setFacturas, ventas, pacientes }) {
     mostrarToast("Solicitud de factura creada ✓");
   }
 
+  function generarReporte() {
+    let seleccionadas = [];
+    if (modoReporte === "mes") {
+      seleccionadas = facturas.filter((f) => f.fecha.slice(0, 7) === mesReporte);
+    } else if (modoReporte === "rango") {
+      seleccionadas = facturas.filter((f) => {
+        const dia = f.fecha.slice(0, 10);
+        return dia >= rangoDesde && dia <= rangoHasta;
+      });
+    } else {
+      seleccionadas = facturas.filter((f) => seleccionManual[f.id]);
+    }
+    seleccionadas = seleccionadas.slice().sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    setReporteListo(seleccionadas);
+    setGenerandoReporte(false);
+  }
+
   const lista = tab === "pendientes" ? pendientes : facturadas;
 
   return (
     <div className="p-4">
       <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
         <h2 className="font-semibold text-lg">Facturación</h2>
-        <button onClick={() => setCreandoManual(true)} className="text-xs px-3 py-1.5 rounded-full text-white" style={{ background: SKY_DARK }}>
-          + Crear solicitud manual
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setGenerandoReporte(true)} className="text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 font-medium">
+            📊 Generar reporte
+          </button>
+          <button onClick={() => setCreandoManual(true)} className="text-xs px-3 py-1.5 rounded-full text-white" style={{ background: SKY_DARK }}>
+            + Crear solicitud manual
+          </button>
+        </div>
       </div>
 
       <p className="text-xs text-slate-400 mb-4">
@@ -4961,6 +4992,125 @@ function FacturacionView({ facturas, setFacturas, ventas, pacientes }) {
         <button onClick={crearManual} className="w-full py-2 rounded-lg text-white text-sm font-medium" style={{ background: SKY_DARK }}>
           Crear solicitud
         </button>
+      </Modal>
+
+      <Modal open={generandoReporte} onClose={() => setGenerandoReporte(false)} title="Generar reporte de facturas">
+        <div className="flex gap-2 mb-4">
+          <button onClick={() => setModoReporte("mes")} className={`flex-1 py-2 rounded-lg text-xs font-medium ${modoReporte === "mes" ? "text-white" : "bg-slate-100"}`} style={modoReporte === "mes" ? { background: SKY_DARK } : {}}>
+            Por mes
+          </button>
+          <button onClick={() => setModoReporte("rango")} className={`flex-1 py-2 rounded-lg text-xs font-medium ${modoReporte === "rango" ? "text-white" : "bg-slate-100"}`} style={modoReporte === "rango" ? { background: SKY_DARK } : {}}>
+            Por periodo
+          </button>
+          <button onClick={() => setModoReporte("manual")} className={`flex-1 py-2 rounded-lg text-xs font-medium ${modoReporte === "manual" ? "text-white" : "bg-slate-100"}`} style={modoReporte === "manual" ? { background: SKY_DARK } : {}}>
+            A mi elección
+          </button>
+        </div>
+
+        {modoReporte === "mes" && (
+          <label className="block mb-4">
+            <span className="text-xs font-medium text-slate-500 uppercase">Mes</span>
+            <input type="month" value={mesReporte} onChange={(e) => setMesReporte(e.target.value)} className="mt-1 w-full border rounded-lg px-2 py-2 text-sm" />
+          </label>
+        )}
+
+        {modoReporte === "rango" && (
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <label className="block">
+              <span className="text-xs font-medium text-slate-500 uppercase">Desde</span>
+              <input type="date" value={rangoDesde} onChange={(e) => setRangoDesde(e.target.value)} className="mt-1 w-full border rounded-lg px-2 py-2 text-sm" />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-slate-500 uppercase">Hasta</span>
+              <input type="date" value={rangoHasta} onChange={(e) => setRangoHasta(e.target.value)} className="mt-1 w-full border rounded-lg px-2 py-2 text-sm" />
+            </label>
+          </div>
+        )}
+
+        {modoReporte === "manual" && (
+          <div className="mb-4 max-h-64 overflow-y-auto border rounded-lg">
+            {facturas.map((f) => (
+              <label key={f.id} className="flex items-center gap-2 text-sm px-3 py-2 border-b last:border-b-0">
+                <input
+                  type="checkbox"
+                  checked={!!seleccionManual[f.id]}
+                  onChange={(e) => setSeleccionManual({ ...seleccionManual, [f.id]: e.target.checked })}
+                />
+                Folio #{f.folio} — {f.nombreCliente} — ${Number(f.total || 0).toFixed(2)} — {f.estatus}
+              </label>
+            ))}
+            {facturas.length === 0 && <p className="text-xs text-slate-400 p-3">Aún no hay ninguna solicitud de factura.</p>}
+          </div>
+        )}
+
+        <button onClick={generarReporte} className="w-full py-2 rounded-lg text-white text-sm font-medium" style={{ background: SKY_DARK }}>
+          Generar reporte
+        </button>
+      </Modal>
+
+      <Modal open={!!reporteListo} onClose={() => setReporteListo(null)} title="Reporte de facturas" wide>
+        {reporteListo && (
+          <div>
+            <div className="flex justify-end mb-3">
+              <button onClick={() => imprimirElemento("reporte-facturas-imprimible")} className="text-xs px-3 py-1.5 rounded-full text-white" style={{ background: SKY_DARK }}>
+                Imprimir reporte
+              </button>
+            </div>
+            <div id="reporte-facturas-imprimible" className="bg-white">
+              <p className="hidden print:block font-bold mb-2">
+                Reporte de facturas —{" "}
+                {modoReporte === "mes" ? `Mes ${mesReporte}` : modoReporte === "rango" ? `Del ${rangoDesde} al ${rangoHasta}` : "Selección manual"}
+              </p>
+              <table className="w-full text-sm">
+                <thead style={{ background: BEIGE }}>
+                  <tr>
+                    <th className="text-left px-2 py-2">Folio</th>
+                    <th className="text-left px-2 py-2">Cliente</th>
+                    <th className="text-left px-2 py-2">RFC</th>
+                    <th className="text-left px-2 py-2">Fecha</th>
+                    <th className="text-left px-2 py-2">Estatus</th>
+                    <th className="text-right px-2 py-2">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reporteListo.map((f) => (
+                    <tr key={f.id} className="border-t">
+                      <td className="px-2 py-2">#{f.folio}</td>
+                      <td className="px-2 py-2">{f.nombreCliente}</td>
+                      <td className="px-2 py-2">{f.rfc}</td>
+                      <td className="px-2 py-2">{new Date(f.fecha).toLocaleDateString("es-MX")}</td>
+                      <td className="px-2 py-2 capitalize">{f.estatus}</td>
+                      <td className="px-2 py-2 text-right">${Number(f.total || 0).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {reporteListo.length === 0 && (
+                    <tr><td colSpan={6} className="text-center text-slate-400 py-6">Sin facturas en este periodo/selección.</td></tr>
+                  )}
+                </tbody>
+                {reporteListo.length > 0 && (
+                  <tfoot>
+                    <tr className="border-t font-semibold">
+                      <td colSpan={5} className="px-2 py-2">Total del corte — {reporteListo.length} factura(s)</td>
+                      <td className="px-2 py-2 text-right">${reporteListo.reduce((s, f) => s + Number(f.total || 0), 0).toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                      <td colSpan={5} className="px-2 py-2 text-xs text-emerald-700">Facturadas: {reporteListo.filter((f) => f.estatus === "facturada").length}</td>
+                      <td className="px-2 py-2 text-right text-xs text-emerald-700">
+                        ${reporteListo.filter((f) => f.estatus === "facturada").reduce((s, f) => s + Number(f.total || 0), 0).toFixed(2)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colSpan={5} className="px-2 py-2 text-xs text-amber-700">Pendientes: {reporteListo.filter((f) => f.estatus === "pendiente").length}</td>
+                      <td className="px-2 py-2 text-right text-xs text-amber-700">
+                        ${reporteListo.filter((f) => f.estatus === "pendiente").reduce((s, f) => s + Number(f.total || 0), 0).toFixed(2)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
