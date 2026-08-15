@@ -234,6 +234,27 @@ function uid() {
 // El folio NO es un consecutivo propio de cada orden: es el mismo número (el folio del
 // expediente/venta) al que se le van agregando siglas conforme avanza de etapa:
 // EXP/123 (expediente) -> EXP/OT/123 (ya tiene orden de trabajo) -> EXP/OT/L/123 (ya se envió a laboratorio) -> EXP/OT/L/E/123 (ya se entregó)
+// Relaciona un código postal con la zona de envío que le corresponde, usando los
+// rangos conocidos de SEPOMEX para las ciudades que ya se manejan en Paquetería.
+// Es una aproximación por prefijo de C.P. — el personal siempre puede corregirla a mano.
+function zonaPorCP(cp) {
+  const n = parseInt(String(cp || "").slice(0, 2), 10);
+  if (isNaN(n)) return null;
+  // Local y Regional: Puebla, Tlaxcala, Veracruz, CDMX, Edomex, Morelos
+  if ([72, 90, 91, 92, 93, 94, 95, 96, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 50, 51, 52, 53, 54, 55, 56, 62].includes(n)) {
+    return "Local y Regional (Puebla, Tlaxcala, Veracruz, CDMX, Edomex, Morelos)";
+  }
+  // Nacional Estándar: Guadalajara, Monterrey, Querétaro, León, SLP, Mérida
+  if ([44, 45, 64, 65, 76, 37, 78, 97, 98].includes(n)) {
+    return "Nacional Estándar (Guadalajara, Monterrey, Querétaro, León, SLP, Mérida, etc.)";
+  }
+  // Nacional a Extremos: Tijuana, Mexicali, Hermosillo, Cancún, Los Cabos
+  if ([22, 21, 83, 77, 23].includes(n)) {
+    return "Nacional a Extremos (Tijuana, Mexicali, Hermosillo, Cancún, Los Cabos, zonas alejadas)";
+  }
+  return "Nacional a Extremos (Tijuana, Mexicali, Hermosillo, Cancún, Los Cabos, zonas alejadas)"; // por defecto, la más segura si no se reconoce
+}
+
 function folioBase(o, pacientes) {
   if (o.folioVenta) return o.folioVenta;
   const p = pacientes?.find((x) => x.id === o.pacienteId);
@@ -5386,12 +5407,160 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
   const activas = laboratorio.filter((o) => !o.cancelada);
   const ventaCobrando = cobrandoFolio ? ventas.find((v) => v.folio === cobrandoFolio) : null;
   const ventaHistorial = verHistorialFolio ? ventas.find((v) => v.folio === verHistorialFolio) : null;
+  const enviosPendientes = ventas.filter((v) => v.metodoEntrega === "domicilio" && v.envioEstatus && v.envioEstatus !== "autorizado");
+  const [corrigiendoEnvioFolio, setCorrigiendoEnvioFolio] = useState(null);
+  const [zonaCorregida, setZonaCorregida] = useState("");
+  const [paqueteriaCorregida, setPaqueteriaCorregida] = useState(null);
+
+  function autorizarEnvio(folio) {
+    setVentas(ventas.map((v) => (v.folio === folio ? { ...v, envioEstatus: "autorizado" } : v)));
+    mostrarToast("Envío autorizado ✓");
+  }
+
+  function avisarCambioCP(venta) {
+    const paciente = pacientes.find((p) => p.id === venta.pacienteId);
+    if (!paqueteriaCorregida) return;
+    setVentas(
+      ventas.map((v) =>
+        v.folio === venta.folio
+          ? { ...v, envioSugerido: paqueteriaCorregida, envioEstatus: "esperando_confirmacion_cliente" }
+          : v
+      )
+    );
+    const nombre = venta.nombreCliente || paciente?.nombre || "cliente";
+    const mensaje =
+      `Hola ${nombre}, al revisar tu pedido notamos que el código postal (${venta.cpEnvio}) no coincide con el que tenemos registrado en tu domicilio. ` +
+      `Te sugerimos este envío en su lugar: ${paqueteriaCorregida.paqueteria} — ${paqueteriaCorregida.servicio} ($${Number(paqueteriaCorregida.precio || 0).toFixed(2)}). ` +
+      `Contéstanos este mensaje confirmando si está bien para continuar con tu pedido.`;
+    if (paciente?.telefono) abrirWhatsApp(paciente.telefono, mensaje);
+    else if (paciente?.mail) abrirEmail(paciente.mail, `Confirma el envío de tu pedido #${venta.folio}`, mensaje);
+    else alert("Este paciente no tiene teléfono ni correo guardado para avisarle.");
+    setCorrigiendoEnvioFolio(null);
+    setZonaCorregida("");
+    setPaqueteriaCorregida(null);
+    mostrarToast("Se avisó al cliente, quedó en espera de su confirmación");
+  }
+
+  function clienteYaConfirmo(venta) {
+    setVentas(
+      ventas.map((v) =>
+        v.folio === venta.folio
+          ? { ...v, envioSeleccionado: v.envioSugerido || v.envioSeleccionado, envioSugerido: null, envioEstatus: "autorizado" }
+          : v
+      )
+    );
+    mostrarToast("Envío autorizado con el cambio confirmado por el cliente ✓");
+  }
 
   return (
     <div className="p-4">
       <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
         <Truck size={20} /> Entregas y Cobranza
       </h2>
+
+      {enviosPendientes.length > 0 && (
+        <div className="bg-white border rounded-xl p-4 mb-6">
+          <h3 className="font-semibold text-sm mb-1">Verificación de envíos a domicilio</h3>
+          <p className="text-xs text-slate-400 mb-3">
+            Confirma que el C.P. que dio el cliente coincide con su domicilio antes de autorizar el envío por la paquetería elegida.
+          </p>
+          <div className="space-y-3">
+            {enviosPendientes.map((v) => {
+              const paciente = pacientes.find((p) => p.id === v.pacienteId);
+              const cpRegistrado = paciente?.cp || "";
+              const coincide = cpRegistrado && cpRegistrado === v.cpEnvio;
+              return (
+                <div key={v.folio} className="border rounded-xl p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <div>
+                      <p className="text-sm font-medium">Folio #{v.folio} — {v.nombreCliente}</p>
+                      <p className="text-xs text-slate-500">
+                        Eligió: <b>{v.envioSeleccionado?.paqueteria}</b> — {v.envioSeleccionado?.servicio} (${Number(v.envioSeleccionado?.precio || 0).toFixed(2)})
+                      </p>
+                    </div>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                      {v.envioEstatus === "esperando_confirmacion_cliente" ? "Esperando confirmación del cliente" : "Confirmar C.P."}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 mb-2">
+                    C.P. dado por el cliente: <b>{v.cpEnvio}</b>
+                    {" · "}
+                    C.P. en su domicilio registrado: <b>{cpRegistrado || "sin domicilio guardado"}</b>
+                    {cpRegistrado && (
+                      <span className={coincide ? "text-emerald-600" : "text-red-600"}> {coincide ? "(coincide)" : "(no coincide)"}</span>
+                    )}
+                  </p>
+
+                  {v.envioEstatus === "por_verificar" && (
+                    <div className="flex gap-2 flex-wrap">
+                      <button onClick={() => autorizarEnvio(v.folio)} className="text-xs px-3 py-1.5 rounded-full text-white bg-emerald-600">
+                        Confirmar C.P. y autorizar envío
+                      </button>
+                      <button
+                        onClick={() => { setCorrigiendoEnvioFolio(v.folio); setZonaCorregida(""); setPaqueteriaCorregida(null); }}
+                        className="text-xs px-3 py-1.5 rounded-full text-white bg-red-600"
+                      >
+                        El C.P. no es correcto
+                      </button>
+                    </div>
+                  )}
+
+                  {v.envioEstatus === "esperando_confirmacion_cliente" && (
+                    <div>
+                      <p className="text-xs text-slate-500 mb-2">
+                        Sugerido: {v.envioSugerido?.paqueteria} — {v.envioSugerido?.servicio} (${Number(v.envioSugerido?.precio || 0).toFixed(2)})
+                      </p>
+                      <button onClick={() => clienteYaConfirmo(v)} className="text-xs px-3 py-1.5 rounded-full text-white" style={{ background: SKY_DARK }}>
+                        El cliente ya confirmó, continuar
+                      </button>
+                    </div>
+                  )}
+
+                  {corrigiendoEnvioFolio === v.folio && (
+                    <div className="bg-slate-50 rounded-lg p-3 mt-2">
+                      <label className="block mb-2">
+                        <span className="text-xs font-medium text-slate-500 uppercase">Zona correcta según su domicilio</span>
+                        <select
+                          value={zonaCorregida}
+                          onChange={(e) => { setZonaCorregida(e.target.value); setPaqueteriaCorregida(null); }}
+                          className="mt-1 w-full border rounded-lg px-2 py-2 text-sm"
+                        >
+                          <option value="">Elige la zona correcta…</option>
+                          {[...new Set((config?.costosEnvio || []).map((c) => c.zona))].map((z) => (
+                            <option key={z} value={z}>{z}</option>
+                          ))}
+                        </select>
+                      </label>
+                      {zonaCorregida && (
+                        <div className="space-y-1 mb-2">
+                          {(config?.costosEnvio || []).filter((c) => c.zona === zonaCorregida).map((c) => (
+                            <button
+                              key={c.id}
+                              onClick={() => setPaqueteriaCorregida(c)}
+                              className={`w-full text-left text-xs px-2 py-1.5 rounded border ${paqueteriaCorregida?.id === c.id ? "border-black bg-white" : "border-slate-200"}`}
+                            >
+                              {c.paqueteria} — {c.servicio} (${Number(c.precio || 0).toFixed(2)})
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => avisarCambioCP(v)}
+                        disabled={!paqueteriaCorregida}
+                        className="w-full py-1.5 rounded-lg text-white text-xs font-medium disabled:opacity-40"
+                        style={{ background: SKY_DARK }}
+                      >
+                        Avisar al cliente por WhatsApp y dejar en espera de confirmación
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
 
       <div className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
@@ -9497,6 +9666,19 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
   const total = carrito.reduce((s, c) => s + Number(c.precio || 0), 0);
 
   const [subiendoReceta, setSubiendoReceta] = useState(false);
+  const [metodoEntrega, setMetodoEntrega] = useState("recoger"); // recoger | domicilio
+  const [cpEnvio, setCpEnvio] = useState("");
+  const [paqueteriaElegidaCheckout, setPaqueteriaElegidaCheckout] = useState(null);
+  const [envioSeleccionado, setEnvioSeleccionado] = useState(null);
+
+  const zonaDetectada = cpEnvio.length === 5 ? zonaPorCP(cpEnvio) : null;
+  const opcionesEnvioZona = zonaDetectada ? (config?.costosEnvio || []).filter((c) => c.zona === zonaDetectada) : [];
+  const opcionesPorPaqueteria = opcionesEnvioZona.reduce((grupos, c) => {
+    const clave = c.paqueteria || "Otro";
+    if (!grupos[clave]) grupos[clave] = [];
+    grupos[clave].push(c);
+    return grupos;
+  }, {});
 
   function subirReceta(e) {
     const file = e.target.files[0];
@@ -9510,6 +9692,7 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
   }
 
   const faltaReceta = requiereReceta && !receta;
+  const faltaEnvio = metodoEntrega === "domicilio" && (cpEnvio.length !== 5 || !envioSeleccionado);
 
   return (
     <DrawerLateral open={open} onClose={onClose} title="Confirmar pedido">
@@ -9551,6 +9734,80 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
           )}
 
           <div className="mb-4">
+            <p className="text-xs font-medium text-slate-500 uppercase mb-2">¿Cómo quieres recibir tu pedido?</p>
+            <div className="flex gap-2 mb-3">
+              <button
+                onClick={() => { setMetodoEntrega("recoger"); setEnvioSeleccionado(null); }}
+                className={`flex-1 py-2 rounded-full text-xs font-medium border ${metodoEntrega === "recoger" ? "bg-black text-white border-black" : "border-slate-300"}`}
+              >
+                Recoger en tienda
+              </button>
+              <button
+                onClick={() => setMetodoEntrega("domicilio")}
+                className={`flex-1 py-2 rounded-full text-xs font-medium border ${metodoEntrega === "domicilio" ? "bg-black text-white border-black" : "border-slate-300"}`}
+              >
+                Enviar a mi domicilio
+              </button>
+            </div>
+
+            {metodoEntrega === "domicilio" && (
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">Código postal de tu domicilio (obligatorio)</label>
+                <input
+                  value={cpEnvio}
+                  onChange={(e) => { setCpEnvio(e.target.value.replace(/\D/g, "").slice(0, 5)); setEnvioSeleccionado(null); }}
+                  placeholder="Ej. 72490"
+                  maxLength={5}
+                  className="w-full border rounded-lg px-3 py-2 text-sm mb-2"
+                />
+                {cpEnvio.length === 5 && opcionesEnvioZona.length === 0 && (
+                  <p className="text-xs text-amber-600 mb-2">Aún no tenemos tarifas de envío publicadas para tu zona — contáctanos para cotizarlo.</p>
+                )}
+                {cpEnvio.length === 5 && opcionesEnvioZona.length > 0 && !envioSeleccionado && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-slate-400">Estas son las opciones recomendadas para tu código postal:</p>
+                    {Object.entries(opcionesPorPaqueteria).map(([paqueteria, opciones]) => (
+                      <div key={paqueteria} className="border rounded-xl overflow-hidden">
+                        <button
+                          onClick={() => setPaqueteriaElegidaCheckout(paqueteriaElegidaCheckout === paqueteria ? null : paqueteria)}
+                          className="w-full flex items-center justify-between px-3 py-2"
+                          style={{ background: paqueteriaElegidaCheckout === paqueteria ? BEIGE : "white" }}
+                        >
+                          <span className="font-semibold text-xs">{paqueteria}</span>
+                          <span className="text-xs text-slate-400">Ver opciones</span>
+                        </button>
+                        {paqueteriaElegidaCheckout === paqueteria && (
+                          <div className="border-t">
+                            {opciones.map((c) => (
+                              <button
+                                key={c.id}
+                                onClick={() => setEnvioSeleccionado(c)}
+                                className="w-full flex items-center justify-between px-3 py-2 text-xs border-b last:border-b-0 hover:bg-slate-50"
+                              >
+                                <span>{c.servicio} · {c.peso}</span>
+                                <span className="font-medium">${Number(c.precio || 0).toFixed(2)}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {envioSeleccionado && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-emerald-800">{envioSeleccionado.paqueteria} — {envioSeleccionado.servicio}</p>
+                      <p className="text-xs text-emerald-700">${Number(envioSeleccionado.precio || 0).toFixed(2)} · C.P. {cpEnvio}</p>
+                    </div>
+                    <button onClick={() => setEnvioSeleccionado(null)} className="text-xs underline text-emerald-700">Cambiar</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="mb-4">
             <p className="text-xs font-medium text-slate-500 uppercase mb-2">¿Cómo quieres pagar?</p>
             <div className="flex gap-2 mb-3">
               <button
@@ -9583,16 +9840,37 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
               {!config?.paypalModoProduccion && (
                 <p className="text-xs text-amber-600 mb-2">Modo de pruebas: este cobro no usa dinero real todavía.</p>
               )}
-              <BotonesPayPal
-                clientId={config.paypalClientId}
-                total={total}
-                onAprobado={(detalles) => onConfirmar(receta, { pagadoEnLinea: true, formaPago: "paypal", referenciaPago: detalles?.id })}
-              />
+              {faltaEnvio ? (
+                <p className="text-xs text-red-500 mb-2">Elige primero cómo quieres recibir tu pedido.</p>
+              ) : (
+                <BotonesPayPal
+                  clientId={config.paypalClientId}
+                  total={total}
+                  onAprobado={(detalles) =>
+                    onConfirmar(receta, {
+                      pagadoEnLinea: true,
+                      formaPago: "paypal",
+                      referenciaPago: detalles?.id,
+                      metodoEntrega,
+                      cpEnvio: metodoEntrega === "domicilio" ? cpEnvio : "",
+                      envioSeleccionado: metodoEntrega === "domicilio" ? envioSeleccionado : null,
+                    })
+                  }
+                />
+              )}
             </>
           ) : (
             <BotonNegro
-              onClick={() => onConfirmar(receta, { pagadoEnLinea: false, formaPago: formaPagoEntrega })}
-              disabled={carrito.length === 0 || faltaReceta || subiendoReceta}
+              onClick={() =>
+                onConfirmar(receta, {
+                  pagadoEnLinea: false,
+                  formaPago: formaPagoEntrega,
+                  metodoEntrega,
+                  cpEnvio: metodoEntrega === "domicilio" ? cpEnvio : "",
+                  envioSeleccionado: metodoEntrega === "domicilio" ? envioSeleccionado : null,
+                })
+              }
+              disabled={carrito.length === 0 || faltaReceta || subiendoReceta || faltaEnvio}
             >
               Confirmar pedido
             </BotonNegro>
@@ -9771,6 +10049,10 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
       vendedor: "Tienda en línea",
       origen: "portal",
       recetaArchivo: receta,
+      metodoEntrega: infoPago?.metodoEntrega || "recoger",
+      cpEnvio: infoPago?.cpEnvio || "",
+      envioSeleccionado: infoPago?.envioSeleccionado || null,
+      envioEstatus: infoPago?.metodoEntrega === "domicilio" ? "por_verificar" : null,
       pagos: pagadoEnLinea
         ? [{ fecha: ahora, monto: total, formaPago: infoPago?.formaPago || "PayPal", tipo: "venta_completa" }]
         : [],
