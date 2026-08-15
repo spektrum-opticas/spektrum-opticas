@@ -237,8 +237,10 @@ function uid() {
 // Relaciona un código postal con la zona de envío que le corresponde, usando los
 // rangos conocidos de SEPOMEX para las ciudades que ya se manejan en Paquetería.
 // Es una aproximación por prefijo de C.P. — el personal siempre puede corregirla a mano.
-function zonaPorCP(cp) {
-  const n = parseInt(String(cp || "").slice(0, 2), 10);
+function zonaPorCP(cp, mapaCP) {
+  const cpLimpio = String(cp || "").trim().padStart(5, "0").slice(0, 5);
+  if (mapaCP && mapaCP[cpLimpio]) return mapaCP[cpLimpio];
+  const n = parseInt(cpLimpio.slice(0, 2), 10);
   if (isNaN(n)) return null;
   // Local y Regional: Puebla, Tlaxcala, Veracruz, CDMX, Edomex, Morelos
   if ([72, 90, 91, 92, 93, 94, 95, 96, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 50, 51, 52, 53, 54, 55, 56, 62].includes(n)) {
@@ -7433,6 +7435,54 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario, conf
             ? `Aviso: ${sinNombre} fila(s) no traían un nombre reconocible y se guardaron como pacientes separados con nombre temporal. Revisa el encabezado de la columna "Nombre" en tu archivo.`
             : "",
       });
+    } else if (categoria === "Códigos postales") {
+      const ESTADO_A_ZONA = {
+        puebla: "Local y Regional (Puebla, Tlaxcala, Veracruz, CDMX, Edomex, Morelos)",
+        tlaxcala: "Local y Regional (Puebla, Tlaxcala, Veracruz, CDMX, Edomex, Morelos)",
+        veracruz: "Local y Regional (Puebla, Tlaxcala, Veracruz, CDMX, Edomex, Morelos)",
+        "ciudad de mexico": "Local y Regional (Puebla, Tlaxcala, Veracruz, CDMX, Edomex, Morelos)",
+        cdmx: "Local y Regional (Puebla, Tlaxcala, Veracruz, CDMX, Edomex, Morelos)",
+        "distrito federal": "Local y Regional (Puebla, Tlaxcala, Veracruz, CDMX, Edomex, Morelos)",
+        "estado de mexico": "Local y Regional (Puebla, Tlaxcala, Veracruz, CDMX, Edomex, Morelos)",
+        "mexico": "Local y Regional (Puebla, Tlaxcala, Veracruz, CDMX, Edomex, Morelos)",
+        morelos: "Local y Regional (Puebla, Tlaxcala, Veracruz, CDMX, Edomex, Morelos)",
+        jalisco: "Nacional Estándar (Guadalajara, Monterrey, Querétaro, León, SLP, Mérida, etc.)",
+        "nuevo leon": "Nacional Estándar (Guadalajara, Monterrey, Querétaro, León, SLP, Mérida, etc.)",
+        queretaro: "Nacional Estándar (Guadalajara, Monterrey, Querétaro, León, SLP, Mérida, etc.)",
+        guanajuato: "Nacional Estándar (Guadalajara, Monterrey, Querétaro, León, SLP, Mérida, etc.)",
+        "san luis potosi": "Nacional Estándar (Guadalajara, Monterrey, Querétaro, León, SLP, Mérida, etc.)",
+        yucatan: "Nacional Estándar (Guadalajara, Monterrey, Querétaro, León, SLP, Mérida, etc.)",
+        "baja california": "Nacional a Extremos (Tijuana, Mexicali, Hermosillo, Cancún, Los Cabos, zonas alejadas)",
+        "baja california sur": "Nacional a Extremos (Tijuana, Mexicali, Hermosillo, Cancún, Los Cabos, zonas alejadas)",
+        sonora: "Nacional a Extremos (Tijuana, Mexicali, Hermosillo, Cancún, Los Cabos, zonas alejadas)",
+        "quintana roo": "Nacional a Extremos (Tijuana, Mexicali, Hermosillo, Cancún, Los Cabos, zonas alejadas)",
+      };
+      const mapaCP = { ...(config?.mapaCP || {}) };
+      let reconocidos = 0;
+      let sinReconocer = 0;
+      filas.forEach((f) => {
+        const cp = campo(f, "codigo postal", "código postal", "cp", "c.p.", "codigopostal");
+        const zonaDirecta = campo(f, "zona", "zona de envio", "zona de envío");
+        const estado = campo(f, "estado", "state");
+        if (!cp) return;
+        const cpLimpio = String(cp).trim().padStart(5, "0").slice(0, 5);
+        let zona = zonaDirecta || (estado ? ESTADO_A_ZONA[normalizarClave(estado)] : null);
+        if (zona) {
+          mapaCP[cpLimpio] = zona;
+          reconocidos++;
+        } else {
+          sinReconocer++;
+        }
+      });
+      setConfig({ ...config, mapaCP });
+      setResultado({
+        tipo: categoria,
+        cantidad: reconocidos,
+        aviso:
+          sinReconocer > 0
+            ? `Aviso: ${sinReconocer} código(s) postal(es) no traían ni "Zona" ni un "Estado" reconocible, así que no se pudieron enlazar — agrégales una columna "Zona" con el nombre exacto de una de tus 3 zonas de Paquetería, o una columna "Estado".`
+            : "",
+      });
     } else {
       const key = { Armazones: "armazones", "Lentes graduados": "lentesGraduados", "Lentes de contacto": "lentesContacto", "Lentes solares": "lentesSolares" }[categoria];
       const listaInv = inventario[key] || [];
@@ -7493,10 +7543,14 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario, conf
             <option>Lentes graduados</option>
             <option>Lentes de contacto</option>
             <option>Lentes solares</option>
+            <option>Códigos postales</option>
           </select>
         </label>
         <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" onChange={manejarArchivo} className="text-sm" />
-        <p className="text-xs text-slate-400 mt-1">Acepta CSV o Excel (.xlsx/.xls) con encabezados (nombre, telefono, email... o nombre, precio, existencias...)</p>
+        <p className="text-xs text-slate-400 mt-1">
+          Acepta CSV o Excel (.xlsx/.xls) con encabezados (nombre, telefono, email... o nombre, precio, existencias...
+          {categoria === "Códigos postales" && " o código postal, estado/zona..."})
+        </p>
 
         {progreso !== null && (
           <div className="mt-4">
@@ -9671,7 +9725,7 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
   const [paqueteriaElegidaCheckout, setPaqueteriaElegidaCheckout] = useState(null);
   const [envioSeleccionado, setEnvioSeleccionado] = useState(null);
 
-  const zonaDetectada = cpEnvio.length === 5 ? zonaPorCP(cpEnvio) : null;
+  const zonaDetectada = cpEnvio.length === 5 ? zonaPorCP(cpEnvio, config?.mapaCP) : null;
   const opcionesEnvioZona = zonaDetectada ? (config?.costosEnvio || []).filter((c) => c.zona === zonaDetectada) : [];
   const opcionesPorPaqueteria = opcionesEnvioZona.reduce((grupos, c) => {
     const clave = c.paqueteria || "Otro";
