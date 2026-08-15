@@ -7434,7 +7434,6 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
           ["devolucionesGarantias", "Devoluciones y garantías"],
           ["terminosCondiciones", "Términos y condiciones"],
           ["lentesComputadora", "Lentes pa' la compu"],
-          ["facturacionElectronica", "Facturación electrónica"],
         ].map(([clave, label]) => (
           <div key={clave}>
             <label className="text-xs font-medium text-slate-500 uppercase block mb-1">{label}</label>
@@ -8430,7 +8429,7 @@ function MapaUbicacion({ direccion }) {
 }
 
 /* ---------- Pie de página ---------- */
-function TiendaFooter({ config, setConfig, onIrInicio, onIrCategoria, onAbrirCuenta, onAbrirExamen, onAbrirReceta, onAbrirRastreo }) {
+function TiendaFooter({ config, setConfig, onIrInicio, onIrCategoria, onAbrirCuenta, onAbrirExamen, onAbrirReceta, onAbrirRastreo, onAbrirFacturacion }) {
   const [paginaAbierta, setPaginaAbierta] = useState(null); // {titulo, contenido}
   const [mapaAbierto, setMapaAbierto] = useState(false);
   const [correoNewsletter, setCorreoNewsletter] = useState("");
@@ -8488,7 +8487,7 @@ function TiendaFooter({ config, setConfig, onIrInicio, onIrCategoria, onAbrirCue
           <button onClick={() => abrirPagina("devolucionesGarantias", "Devoluciones y garantías")} className={enlace}>Devoluciones y garantías</button>
           <button onClick={() => abrirPagina("terminosCondiciones", "Términos y condiciones")} className={enlace}>Términos y condiciones</button>
           <button onClick={() => abrirPagina("lentesComputadora", "Lentes pa' la compu")} className={enlace}>Lentes pa' la compu</button>
-          <button onClick={() => abrirPagina("facturacionElectronica", "Facturación electrónica")} className={enlace}>Facturación electrónica</button>
+          <button onClick={onAbrirFacturacion} className={enlace}>Facturación electrónica</button>
         </div>
 
         <div className="flex flex-col gap-3">
@@ -9770,6 +9769,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         onAbrirExamen={abrirExamen}
         onAbrirReceta={() => setRecetaInfoAbierto(true)}
         onAbrirRastreo={() => setRastreoAbierto(true)}
+        onAbrirFacturacion={() => (sesionCliente ? setFacturacionAbierta(true) : abrirAcceso("cliente"))}
       />
 
       <TiendaRastreoPedido
