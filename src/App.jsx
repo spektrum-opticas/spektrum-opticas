@@ -820,6 +820,10 @@ function useAsistenciaStorage() {
   return useRowStorage("asistencia");
 }
 
+function useFacturasStorage() {
+  return useRowStorage("facturas");
+}
+
 function Icon({ name, size = 20 }) {
   const map = {
     calendar: Calendar,
@@ -846,6 +850,7 @@ const MODULOS_ASIGNABLES = [
   { id: "laboratorio", label: "Laboratorio" },
   { id: "entregas", label: "Entregas y Cobranza" },
   { id: "paqueteria", label: "Paquetería" },
+  { id: "facturacion", label: "Facturación" },
   { id: "reportes", label: "Reportes (Corte diario/mensual)" },
   { id: "importar", label: "Importar datos" },
   { id: "dashboard", label: "Dashboard" },
@@ -860,6 +865,7 @@ function Ribbon({ current, onSelect, sesion, badges }) {
     { id: "laboratorio", label: "Laboratorio", icon: "lab" },
     { id: "entregas", label: "Entregas y Cobranza", icon: "truck" },
     { id: "paqueteria", label: "Paquetería", icon: "truck" },
+    { id: "facturacion", label: "Facturación", icon: "report" },
     { id: "reportes", label: "Reportes", icon: "report" },
     { id: "importar", label: "Importar datos", icon: "upload" },
     { id: "dashboard", label: "Dashboard", icon: "report" },
@@ -4795,6 +4801,171 @@ function HistorialAbonosModal({ venta, config, onCerrar }) {
   );
 }
 
+function FacturacionView({ facturas, setFacturas, ventas, pacientes }) {
+  const [tab, setTab] = useState("pendientes");
+  const [creandoManual, setCreandoManual] = useState(false);
+  const [subiendoArchivo, setSubiendoArchivo] = useState(null); // id de la solicitud a la que se le está subiendo archivo
+  const [nueva, setNueva] = useState({ folio: "", rfc: "", razonSocial: "", regimenFiscal: "", usoCFDI: "", codigoPostal: "", correo: "" });
+
+  const pendientes = facturas.filter((f) => f.estatus === "pendiente");
+  const facturadas = facturas.filter((f) => f.estatus === "facturada");
+
+  function marcarFacturada(id) {
+    setFacturas(facturas.map((f) => (f.id === id ? { ...f, estatus: "facturada" } : f)));
+    mostrarToast("Marcada como facturada ✓");
+  }
+
+  function subirArchivoFactura(id, file) {
+    subirImagenStorage(file, "facturas").then((url) => {
+      if (url) {
+        setFacturas(facturas.map((f) => (f.id === id ? { ...f, archivo: url, estatus: "facturada" } : f)));
+        mostrarToast("Archivo de factura subido ✓");
+      } else {
+        mostrarToast("No se pudo subir el archivo. Intenta de nuevo.", "error");
+      }
+      setSubiendoArchivo(null);
+    });
+  }
+
+  function eliminarSolicitud(id) {
+    setFacturas(facturas.filter((f) => f.id !== id));
+  }
+
+  function crearManual() {
+    if (!nueva.folio || !nueva.rfc || !nueva.razonSocial || !nueva.regimenFiscal || !nueva.usoCFDI) return;
+    const venta = ventas.find((v) => v.folio === Number(nueva.folio));
+    const paciente = venta ? pacientes.find((p) => p.id === venta.pacienteId) : null;
+    setFacturas([
+      ...facturas,
+      {
+        id: uid(),
+        folio: Number(nueva.folio),
+        pacienteId: venta?.pacienteId || null,
+        nombreCliente: venta?.nombreCliente || paciente?.nombre || "Cliente de mostrador",
+        total: venta?.total || 0,
+        ...nueva,
+        fecha: new Date().toISOString(),
+        estatus: "pendiente",
+        archivo: "",
+      },
+    ]);
+    setNueva({ folio: "", rfc: "", razonSocial: "", regimenFiscal: "", usoCFDI: "", codigoPostal: "", correo: "" });
+    setCreandoManual(false);
+    mostrarToast("Solicitud de factura creada ✓");
+  }
+
+  const lista = tab === "pendientes" ? pendientes : facturadas;
+
+  return (
+    <div className="p-4">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+        <h2 className="font-semibold text-lg">Facturación</h2>
+        <button onClick={() => setCreandoManual(true)} className="text-xs px-3 py-1.5 rounded-full text-white" style={{ background: SKY_DARK }}>
+          + Crear solicitud manual
+        </button>
+      </div>
+
+      <p className="text-xs text-slate-400 mb-4">
+        Aquí gestionas las solicitudes de factura de tus clientes (o las que captures tú mismo para un cliente de mostrador). El timbrado fiscal real ante el SAT se hace con tu proveedor autorizado (PAC); aquí subes el PDF/XML ya generado para compartirlo con el cliente.
+      </p>
+
+      <div className="flex gap-2 mb-4">
+        <button onClick={() => setTab("pendientes")} className={`px-3 py-1.5 rounded-full text-xs font-medium ${tab === "pendientes" ? "text-white" : "bg-white border"}`} style={tab === "pendientes" ? { background: "#dc2626" } : {}}>
+          Pendientes ({pendientes.length})
+        </button>
+        <button onClick={() => setTab("facturadas")} className={`px-3 py-1.5 rounded-full text-xs font-medium ${tab === "facturadas" ? "text-white" : "bg-white border"}`} style={tab === "facturadas" ? { background: "#059669" } : {}}>
+          Facturadas ({facturadas.length})
+        </button>
+      </div>
+
+      <div className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead style={{ background: BEIGE }}>
+            <tr>
+              <th className="text-left px-3 py-2">Folio</th>
+              <th className="text-left px-3 py-2">Cliente</th>
+              <th className="text-left px-3 py-2">RFC</th>
+              <th className="text-left px-3 py-2">Razón social</th>
+              <th className="text-left px-3 py-2">Régimen / Uso CFDI</th>
+              <th className="text-left px-3 py-2">Correo</th>
+              <th className="text-left px-3 py-2">Fecha solicitud</th>
+              <th className="px-3 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {lista.map((f) => (
+              <tr key={f.id} className="border-t align-top">
+                <td className="px-3 py-2 font-medium">#{f.folio}</td>
+                <td className="px-3 py-2">{f.nombreCliente}</td>
+                <td className="px-3 py-2">{f.rfc}</td>
+                <td className="px-3 py-2 max-w-[160px] truncate" title={f.razonSocial}>{f.razonSocial}</td>
+                <td className="px-3 py-2 text-xs text-slate-500">{f.regimenFiscal}<br />{f.usoCFDI}</td>
+                <td className="px-3 py-2">{f.correo}</td>
+                <td className="px-3 py-2 text-xs text-slate-500">{new Date(f.fecha).toLocaleDateString("es-MX")}</td>
+                <td className="px-3 py-2 text-right whitespace-nowrap">
+                  {f.estatus === "pendiente" ? (
+                    <div className="flex flex-col gap-1 items-end">
+                      <label className="text-xs px-2 py-1 rounded bg-slate-800 text-white cursor-pointer">
+                        Subir factura
+                        <input
+                          type="file"
+                          accept=".pdf,.xml,image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            setSubiendoArchivo(f.id);
+                            subirArchivoFactura(f.id, file);
+                          }}
+                        />
+                      </label>
+                      {subiendoArchivo === f.id && <span className="text-xs text-slate-400">Subiendo…</span>}
+                      <button onClick={() => marcarFacturada(f.id)} className="text-xs text-slate-500 underline">Marcar sin archivo</button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1 items-end">
+                      {f.archivo && <a href={f.archivo} target="_blank" rel="noreferrer" className="text-xs text-sky-700 underline">Ver archivo</a>}
+                      <button onClick={() => eliminarSolicitud(f.id)} className="text-xs text-red-400">Eliminar</button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {lista.length === 0 && (
+              <tr><td colSpan={8} className="text-center text-slate-400 py-6">Sin solicitudes {tab === "pendientes" ? "pendientes" : "facturadas"}.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <Modal open={creandoManual} onClose={() => setCreandoManual(false)} title="Crear solicitud de factura manual">
+        <Field label="Folio de la venta" type="number" value={nueva.folio} onChange={(e) => setNueva({ ...nueva, folio: e.target.value })} />
+        <Field label="RFC" value={nueva.rfc} onChange={(e) => setNueva({ ...nueva, rfc: e.target.value.toUpperCase() })} />
+        <Field label="Razón social" value={nueva.razonSocial} onChange={(e) => setNueva({ ...nueva, razonSocial: e.target.value })} />
+        <label className="block mb-3">
+          <span className="text-xs font-medium text-slate-500 uppercase">Régimen fiscal</span>
+          <select value={nueva.regimenFiscal} onChange={(e) => setNueva({ ...nueva, regimenFiscal: e.target.value })} className="mt-1 w-full border rounded-lg px-2 py-2 text-sm">
+            <option value="">Elige una opción…</option>
+            {REGIMENES_FISCALES.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </label>
+        <label className="block mb-3">
+          <span className="text-xs font-medium text-slate-500 uppercase">Uso de CFDI</span>
+          <select value={nueva.usoCFDI} onChange={(e) => setNueva({ ...nueva, usoCFDI: e.target.value })} className="mt-1 w-full border rounded-lg px-2 py-2 text-sm">
+            <option value="">Elige una opción…</option>
+            {USOS_CFDI.map((u) => <option key={u} value={u}>{u}</option>)}
+          </select>
+        </label>
+        <Field label="Código postal fiscal" value={nueva.codigoPostal} onChange={(e) => setNueva({ ...nueva, codigoPostal: e.target.value })} />
+        <Field label="Correo del cliente" value={nueva.correo} onChange={(e) => setNueva({ ...nueva, correo: e.target.value })} />
+        <button onClick={crearManual} className="w-full py-2 rounded-lg text-white text-sm font-medium" style={{ background: SKY_DARK }}>
+          Crear solicitud
+        </button>
+      </Modal>
+    </div>
+  );
+}
+
 function PaqueteriaView({ config, setConfig }) {
   const [nuevoEnvio, setNuevoEnvio] = useState({ zona: "", paqueteria: "", servicio: "", peso: "", precio: "", garantia: "" });
 
@@ -7777,7 +7948,7 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
 }
 
 /* ---------- Header de la tienda ---------- */
-function TiendaHeader({ config, sesionCliente, sesionStaff, carritoCount, onAbrirCarrito, onAbrirAcceso, onIrCategoria, onIrInicio, onVolverPanel, categoriaActiva, onCerrarSesionCliente }) {
+function TiendaHeader({ config, sesionCliente, sesionStaff, carritoCount, onAbrirCarrito, onAbrirAcceso, onIrCategoria, onIrInicio, onVolverPanel, onAbrirFacturacion, categoriaActiva, onCerrarSesionCliente }) {
   const [menuCuentaAbierto, setMenuCuentaAbierto] = useState(false);
   const categorias = [
     { key: "armazones", label: "Armazones" },
@@ -7823,6 +7994,15 @@ function TiendaHeader({ config, sesionCliente, sesionStaff, carritoCount, onAbri
                 <div className="fixed inset-0 z-40" onClick={() => setMenuCuentaAbierto(false)} />
                 <div className="absolute right-0 top-full mt-2 bg-white border rounded-xl shadow-lg py-2 z-50" style={{ minWidth: 180 }}>
                   <p className="px-4 py-1.5 text-xs text-slate-400 truncate">{sesionCliente.nombre}</p>
+                  <button
+                    onClick={() => {
+                      setMenuCuentaAbierto(false);
+                      onAbrirFacturacion();
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50"
+                  >
+                    Mi facturación
+                  </button>
                   <button
                     onClick={() => {
                       setMenuCuentaAbierto(false);
@@ -7986,6 +8166,148 @@ function ContenidoPaginaDrawer({ open, onClose, titulo, contenido }) {
 }
 
 /* ---------- Rastrear mi pedido ---------- */
+/* ---------- Facturación (solicitud del cliente) ---------- */
+const REGIMENES_FISCALES = [
+  "601 - General de Ley Personas Morales",
+  "603 - Personas Morales con Fines no Lucrativos",
+  "605 - Sueldos y Salarios e Ingresos Asimilados a Salarios",
+  "606 - Arrendamiento",
+  "608 - Demás ingresos",
+  "612 - Personas Físicas con Actividades Empresariales y Profesionales",
+  "614 - Ingresos por intereses",
+  "616 - Sin obligaciones fiscales",
+  "621 - Incorporación Fiscal",
+  "625 - Régimen de las Actividades Empresariales con ingresos a través de Plataformas Tecnológicas",
+  "626 - Régimen Simplificado de Confianza",
+];
+const USOS_CFDI = [
+  "G01 - Adquisición de mercancías",
+  "G03 - Gastos en general",
+  "D01 - Honorarios médicos, dentales y gastos hospitalarios",
+  "S01 - Sin efectos fiscales",
+  "CP01 - Pagos",
+];
+
+function TiendaFacturacion({ open, onClose, sesionCliente, ventas, facturas, setFacturas }) {
+  const [paso, setPaso] = useState("lista"); // lista | formulario
+  const [folioSel, setFolioSel] = useState(null);
+  const [datos, setDatos] = useState({ rfc: "", razonSocial: "", regimenFiscal: "", usoCFDI: "", codigoPostal: "", correo: sesionCliente?.mail || "" });
+
+  const misVentas = sesionCliente
+    ? ventas.filter((v) => v.pacienteId === sesionCliente.pacienteId && (v.estatus === "venta" || v.estatus === "devolucion"))
+    : [];
+  const misSolicitudes = sesionCliente ? facturas.filter((f) => f.pacienteId === sesionCliente.pacienteId) : [];
+
+  function solicitarPara(folio) {
+    setFolioSel(folio);
+    setPaso("formulario");
+  }
+
+  function enviarSolicitud() {
+    if (!datos.rfc || !datos.razonSocial || !datos.regimenFiscal || !datos.usoCFDI || !datos.codigoPostal) return;
+    const venta = misVentas.find((v) => v.folio === folioSel);
+    setFacturas([
+      ...facturas,
+      {
+        id: uid(),
+        folio: folioSel,
+        pacienteId: sesionCliente.pacienteId,
+        nombreCliente: sesionCliente.nombre,
+        total: venta?.total || 0,
+        ...datos,
+        fecha: new Date().toISOString(),
+        estatus: "pendiente",
+        archivo: "",
+      },
+    ]);
+    mostrarToast("Solicitud de factura enviada ✓");
+    setPaso("lista");
+    setFolioSel(null);
+  }
+
+  return (
+    <DrawerLateral open={open} onClose={() => { onClose(); setPaso("lista"); }} title="Mi facturación">
+      {paso === "lista" ? (
+        <div>
+          <p className="text-sm text-slate-500 mb-4">
+            Elige el pedido que quieres facturar. Una vez que enviamos tu solicitud, nuestro equipo la revisa y te compartimos tu factura por este mismo medio.
+          </p>
+          <p className="text-xs font-medium text-slate-500 uppercase mb-2">Tus compras</p>
+          <div className="space-y-2 mb-6">
+            {misVentas.map((v) => {
+              const yaSolicitada = misSolicitudes.find((f) => f.folio === v.folio);
+              return (
+                <div key={v.folio} className="border rounded-lg p-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Folio #{v.folio}</p>
+                    <p className="text-xs text-slate-400">{new Date(v.fecha).toLocaleDateString("es-MX")} · ${v.total?.toFixed(2)}</p>
+                  </div>
+                  {yaSolicitada ? (
+                    yaSolicitada.estatus === "facturada" ? (
+                      <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">Facturada</span>
+                    ) : (
+                      <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700">Pendiente</span>
+                    )
+                  ) : (
+                    <button onClick={() => solicitarPara(v.folio)} className="text-xs px-3 py-1.5 rounded-full text-white" style={{ background: SKY_DARK }}>
+                      Solicitar factura
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            {misVentas.length === 0 && <p className="text-sm text-slate-400">Aún no tienes compras para facturar.</p>}
+          </div>
+
+          {misSolicitudes.some((f) => f.estatus === "facturada") && (
+            <>
+              <p className="text-xs font-medium text-slate-500 uppercase mb-2">Facturas listas</p>
+              <div className="space-y-2">
+                {misSolicitudes.filter((f) => f.estatus === "facturada").map((f) => (
+                  <div key={f.id} className="border rounded-lg p-3 flex items-center justify-between">
+                    <p className="text-sm">Folio #{f.folio}</p>
+                    {f.archivo ? (
+                      <a href={f.archivo} target="_blank" rel="noreferrer" className="text-xs text-sky-700 underline">Descargar</a>
+                    ) : (
+                      <span className="text-xs text-slate-400">Revisa tu correo</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+        <div>
+          <button onClick={() => setPaso("lista")} className="text-xs text-slate-500 underline mb-3">← Elegir otro pedido</button>
+          <p className="text-sm font-medium mb-3">Datos fiscales para el folio #{folioSel}</p>
+          <Field label="RFC" value={datos.rfc} onChange={(e) => setDatos({ ...datos, rfc: e.target.value.toUpperCase() })} />
+          <Field label="Razón social (tal como aparece en tu constancia fiscal)" value={datos.razonSocial} onChange={(e) => setDatos({ ...datos, razonSocial: e.target.value })} />
+          <label className="block mb-3">
+            <span className="text-xs font-medium text-slate-500 uppercase">Régimen fiscal</span>
+            <select value={datos.regimenFiscal} onChange={(e) => setDatos({ ...datos, regimenFiscal: e.target.value })} className="mt-1 w-full border rounded-lg px-2 py-2 text-sm">
+              <option value="">Elige una opción…</option>
+              {REGIMENES_FISCALES.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </label>
+          <label className="block mb-3">
+            <span className="text-xs font-medium text-slate-500 uppercase">Uso de CFDI</span>
+            <select value={datos.usoCFDI} onChange={(e) => setDatos({ ...datos, usoCFDI: e.target.value })} className="mt-1 w-full border rounded-lg px-2 py-2 text-sm">
+              <option value="">Elige una opción…</option>
+              {USOS_CFDI.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </label>
+          <Field label="Código postal fiscal" value={datos.codigoPostal} onChange={(e) => setDatos({ ...datos, codigoPostal: e.target.value })} />
+          <Field label="Correo para enviarte la factura" value={datos.correo} onChange={(e) => setDatos({ ...datos, correo: e.target.value })} />
+          <BotonNegro onClick={enviarSolicitud} disabled={!datos.rfc || !datos.razonSocial || !datos.regimenFiscal || !datos.usoCFDI || !datos.codigoPostal}>
+            Enviar solicitud
+          </BotonNegro>
+        </div>
+      )}
+    </DrawerLateral>
+  );
+}
+
 function TiendaRastreoPedido({ open, onClose, ventas, pacientes, laboratorio }) {
   const [folio, setFolio] = useState("");
   const [contacto, setContacto] = useState("");
@@ -9216,7 +9538,7 @@ function TiendaAgendar({ open, onClose, agenda, setAgenda, pacientes, setPacient
 }
 
 /* ---------- Orquestador principal de la tienda ---------- */
-function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas, laboratorio, setLaboratorio, inventario, config, setConfig, usuarios, setUsuarios, onLoginEmpleado, sesionStaff, onVolverPanel }) {
+function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas, laboratorio, setLaboratorio, facturas, setFacturas, inventario, config, setConfig, usuarios, setUsuarios, onLoginEmpleado, sesionStaff, onVolverPanel }) {
   const [vista, setVista] = useState("inicio"); // inicio | categoria | producto
   const [categoriaActiva, setCategoriaActiva] = useState("armazones");
   const [carrito, setCarrito] = useState([]);
@@ -9228,6 +9550,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
   const [agendarAbierto, setAgendarAbierto] = useState(false);
   const [recetaInfoAbierto, setRecetaInfoAbierto] = useState(false);
   const [rastreoAbierto, setRastreoAbierto] = useState(false);
+  const [facturacionAbierta, setFacturacionAbierta] = useState(false);
   const [sesionCliente, setSesionCliente] = useSesionCliente();
   const [mensajeFinal, setMensajeFinal] = useState("");
   const [whatsappPendiente, setWhatsappPendiente] = useState(null); // { telefono, mensaje }
@@ -9367,11 +9690,21 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         onIrCategoria={irCategoria}
         onIrInicio={() => setVista("inicio")}
         onVolverPanel={onVolverPanel}
+        onAbrirFacturacion={() => (sesionCliente ? setFacturacionAbierta(true) : abrirAcceso("cliente"))}
         categoriaActiva={vista === "categoria" ? categoriaActiva : null}
         onCerrarSesionCliente={() => {
           setSesionCliente(null);
           setMensajeFinal("Cerraste sesión correctamente.");
         }}
+      />
+
+      <TiendaFacturacion
+        open={facturacionAbierta}
+        onClose={() => setFacturacionAbierta(false)}
+        sesionCliente={sesionCliente}
+        ventas={ventas}
+        facturas={facturas}
+        setFacturas={setFacturas}
       />
 
       {mensajeFinal && (
@@ -10159,6 +10492,7 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, ca
 export default function App() {
   const [pacientes, setPacientes, loadedP, statusP, errorP, retryP, cargarP] = usePacientesStorage();
   const [asistencia, setAsistencia, loadedAs] = useAsistenciaStorage();
+  const [facturas, setFacturas, loadedFac] = useFacturasStorage();
   const [inventario, setInventario, loadedI, statusI, errorI, retryI, cargarI] = useStoredState(STORAGE_KEYS.inventario, emptyInventario());
   const [agenda, setAgenda, loadedA, statusA, errorA, retryA, cargarA] = useStoredState(STORAGE_KEYS.agenda, []);
   const [ventas, setVentas, loadedV, statusV, errorV, retryV, cargarV] = useStoredState(STORAGE_KEYS.ventas, []);
@@ -10280,6 +10614,8 @@ export default function App() {
           setVentas={setVentas}
           laboratorio={laboratorio}
           setLaboratorio={setLaboratorio}
+          facturas={facturas}
+          setFacturas={setFacturas}
           inventario={inventario}
           config={config}
           setConfig={setConfig}
@@ -10406,6 +10742,7 @@ export default function App() {
           />
         )}
         {seccion === "paqueteria" && <PaqueteriaView config={config} setConfig={setConfig} />}
+        {seccion === "facturacion" && <FacturacionView facturas={facturas} setFacturas={setFacturas} ventas={ventas} pacientes={pacientes} />}
         {seccion === "reportes" && (
           <ReportesView
             ventas={ventas}
