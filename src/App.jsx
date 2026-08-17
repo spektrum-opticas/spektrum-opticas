@@ -185,6 +185,7 @@ const emptyConfig = () => ({
   paypalClientId: "",
   paypalModoProduccion: false,
   costosEnvio: [],
+  promocion: { activa: false, titulo: "15% DE DESCUENTO", porcentaje: 15, fechaInicio: "", fechaFin: "", bases: "", codigo: "" },
 });
 
 // --- Avisos ("toast") reutilizables: cualquier componente puede llamar mostrarToast(...)
@@ -7755,6 +7756,70 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
             className="w-full border rounded-lg px-3 py-2 text-sm"
           />
         </div>
+
+        <div className="bg-white border rounded-xl p-4 space-y-3">
+          <h3 className="font-semibold text-slate-700 mb-1">Cupón / promoción sobre la imagen principal</h3>
+          <p className="text-xs text-slate-500">
+            Se muestra junto al eslogan, en la misma zona de la imagen principal — pero solo mientras esté "Activo" Y dentro de las fechas de vigencia que pongas. Fuera de esas fechas, desaparece solo, aunque lo dejes marcado como activo.
+          </p>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={!!local.promocion?.activa}
+              onChange={(e) => setLocal({ ...local, promocion: { ...local.promocion, activa: e.target.checked } })}
+            />
+            Cupón activo
+          </label>
+          <Field
+            label="Texto del cupón (lo que se ve en grande)"
+            value={local.promocion?.titulo || ""}
+            onChange={(e) => setLocal({ ...local, promocion: { ...local.promocion, titulo: e.target.value } })}
+          />
+          <Field
+            label="Porcentaje de descuento"
+            type="number"
+            value={local.promocion?.porcentaje ?? ""}
+            onChange={(e) => setLocal({ ...local, promocion: { ...local.promocion, porcentaje: e.target.value } })}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-xs font-medium text-slate-500 uppercase">Vigente desde</span>
+              <input
+                type="date"
+                value={local.promocion?.fechaInicio || ""}
+                onChange={(e) => setLocal({ ...local, promocion: { ...local.promocion, fechaInicio: e.target.value } })}
+                className="mt-1 w-full border rounded-lg px-2 py-2 text-sm"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-slate-500 uppercase">Vigente hasta</span>
+              <input
+                type="date"
+                value={local.promocion?.fechaFin || ""}
+                onChange={(e) => setLocal({ ...local, promocion: { ...local.promocion, fechaFin: e.target.value } })}
+                className="mt-1 w-full border rounded-lg px-2 py-2 text-sm"
+              />
+            </label>
+          </div>
+          <Field
+            label="Código de cupón (opcional)"
+            value={local.promocion?.codigo || ""}
+            onChange={(e) => setLocal({ ...local, promocion: { ...local.promocion, codigo: e.target.value } })}
+          />
+          <label className="block">
+            <span className="text-xs font-medium text-slate-500 uppercase">Bases y condiciones</span>
+            <textarea
+              value={local.promocion?.bases || ""}
+              onChange={(e) => setLocal({ ...local, promocion: { ...local.promocion, bases: e.target.value } })}
+              rows={3}
+              placeholder="Ej. Válido en compras mayores a $500, no acumulable con otras promociones, aplica solo en armazones..."
+              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
+            />
+          </label>
+          <button onClick={() => { setConfig(local); mostrarToast("Cupón guardado ✓"); }} className="px-4 py-2 rounded-lg text-white text-sm" style={{ background: SKY_DARK }}>
+            Guardar cupón
+          </button>
+        </div>
         <div>
           <label className="text-xs font-medium text-slate-500 uppercase block mb-1">Imagen de cada categoría</label>
           <p className="text-xs text-slate-400 mb-2">Se muestra como encabezado al entrar a cada categoría de la tienda. Mientras no la subas, se ve un fondo liso.</p>
@@ -8513,6 +8578,14 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
   const media = armazones.filter((a) => a.tipoLinea === "Armazón Línea Estándar");
   const economica = armazones.filter((a) => a.tipoLinea === "Armazón Línea Económica");
 
+  const promo = config?.promocion;
+  const hoy = fechaISO(new Date());
+  const promoVigente =
+    !!promo?.activa &&
+    (!promo.fechaInicio || hoy >= promo.fechaInicio) &&
+    (!promo.fechaFin || hoy <= promo.fechaFin);
+  const [verBasesPromo, setVerBasesPromo] = useState(false);
+
   return (
     <div>
       {/* Vista para celular: imagen centrada en la chica + eslogan/botones debajo, sin encimarse */}
@@ -8532,6 +8605,15 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
           </div>
         )}
         <div className="text-center px-4 py-6">
+          {promoVigente && (
+            <button
+              onClick={() => setVerBasesPromo(true)}
+              className="inline-block mb-3 px-4 py-1.5 rounded-full text-xs font-bold text-white"
+              style={{ background: "#dc2626" }}
+            >
+              🏷️ {promo.titulo || `${promo.porcentaje}% DE DESCUENTO`}
+            </button>
+          )}
           <p className="font-serif font-semibold mb-4 text-3xl leading-tight whitespace-pre-line">{config?.eslogan || "Mi mirada. Mi estilo"}</p>
           <div className="flex flex-col gap-2 max-w-[220px] mx-auto">
             <button onClick={onAgendar} className="px-5 py-2.5 rounded-full bg-white border border-black text-sm font-medium">Agendar examen</button>
@@ -8549,7 +8631,16 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
             <p className="text-xs text-slate-300">Sube tu imagen principal desde Configuración</p>
           </div>
         )}
-        <div className="absolute -translate-x-1/2 left-[80%] top-0 bottom-[38%] max-w-xs md:max-w-sm px-4 flex items-center">
+        <div className="absolute -translate-x-1/2 left-[80%] top-0 bottom-[38%] max-w-xs md:max-w-sm px-4 flex flex-col items-start justify-center">
+          {promoVigente && (
+            <button
+              onClick={() => setVerBasesPromo(true)}
+              className="mb-3 px-4 py-1.5 rounded-full text-xs font-bold text-white"
+              style={{ background: "#dc2626" }}
+            >
+              🏷️ {promo.titulo || `${promo.porcentaje}% DE DESCUENTO`}
+            </button>
+          )}
           <p className="font-serif font-semibold text-left whitespace-pre-line" style={{ fontSize: "clamp(30px, 4vw, 50px)", lineHeight: 1.15 }}>
             {config?.eslogan || "Mi mirada. Mi estilo"}
           </p>
@@ -8579,6 +8670,18 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
           </button>
         ))}
       </div>
+
+      <Modal open={verBasesPromo} onClose={() => setVerBasesPromo(false)} title="Detalles de la promoción">
+        <p className="text-lg font-bold text-red-600 mb-2">{promo?.titulo || `${promo?.porcentaje}% DE DESCUENTO`}</p>
+        {promo?.codigo && <p className="text-sm mb-2">Código: <b>{promo.codigo}</b></p>}
+        {(promo?.fechaInicio || promo?.fechaFin) && (
+          <p className="text-xs text-slate-500 mb-2">
+            Vigencia: {promo.fechaInicio ? new Date(promo.fechaInicio + "T00:00:00").toLocaleDateString("es-MX") : "—"} al{" "}
+            {promo.fechaFin ? new Date(promo.fechaFin + "T00:00:00").toLocaleDateString("es-MX") : "—"}
+          </p>
+        )}
+        <p className="text-sm text-slate-600 whitespace-pre-line">{promo?.bases || "Consulta con nosotros los detalles y restricciones de esta promoción."}</p>
+      </Modal>
     </div>
   );
 }
