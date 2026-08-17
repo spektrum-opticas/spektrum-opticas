@@ -186,6 +186,7 @@ const emptyConfig = () => ({
   paypalModoProduccion: false,
   costosEnvio: [],
   promocion: { activa: false, titulo: "15% DE DESCUENTO", porcentaje: 15, fechaInicio: "", fechaFin: "", bases: "", codigo: "" },
+  avisoLegalBanner: "",
 });
 
 // --- Avisos ("toast") reutilizables: cualquier componente puede llamar mostrarToast(...)
@@ -7821,6 +7822,19 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
           </button>
         </div>
         <div>
+          <label className="text-xs font-medium text-slate-500 uppercase block mb-1">Aviso legal bajo la imagen principal</label>
+          <p className="text-xs text-slate-400 mb-1">
+            Espacio para una frase corta por cuestiones normativas de protección al consumidor (por ejemplo, sobre precios, vigencias o promociones). Se muestra chico, justo debajo del banner.
+          </p>
+          <textarea
+            value={local.avisoLegalBanner || ""}
+            onChange={(e) => setLocal({ ...local, avisoLegalBanner: e.target.value })}
+            rows={2}
+            placeholder="Ej. Precios sujetos a cambio sin previo aviso. Promoción vigente hasta agotar existencias."
+            className="w-full border rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
           <label className="text-xs font-medium text-slate-500 uppercase block mb-1">Imagen de cada categoría</label>
           <p className="text-xs text-slate-400 mb-2">Se muestra como encabezado al entrar a cada categoría de la tienda. Mientras no la subas, se ve un fondo liso.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -8604,14 +8618,22 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
             <p className="text-xs text-slate-300">Sube tu imagen principal desde Configuración</p>
           </div>
         )}
+        {config?.avisoLegalBanner && (
+          <p className="text-center text-[10px] text-slate-400 px-4 pt-2">{config.avisoLegalBanner}</p>
+        )}
         <div className="text-center px-4 py-6">
           {promoVigente && (
             <button
               onClick={() => setVerBasesPromo(true)}
-              className="inline-block mb-3 px-4 py-1.5 rounded-full text-xs font-bold text-white"
+              className="inline-flex items-center gap-2 mb-3 pl-3 pr-4 py-2 rounded-2xl text-white text-left"
               style={{ background: "#dc2626" }}
             >
-              🏷️ {promo.titulo || `${promo.porcentaje}% DE DESCUENTO`}
+              <span className="font-black leading-none" style={{ fontSize: 40 }}>{promo.porcentaje}%</span>
+              <span className="text-xs font-bold leading-tight">
+                {promo.titulo || "DE DESCUENTO"}
+                <br />
+                <span className="underline font-normal opacity-90">Ver detalles</span>
+              </span>
             </button>
           )}
           <p className="font-serif font-semibold mb-4 text-3xl leading-tight whitespace-pre-line">{config?.eslogan || "Mi mirada. Mi estilo"}</p>
@@ -8635,10 +8657,15 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
           {promoVigente && (
             <button
               onClick={() => setVerBasesPromo(true)}
-              className="mb-3 px-4 py-1.5 rounded-full text-xs font-bold text-white"
+              className="flex items-center gap-2 mb-3 pl-4 pr-5 py-2.5 rounded-2xl text-white text-left"
               style={{ background: "#dc2626" }}
             >
-              🏷️ {promo.titulo || `${promo.porcentaje}% DE DESCUENTO`}
+              <span className="font-black leading-none" style={{ fontSize: 52 }}>{promo.porcentaje}%</span>
+              <span className="text-sm font-bold leading-tight">
+                {promo.titulo || "DE DESCUENTO"}
+                <br />
+                <span className="underline font-normal opacity-90">Ver detalles</span>
+              </span>
             </button>
           )}
           <p className="font-serif font-semibold text-left whitespace-pre-line" style={{ fontSize: "clamp(30px, 4vw, 50px)", lineHeight: 1.15 }}>
@@ -8652,6 +8679,9 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
           </div>
         </div>
       </div>
+      {config?.avisoLegalBanner && (
+        <p className="hidden sm:block text-center text-[10px] text-slate-400 px-4 py-2">{config.avisoLegalBanner}</p>
+      )}
 
       <CarruselLineaArmazones titulo="Línea Económica" articulos={economica} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
       <CarruselLineaArmazones titulo="Línea Media" articulos={media} onVerProducto={onVerProducto} onAgregarCarrito={onAgregarCarrito} />
@@ -9882,6 +9912,15 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
   const requiereReceta = carrito.some((c) => c.categoria === "lentesGraduados" || c.categoria === "lentesContacto");
   const total = carrito.reduce((s, c) => s + Number(c.precio || 0), 0);
 
+  const promo = config?.promocion;
+  const hoy = fechaISO(new Date());
+  const promoVigenteCheckout =
+    !!promo?.activa &&
+    (!promo.fechaInicio || hoy >= promo.fechaInicio) &&
+    (!promo.fechaFin || hoy <= promo.fechaFin);
+  const montoDescuento = promoVigenteCheckout ? Math.round(total * (Number(promo.porcentaje || 0) / 100) * 100) / 100 : 0;
+  const totalConDescuento = total - montoDescuento;
+
   const [subiendoReceta, setSubiendoReceta] = useState(false);
   const [metodoEntrega, setMetodoEntrega] = useState("recoger"); // recoger | domicilio
   const [cpEnvio, setCpEnvio] = useState("");
@@ -9901,9 +9940,9 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
 
   // El envío es gratis en compras mayores a $1,000 (como se anuncia en la ficha de producto)
   const costoEnvio = metodoEntrega === "domicilio" && envioSeleccionado && envioConfirmado
-    ? (total >= 1000 ? 0 : Number(envioSeleccionado.precio || 0))
+    ? (totalConDescuento >= 1000 ? 0 : Number(envioSeleccionado.precio || 0))
     : 0;
-  const totalConEnvio = total + costoEnvio;
+  const totalConEnvio = totalConDescuento + costoEnvio;
 
   function subirReceta(e) {
     const file = e.target.files[0];
@@ -9944,6 +9983,12 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
           <p className="flex justify-between text-sm mb-1">
             <span>Subtotal</span><span>${total.toFixed(2)} MXN</span>
           </p>
+          {promoVigenteCheckout && (
+            <div className="flex justify-between text-sm mb-1 px-2 py-1 rounded bg-red-50">
+              <span className="text-red-600 font-semibold">🏷️ Descuento aplicado ({promo.porcentaje}%)</span>
+              <span className="text-red-600 font-semibold">-${montoDescuento.toFixed(2)} MXN</span>
+            </div>
+          )}
           {requiereReceta && (
             <div className="mb-4">
               <label className="text-xs text-slate-500 block mb-1">Sube tu receta (foto o PDF)</label>
@@ -10116,6 +10161,8 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
                       cpEnvio: metodoEntrega === "domicilio" ? cpEnvio : "",
                       envioSeleccionado: metodoEntrega === "domicilio" ? envioSeleccionado : null,
                       costoEnvio,
+                      montoDescuento,
+                      porcentajeDescuento: promoVigenteCheckout ? promo.porcentaje : 0,
                     })
                   }
                 />
@@ -10131,6 +10178,8 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
                   cpEnvio: metodoEntrega === "domicilio" ? cpEnvio : "",
                   envioSeleccionado: metodoEntrega === "domicilio" ? envioSeleccionado : null,
                   costoEnvio,
+                  montoDescuento,
+                  porcentajeDescuento: promoVigenteCheckout ? promo.porcentaje : 0,
                 })
               }
               disabled={carrito.length === 0 || faltaReceta || subiendoReceta || faltaEnvio}
@@ -10296,7 +10345,9 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
     const folio = (ventas[ventas.length - 1]?.folio || 0) + 1;
     const subtotal = carrito.reduce((s, c) => s + Number(c.precio || 0), 0);
     const costoEnvio = Number(infoPago?.costoEnvio || 0);
-    const total = subtotal + costoEnvio;
+    const montoDescuento = Number(infoPago?.montoDescuento || 0);
+    const porcentajeDescuento = Number(infoPago?.porcentajeDescuento || 0);
+    const total = subtotal - montoDescuento + costoEnvio;
     const pagadoEnLinea = infoPago?.pagadoEnLinea;
     const ahora = new Date().toISOString();
     const nota = {
@@ -10306,6 +10357,8 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
       nombreCliente: paciente?.nombre || sesionCliente.nombre,
       items: carrito,
       subtotal,
+      montoDescuento,
+      porcentajeDescuento,
       costoEnvio,
       total,
       abono: pagadoEnLinea ? total : 0,
