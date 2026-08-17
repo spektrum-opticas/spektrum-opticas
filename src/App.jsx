@@ -5413,10 +5413,39 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
   const [corrigiendoEnvioFolio, setCorrigiendoEnvioFolio] = useState(null);
   const [zonaCorregida, setZonaCorregida] = useState("");
   const [paqueteriaCorregida, setPaqueteriaCorregida] = useState(null);
+  const [corrigiendoCostoFolio, setCorrigiendoCostoFolio] = useState(null);
+  const [costoCorrecto, setCostoCorrecto] = useState("");
 
   function autorizarEnvio(folio) {
-    setVentas(ventas.map((v) => (v.folio === folio ? { ...v, envioEstatus: "autorizado" } : v)));
+    setVentas(ventas.map((v) => (v.folio === folio ? { ...v, envioEstatus: "autorizado", costoVerificado: true } : v)));
     mostrarToast("Envío autorizado ✓");
+  }
+
+  function avisarDiferenciaCosto(venta) {
+    const paciente = pacientes.find((p) => p.id === venta.pacienteId);
+    const nuevoCosto = Number(costoCorrecto);
+    if (isNaN(nuevoCosto) || nuevoCosto < 0) return;
+    const diferencia = nuevoCosto - Number(venta.costoEnvio || 0);
+    setVentas(
+      ventas.map((v) => {
+        if (v.folio !== venta.folio) return v;
+        const nuevoTotal = v.subtotal + nuevoCosto;
+        return { ...v, costoEnvioCorrecto: nuevoCosto, diferenciaEnvio: diferencia, saldo: Math.max(0, v.saldo + diferencia), total: nuevoTotal };
+      })
+    );
+    const nombre = venta.nombreCliente || paciente?.nombre || "cliente";
+    const mensaje =
+      diferencia > 0
+        ? `Hola ${nombre}, al revisar tu envío el costo real quedó en $${nuevoCosto.toFixed(2)} (se había calculado $${Number(venta.costoEnvio || 0).toFixed(2)}). ` +
+          `Te falta cubrir una diferencia de $${diferencia.toFixed(2)} para poder enviar tu pedido. Contéstanos este mensaje o pásate a la tienda para completar el pago.`
+        : `Hola ${nombre}, al revisar tu envío el costo real quedó en $${nuevoCosto.toFixed(2)} (se había cobrado $${Number(venta.costoEnvio || 0).toFixed(2)}). ` +
+          `Te vamos a reembolsar la diferencia de $${Math.abs(diferencia).toFixed(2)}. Contéstanos este mensaje para coordinar el reembolso.`;
+    if (paciente?.telefono) abrirWhatsApp(paciente.telefono, mensaje);
+    else if (paciente?.mail) abrirEmail(paciente.mail, `Ajuste en el costo de envío de tu pedido #${venta.folio}`, mensaje);
+    else alert("Este paciente no tiene teléfono ni correo guardado para avisarle.");
+    setCorrigiendoCostoFolio(null);
+    setCostoCorrecto("");
+    mostrarToast(diferencia > 0 ? "Se avisó al cliente para cobrar la diferencia" : "Se avisó al cliente sobre su reembolso");
   }
 
   function avisarCambioCP(venta) {
@@ -5493,6 +5522,37 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
                       <span className={coincide ? "text-emerald-600" : "text-red-600"}> {coincide ? "(coincide)" : "(no coincide)"}</span>
                     )}
                   </p>
+                  <p className="text-xs text-slate-600 mb-2">
+                    Costo de envío cobrado al cliente: <b>${Number(v.costoEnvio || 0).toFixed(2)}</b>
+                    {v.costoVerificado && <span className="text-emerald-600"> (costo verificado)</span>}
+                    {v.diferenciaEnvio != null && (
+                      <span className={v.diferenciaEnvio > 0 ? "text-red-600" : "text-amber-600"}>
+                        {" "}— corregido a ${Number(v.costoEnvioCorrecto || 0).toFixed(2)} ({v.diferenciaEnvio > 0 ? `falta cobrar $${v.diferenciaEnvio.toFixed(2)}` : `reembolsar $${Math.abs(v.diferenciaEnvio).toFixed(2)}`})
+                      </span>
+                    )}
+                  </p>
+
+                  {v.envioEstatus === "por_verificar" && !v.costoVerificado && v.diferenciaEnvio == null && (
+                    <button
+                      onClick={() => { setCorrigiendoCostoFolio(v.folio); setCostoCorrecto(String(v.costoEnvio || 0)); }}
+                      className="text-xs px-3 py-1.5 rounded-full text-white bg-amber-600 mb-2"
+                    >
+                      El costo no es correcto
+                    </button>
+                  )}
+
+                  {corrigiendoCostoFolio === v.folio && (
+                    <div className="bg-slate-50 rounded-lg p-3 mb-2">
+                      <Field label="Costo real de envío" type="number" value={costoCorrecto} onChange={(e) => setCostoCorrecto(e.target.value)} />
+                      <button
+                        onClick={() => avisarDiferenciaCosto(v)}
+                        className="w-full py-1.5 rounded-lg text-white text-xs font-medium"
+                        style={{ background: SKY_DARK }}
+                      >
+                        Avisar al cliente (pago de diferencia o reembolso)
+                      </button>
+                    </div>
+                  )}
 
                   {v.envioEstatus === "por_verificar" && (
                     <div className="flex gap-2 flex-wrap">
@@ -9724,6 +9784,8 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
   const [cpEnvio, setCpEnvio] = useState("");
   const [paqueteriaElegidaCheckout, setPaqueteriaElegidaCheckout] = useState(null);
   const [envioSeleccionado, setEnvioSeleccionado] = useState(null);
+  const [confirmandoEnvio, setConfirmandoEnvio] = useState(null); // la opción que se está por confirmar
+  const [envioConfirmado, setEnvioConfirmado] = useState(false);
 
   const zonaDetectada = cpEnvio.length === 5 ? zonaPorCP(cpEnvio, config?.mapaCP) : null;
   const opcionesEnvioZona = zonaDetectada ? (config?.costosEnvio || []).filter((c) => c.zona === zonaDetectada) : [];
@@ -9733,6 +9795,12 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
     grupos[clave].push(c);
     return grupos;
   }, {});
+
+  // El envío es gratis en compras mayores a $1,000 (como se anuncia en la ficha de producto)
+  const costoEnvio = metodoEntrega === "domicilio" && envioSeleccionado && envioConfirmado
+    ? (total >= 1000 ? 0 : Number(envioSeleccionado.precio || 0))
+    : 0;
+  const totalConEnvio = total + costoEnvio;
 
   function subirReceta(e) {
     const file = e.target.files[0];
@@ -9746,7 +9814,7 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
   }
 
   const faltaReceta = requiereReceta && !receta;
-  const faltaEnvio = metodoEntrega === "domicilio" && (cpEnvio.length !== 5 || !envioSeleccionado);
+  const faltaEnvio = metodoEntrega === "domicilio" && (cpEnvio.length !== 5 || !envioSeleccionado || !envioConfirmado);
 
   return (
     <DrawerLateral open={open} onClose={onClose} title="Confirmar pedido">
@@ -9770,8 +9838,8 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
               </div>
             ))}
           </div>
-          <p className="flex justify-between font-semibold mb-4">
-            <span>Total</span><span>${total.toFixed(2)} MXN</span>
+          <p className="flex justify-between text-sm mb-1">
+            <span>Subtotal</span><span>${total.toFixed(2)} MXN</span>
           </p>
           {requiereReceta && (
             <div className="mb-4">
@@ -9806,60 +9874,96 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
 
             {metodoEntrega === "domicilio" && (
               <div>
-                <label className="text-xs text-slate-500 block mb-1">Código postal de tu domicilio (obligatorio)</label>
-                <input
-                  value={cpEnvio}
-                  onChange={(e) => { setCpEnvio(e.target.value.replace(/\D/g, "").slice(0, 5)); setEnvioSeleccionado(null); }}
-                  placeholder="Ej. 72490"
-                  maxLength={5}
-                  className="w-full border rounded-lg px-3 py-2 text-sm mb-2"
-                />
-                {cpEnvio.length === 5 && opcionesEnvioZona.length === 0 && (
-                  <p className="text-xs text-amber-600 mb-2">Aún no tenemos tarifas de envío publicadas para tu zona — contáctanos para cotizarlo.</p>
-                )}
-                {cpEnvio.length === 5 && opcionesEnvioZona.length > 0 && !envioSeleccionado && (
-                  <div className="space-y-2">
-                    <p className="text-xs text-slate-400">Estas son las opciones recomendadas para tu código postal:</p>
-                    {Object.entries(opcionesPorPaqueteria).map(([paqueteria, opciones]) => (
-                      <div key={paqueteria} className="border rounded-xl overflow-hidden">
-                        <button
-                          onClick={() => setPaqueteriaElegidaCheckout(paqueteriaElegidaCheckout === paqueteria ? null : paqueteria)}
-                          className="w-full flex items-center justify-between px-3 py-2"
-                          style={{ background: paqueteriaElegidaCheckout === paqueteria ? BEIGE : "white" }}
-                        >
-                          <span className="font-semibold text-xs">{paqueteria}</span>
-                          <span className="text-xs text-slate-400">Ver opciones</span>
-                        </button>
-                        {paqueteriaElegidaCheckout === paqueteria && (
-                          <div className="border-t">
-                            {opciones.map((c) => (
-                              <button
-                                key={c.id}
-                                onClick={() => setEnvioSeleccionado(c)}
-                                className="w-full flex items-center justify-between px-3 py-2 text-xs border-b last:border-b-0 hover:bg-slate-50"
-                              >
-                                <span>{c.servicio} · {c.peso}</span>
-                                <span className="font-medium">${Number(c.precio || 0).toFixed(2)}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {envioSeleccionado && (
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-semibold text-emerald-800">{envioSeleccionado.paqueteria} — {envioSeleccionado.servicio}</p>
-                      <p className="text-xs text-emerald-700">${Number(envioSeleccionado.precio || 0).toFixed(2)} · C.P. {cpEnvio}</p>
+                {confirmandoEnvio ? (
+                  <div className="border-2 border-emerald-500 rounded-xl p-4">
+                    <p className="text-sm font-semibold mb-1">Confirma tu envío</p>
+                    <p className="text-xs text-slate-600 mb-1">{confirmandoEnvio.paqueteria} — {confirmandoEnvio.servicio} ({confirmandoEnvio.peso})</p>
+                    <p className="text-xs text-slate-600 mb-3">C.P. de entrega: {cpEnvio}</p>
+                    <div className="bg-slate-50 rounded-lg p-3 mb-3">
+                      <p className="text-xs flex justify-between"><span>Costo adicional de envío</span> <span>{total >= 1000 ? "GRATIS" : `$${Number(confirmandoEnvio.precio || 0).toFixed(2)}`}</span></p>
+                      <p className="text-sm font-semibold flex justify-between mt-1">
+                        <span>Nuevo total</span>
+                        <span>${(total + (total >= 1000 ? 0 : Number(confirmandoEnvio.precio || 0))).toFixed(2)} MXN</span>
+                      </p>
                     </div>
-                    <button onClick={() => setEnvioSeleccionado(null)} className="text-xs underline text-emerald-700">Cambiar</button>
+                    <button
+                      onClick={() => { setEnvioSeleccionado(confirmandoEnvio); setEnvioConfirmado(true); setConfirmandoEnvio(null); }}
+                      className="w-full py-2.5 rounded-full bg-emerald-500 text-white text-sm font-semibold mb-2"
+                    >
+                      ¿Estás seguro de tu elección?
+                    </button>
+                    <button onClick={() => setConfirmandoEnvio(null)} className="w-full py-1.5 text-xs text-slate-500 underline">
+                      Cancelar y elegir otra opción
+                    </button>
                   </div>
+                ) : (
+                  <>
+                    <label className="text-xs text-slate-500 block mb-1">Código postal de tu domicilio (obligatorio)</label>
+                    <input
+                      value={cpEnvio}
+                      onChange={(e) => { setCpEnvio(e.target.value.replace(/\D/g, "").slice(0, 5)); setEnvioSeleccionado(null); setEnvioConfirmado(false); }}
+                      placeholder="Ej. 72490"
+                      maxLength={5}
+                      className="w-full border rounded-lg px-3 py-2 text-sm mb-2"
+                    />
+                    {cpEnvio.length === 5 && opcionesEnvioZona.length === 0 && (
+                      <p className="text-xs text-amber-600 mb-2">Aún no tenemos tarifas de envío publicadas para tu zona — contáctanos para cotizarlo.</p>
+                    )}
+                    {cpEnvio.length === 5 && opcionesEnvioZona.length > 0 && !(envioSeleccionado && envioConfirmado) && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-slate-400">Estas son las opciones recomendadas para tu código postal:</p>
+                        {Object.entries(opcionesPorPaqueteria).map(([paqueteria, opciones]) => (
+                          <div key={paqueteria} className="border rounded-xl overflow-hidden">
+                            <button
+                              onClick={() => setPaqueteriaElegidaCheckout(paqueteriaElegidaCheckout === paqueteria ? null : paqueteria)}
+                              className="w-full flex items-center justify-between px-3 py-2"
+                              style={{ background: paqueteriaElegidaCheckout === paqueteria ? BEIGE : "white" }}
+                            >
+                              <span className="font-semibold text-xs">{paqueteria}</span>
+                              <span className="text-xs text-slate-400">Ver opciones</span>
+                            </button>
+                            {paqueteriaElegidaCheckout === paqueteria && (
+                              <div className="border-t">
+                                {opciones.map((c) => (
+                                  <button
+                                    key={c.id}
+                                    onClick={() => setConfirmandoEnvio(c)}
+                                    className="w-full flex items-center justify-between px-3 py-2 text-xs border-b last:border-b-0 hover:bg-slate-50"
+                                  >
+                                    <span>{c.servicio} · {c.peso}</span>
+                                    <span className="font-medium">${Number(c.precio || 0).toFixed(2)}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {envioSeleccionado && envioConfirmado && (
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-semibold text-emerald-800">{envioSeleccionado.paqueteria} — {envioSeleccionado.servicio} ✓ Confirmado</p>
+                          <p className="text-xs text-emerald-700">${Number(envioSeleccionado.precio || 0).toFixed(2)} · C.P. {cpEnvio}</p>
+                        </div>
+                        <button onClick={() => { setEnvioSeleccionado(null); setEnvioConfirmado(false); }} className="text-xs underline text-emerald-700">Cambiar</button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
           </div>
+
+          {metodoEntrega === "domicilio" && envioConfirmado && (
+            <p className="flex justify-between text-sm mb-2 text-slate-500">
+              <span>Envío ({envioSeleccionado?.paqueteria})</span>
+              <span>{costoEnvio === 0 ? "GRATIS" : `$${costoEnvio.toFixed(2)}`}</span>
+            </p>
+          )}
+          <p className="flex justify-between font-semibold mb-4 pt-2 border-t">
+            <span>Total a pagar</span><span>${totalConEnvio.toFixed(2)} MXN</span>
+          </p>
 
           <div className="mb-4">
             <p className="text-xs font-medium text-slate-500 uppercase mb-2">¿Cómo quieres pagar?</p>
@@ -9899,7 +10003,7 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
               ) : (
                 <BotonesPayPal
                   clientId={config.paypalClientId}
-                  total={total}
+                  total={totalConEnvio}
                   onAprobado={(detalles) =>
                     onConfirmar(receta, {
                       pagadoEnLinea: true,
@@ -9908,6 +10012,7 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
                       metodoEntrega,
                       cpEnvio: metodoEntrega === "domicilio" ? cpEnvio : "",
                       envioSeleccionado: metodoEntrega === "domicilio" ? envioSeleccionado : null,
+                      costoEnvio,
                     })
                   }
                 />
@@ -9922,6 +10027,7 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
                   metodoEntrega,
                   cpEnvio: metodoEntrega === "domicilio" ? cpEnvio : "",
                   envioSeleccionado: metodoEntrega === "domicilio" ? envioSeleccionado : null,
+                  costoEnvio,
                 })
               }
               disabled={carrito.length === 0 || faltaReceta || subiendoReceta || faltaEnvio}
@@ -10085,7 +10191,9 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
   function confirmarPedido(receta, infoPago) {
     let paciente = pacientes.find((p) => p.id === sesionCliente.pacienteId);
     const folio = (ventas[ventas.length - 1]?.folio || 0) + 1;
-    const total = carrito.reduce((s, c) => s + Number(c.precio || 0), 0);
+    const subtotal = carrito.reduce((s, c) => s + Number(c.precio || 0), 0);
+    const costoEnvio = Number(infoPago?.costoEnvio || 0);
+    const total = subtotal + costoEnvio;
     const pagadoEnLinea = infoPago?.pagadoEnLinea;
     const ahora = new Date().toISOString();
     const nota = {
@@ -10094,6 +10202,8 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
       pacienteId: sesionCliente.pacienteId,
       nombreCliente: paciente?.nombre || sesionCliente.nombre,
       items: carrito,
+      subtotal,
+      costoEnvio,
       total,
       abono: pagadoEnLinea ? total : 0,
       saldo: pagadoEnLinea ? 0 : total,
