@@ -1588,6 +1588,7 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
   const [preview, setPreview] = useState(null);
   const [telefonoManual, setTelefonoManual] = useState("");
   const [busquedaNota, setBusquedaNota] = useState("");
+  const [procesandoPortalFolio, setProcesandoPortalFolio] = useState(null);
   const [mostrarCancelaciones, setMostrarCancelaciones] = useState(false);
   const [modoFechaPasada, setModoFechaPasada] = useState(false);
   const [fechaVentaManual, setFechaVentaManual] = useState(fechaISO(new Date()));
@@ -1646,12 +1647,18 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
 
   const pedidosPortal = ventas.filter((v) => v.origen === "portal" && v.estatus === "presupuesto");
   const presupuestosMostrador = ventas.filter((v) => v.origen !== "portal" && v.estatus === "presupuesto");
+  const pedidosAtorados = ventas.filter((v) => v.origen === "portal" && v.estatus === "convertido");
+
+  function rescatarPedidoAtorado(folio) {
+    setVentas(ventas.map((v) => (v.folio === folio ? { ...v, estatus: "presupuesto" } : v)));
+    mostrarToast("Pedido rescatado — ya aparece de nuevo en Pedidos nuevos ✓");
+  }
 
   function cargarPedidoPortal(pedido) {
     const p = pacientes.find((x) => x.id === pedido.pacienteId);
     if (p) setClienteSel(p);
     setCarrito(pedido.items.map((it) => ({ ...it, uidLinea: uid() })));
-    setVentas(ventas.map((v) => (v.folio === pedido.folio ? { ...v, estatus: "convertido" } : v)));
+    setProcesandoPortalFolio(pedido.folio);
     window.scrollTo(0, 0);
   }
 
@@ -1675,7 +1682,9 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
   const saldo = total - Number(abono || 0);
 
   function generarNota(estatus) {
-    const folio = (ventas[ventas.length - 1]?.folio || 0) + 1;
+    const esPortal = !!procesandoPortalFolio;
+    const original = esPortal ? ventas.find((v) => v.folio === procesandoPortalFolio) : null;
+    const folio = esPortal ? procesandoPortalFolio : (ventas[ventas.length - 1]?.folio || 0) + 1;
     const ahora = modoFechaPasada
       ? new Date(`${fechaVentaManual}T12:00:00`).toISOString()
       : new Date().toISOString();
@@ -1685,6 +1694,7 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
         ? [{ fecha: ahora, monto: montoAbono, formaPago, tipo: saldo <= 0 ? "venta_completa" : "anticipo" }]
         : [];
     const nota = {
+      ...(original || {}),
       folio,
       fecha: ahora,
       pacienteId: clienteSel?.id || null,
@@ -1701,9 +1711,11 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
       formaPago,
       vendedor,
       optometrista,
-      pagos: pagoInicial,
+      pagos: esPortal ? [...(original?.pagos || []), ...pagoInicial] : pagoInicial,
+      transferenciaPendiente: false,
     };
-    setVentas([...ventas, nota]);
+    setVentas(esPortal ? ventas.map((v) => (v.folio === folio ? nota : v)) : [...ventas, nota]);
+    setProcesandoPortalFolio(null);
     if (clienteSel) {
       setPacientes(
         pacientes.map((p) =>
@@ -1760,6 +1772,19 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
 
   return (
     <div className="p-4">
+      {procesandoPortalFolio && (
+        <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 mb-4 flex items-center justify-between flex-wrap gap-2">
+          <p className="text-sm text-sky-800">
+            📦 Estás cobrando el pedido <b>#{procesandoPortalFolio}</b> de la tienda en línea — al confirmar la venta, se actualiza ese mismo pedido (no se crea uno nuevo).
+          </p>
+          <button
+            onClick={() => { setProcesandoPortalFolio(null); setCarrito([]); setClienteSel(null); }}
+            className="text-xs px-3 py-1.5 rounded-full bg-white border border-sky-300 text-sky-700"
+          >
+            Soltar este pedido sin cobrarlo
+          </button>
+        </div>
+      )}
       <div className="flex justify-end mb-3">
         <button
           onClick={() => setMostrarCancelaciones(!mostrarCancelaciones)}
@@ -1782,6 +1807,30 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
             usuarios={usuarios}
             canceladas={ventas.filter((v) => v.estatus === "cancelada" || v.estatus === "devolucion")}
           />
+        </div>
+      )}
+
+      {pedidosAtorados.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+          <h3 className="font-semibold text-red-800 text-sm mb-1">
+            ⚠️ Pedidos que quedaron atorados ({pedidosAtorados.length})
+          </h3>
+          <p className="text-xs text-red-700 mb-2">
+            Se cargaron en el POS antes pero nunca se cobraron. Rescátalos para que vuelvan a aparecer abajo, en "Pedidos nuevos", y puedas cobrarlos con normalidad.
+          </p>
+          <div className="space-y-2">
+            {pedidosAtorados.map((v) => (
+              <div key={v.folio} className="bg-white rounded-lg border border-red-200 p-2 flex items-center justify-between flex-wrap gap-2">
+                <div className="text-sm">
+                  <p className="font-medium">Folio #{v.folio} — {v.nombreCliente} — ${v.total?.toFixed(2)} MXN</p>
+                  <p className="text-xs text-slate-500">{v.items?.map((it) => it.nombre).join(", ")} · {new Date(v.fecha).toLocaleString("es-MX")}</p>
+                </div>
+                <button onClick={() => rescatarPedidoAtorado(v.folio)} className="text-xs px-3 py-1.5 rounded-lg text-white bg-red-600">
+                  Rescatar
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
