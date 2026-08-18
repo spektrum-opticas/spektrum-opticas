@@ -1648,10 +1648,17 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
   const pedidosPortal = ventas.filter((v) => v.origen === "portal" && v.estatus === "presupuesto");
   const presupuestosMostrador = ventas.filter((v) => v.origen !== "portal" && v.estatus === "presupuesto");
   const pedidosAtorados = ventas.filter((v) => v.origen === "portal" && v.estatus === "convertido");
+  const [confirmandoEliminarFolio, setConfirmandoEliminarFolio] = useState(null);
 
   function rescatarPedidoAtorado(folio) {
     setVentas(ventas.map((v) => (v.folio === folio ? { ...v, estatus: "presupuesto" } : v)));
     mostrarToast("Pedido rescatado — ya aparece de nuevo en Pedidos nuevos ✓");
+  }
+
+  function eliminarPedidoAtorado(folio) {
+    setVentas(ventas.filter((v) => v.folio !== folio));
+    setConfirmandoEliminarFolio(null);
+    mostrarToast("Folio eliminado definitivamente");
   }
 
   function cargarPedidoPortal(pedido) {
@@ -1820,14 +1827,30 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
           </p>
           <div className="space-y-2">
             {pedidosAtorados.map((v) => (
-              <div key={v.folio} className="bg-white rounded-lg border border-red-200 p-2 flex items-center justify-between flex-wrap gap-2">
-                <div className="text-sm">
-                  <p className="font-medium">Folio #{v.folio} — {v.nombreCliente} — ${v.total?.toFixed(2)} MXN</p>
-                  <p className="text-xs text-slate-500">{v.items?.map((it) => it.nombre).join(", ")} · {new Date(v.fecha).toLocaleString("es-MX")}</p>
+              <div key={v.folio} className="bg-white rounded-lg border border-red-200 p-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="text-sm">
+                    <p className="font-medium">Folio #{v.folio} — {v.nombreCliente} — ${v.total?.toFixed(2)} MXN</p>
+                    <p className="text-xs text-slate-500">{v.items?.map((it) => it.nombre).join(", ")} · {new Date(v.fecha).toLocaleString("es-MX")}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => rescatarPedidoAtorado(v.folio)} className="text-xs px-3 py-1.5 rounded-lg text-white bg-red-600">
+                      Rescatar
+                    </button>
+                    <button onClick={() => setConfirmandoEliminarFolio(v.folio)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700">
+                      Eliminar
+                    </button>
+                  </div>
                 </div>
-                <button onClick={() => rescatarPedidoAtorado(v.folio)} className="text-xs px-3 py-1.5 rounded-lg text-white bg-red-600">
-                  Rescatar
-                </button>
+                {confirmandoEliminarFolio === v.folio && (
+                  <div className="bg-red-100 border border-red-300 rounded-lg p-2 mt-2">
+                    <p className="text-xs font-bold text-red-700 mb-2">¿Estás seguro de eliminar este folio? Si lo haces ya no podrás recuperarlo.</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => eliminarPedidoAtorado(v.folio)} className="flex-1 py-1.5 rounded-lg bg-red-700 text-white text-xs font-medium">Sí</button>
+                      <button onClick={() => setConfirmandoEliminarFolio(null)} className="flex-1 py-1.5 rounded-lg bg-white border text-xs">No</button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -4282,6 +4305,8 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laborat
 function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes, agenda, setAgenda, onIrAgenda, inventario, config }) {
   const [verExpediente, setVerExpediente] = useState(null);
   const [fechaImprimir, setFechaImprimir] = useState(fechaISO(new Date()));
+  const [confirmandoEliminarDefinitivoId, setConfirmandoEliminarDefinitivoId] = useState(null);
+  const ordenesEliminadas = laboratorio.filter((o) => o.eliminada);
   const [nueva, setNueva] = useState({
     pacienteId: "",
     od: null,
@@ -4341,8 +4366,20 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
   }
 
   function eliminarOrden(id) {
-    if (!window.confirm("¿Está seguro de eliminar esta orden? No se podrá recuperar.")) return;
+    if (!window.confirm("¿Está seguro de eliminar esta orden? Podrás rescatarla después desde la Papelera.")) return;
+    setLaboratorio(laboratorio.map((o) => (o.id === id ? { ...o, eliminada: true, fechaEliminada: new Date().toISOString() } : o)));
+    mostrarToast("Orden movida a la Papelera");
+  }
+
+  function rescatarOrdenEliminada(id) {
+    setLaboratorio(laboratorio.map((o) => (o.id === id ? { ...o, eliminada: false, fechaEliminada: null } : o)));
+    mostrarToast("Orden rescatada ✓");
+  }
+
+  function eliminarOrdenDefinitivo(id) {
     setLaboratorio(laboratorio.filter((o) => o.id !== id));
+    setConfirmandoEliminarDefinitivoId(null);
+    mostrarToast("Orden eliminada definitivamente");
   }
 
   function recetaParaImprimir(o) {
@@ -4451,6 +4488,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
             laboratorio.filter(
               (o) =>
                 !o.cancelada &&
+                !o.eliminada &&
                 !o.fechaRecepcion &&
                 ((o.fechaVenta && o.fechaVenta.slice(0, 10) === fechaImprimir) || (!o.fechaVenta && o.fechaEnvio === fechaImprimir))
             ).length === 0
@@ -4463,6 +4501,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
             laboratorio.filter(
               (o) =>
                 !o.cancelada &&
+                !o.eliminada &&
                 !o.fechaRecepcion &&
                 ((o.fechaVenta && o.fechaVenta.slice(0, 10) === fechaImprimir) || (!o.fechaVenta && o.fechaEnvio === fechaImprimir))
             ).length
@@ -4474,6 +4513,42 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
         Solo se cuentan como activas las órdenes que aún no han sido recibidas del laboratorio — una vez recibidas,
         se apagan de este conteo porque ya están en la óptica listas para entregar.
       </p>
+
+      {ordenesEliminadas.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+          <h3 className="font-semibold text-red-800 text-sm mb-1">🗑️ Papelera ({ordenesEliminadas.length})</h3>
+          <p className="text-xs text-red-700 mb-2">Órdenes que se eliminaron. Puedes rescatarlas, o borrarlas para siempre.</p>
+          <div className="space-y-2">
+            {ordenesEliminadas.map((o) => (
+              <div key={o.id} className="bg-white rounded-lg border border-red-200 p-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="text-sm">
+                    <p className="font-medium">{folioOrdenEtiqueta(o, pacientes)} — {o.nombreCliente || pacientes.find((p) => p.id === o.pacienteId)?.nombre || "—"}</p>
+                    <p className="text-xs text-slate-500">Eliminada el {o.fechaEliminada ? new Date(o.fechaEliminada).toLocaleString("es-MX") : "—"}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => rescatarOrdenEliminada(o.id)} className="text-xs px-3 py-1.5 rounded-lg text-white bg-red-600">
+                      Rescatar
+                    </button>
+                    <button onClick={() => setConfirmandoEliminarDefinitivoId(o.id)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700">
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+                {confirmandoEliminarDefinitivoId === o.id && (
+                  <div className="bg-red-100 border border-red-300 rounded-lg p-2 mt-2">
+                    <p className="text-xs font-bold text-red-700 mb-2">¿Estás seguro de eliminar esta orden? Si lo haces ya no podrás recuperarla.</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => eliminarOrdenDefinitivo(o.id)} className="flex-1 py-1.5 rounded-lg bg-red-700 text-white text-xs font-medium">Sí</button>
+                      <button onClick={() => setConfirmandoEliminarDefinitivoId(null)} className="flex-1 py-1.5 rounded-lg bg-white border text-xs">No</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
         <table className="w-full text-sm">
@@ -4492,7 +4567,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
             </tr>
           </thead>
           <tbody>
-            {laboratorio.map((o) => {
+            {laboratorio.filter((o) => !o.eliminada).map((o) => {
               const bloqueada = !!o.fechaRecepcion;
               return (
               <tr key={o.id} className={`border-t align-top ${o.cancelada ? "opacity-50" : ""}`}>
@@ -4566,6 +4641,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
             .filter(
               (o) =>
                 !o.cancelada &&
+                !o.eliminada &&
                 !o.fechaRecepcion &&
                 ((o.fechaVenta && o.fechaVenta.slice(0, 10) === fechaImprimir) || (!o.fechaVenta && o.fechaEnvio === fechaImprimir))
             )
