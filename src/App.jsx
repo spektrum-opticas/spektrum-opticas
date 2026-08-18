@@ -1680,7 +1680,7 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
   function quitarArticulo(uidLinea) {
     setCarrito(carrito.filter((c) => c.uidLinea !== uidLinea));
   }
-  const subtotal = carrito.reduce((s, c) => s + Number(c.precio || 0) * c.cantidad, 0);
+  const subtotal = carrito.reduce((s, c) => s + Number(c.precio || 0) * Number(c.cantidad || 1), 0);
   const montoDescuento =
     descuentoTipo === "porcentaje"
       ? subtotal * (Number(descuentoValor || 0) / 100)
