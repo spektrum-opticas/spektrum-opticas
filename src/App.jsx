@@ -186,6 +186,7 @@ const emptyConfig = () => ({
   paypalModoProduccion: false,
   costosEnvio: [],
   promocion: { activa: false, titulo: "20% DE DESCUENTO", porcentaje: 20, fechaInicio: "", fechaFin: "", bases: "", codigo: "SPEKTRUM2026", avisoLegalCupon: "" },
+  datosTransferencia: { banco: "", clabe: "", titular: "" },
   avisoLegalBanner: "",
 });
 
@@ -1793,7 +1794,14 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
             {pedidosPortal.map((v) => (
               <div key={v.folio} className="bg-white rounded-lg border border-amber-200 p-2 flex items-center justify-between flex-wrap gap-2">
                 <div className="text-sm">
-                  <p className="font-medium">{v.nombreCliente} — ${v.total.toFixed(2)} MXN</p>
+                  <p className="font-medium">
+                    {v.nombreCliente} — ${v.total.toFixed(2)} MXN
+                    {v.transferenciaPendiente && (
+                      <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 align-middle">
+                        Pendiente de confirmar transferencia
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs text-slate-500">
                     {v.items.map((it) => it.nombre).join(", ")} · {new Date(v.fecha).toLocaleString("es-MX")}
                     {v.recetaArchivo && " · Con receta adjunta"}
@@ -7943,6 +7951,31 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
       </div>
 
       <div className="bg-white border rounded-xl p-4 space-y-3">
+        <h3 className="font-semibold text-slate-700 mb-1">Pago por transferencia bancaria (en línea)</h3>
+        <p className="text-xs text-slate-500">
+          Estos datos se le muestran al cliente en el checkout cuando elige pagar por transferencia. Su pedido se crea de inmediato, pero queda marcado como pendiente hasta que confirmes que la transferencia llegó (lo verás junto a los demás pedidos nuevos en POS).
+        </p>
+        <Field
+          label="Banco"
+          value={local.datosTransferencia?.banco || ""}
+          onChange={(e) => setLocal({ ...local, datosTransferencia: { ...local.datosTransferencia, banco: e.target.value } })}
+        />
+        <Field
+          label="Cuenta CLABE"
+          value={local.datosTransferencia?.clabe || ""}
+          onChange={(e) => setLocal({ ...local, datosTransferencia: { ...local.datosTransferencia, clabe: e.target.value } })}
+        />
+        <Field
+          label="Nombre del titular"
+          value={local.datosTransferencia?.titular || ""}
+          onChange={(e) => setLocal({ ...local, datosTransferencia: { ...local.datosTransferencia, titular: e.target.value } })}
+        />
+        <button onClick={() => { setConfig(local); mostrarToast("Datos de transferencia guardados ✓"); }} className="px-4 py-2 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
+          <Save size={16} /> Guardar datos de transferencia
+        </button>
+      </div>
+
+      <div className="bg-white border rounded-xl p-4 space-y-3">
         <h3 className="font-semibold text-slate-700 mb-1">Contenido de páginas de la tienda (pie de página)</h3>
         <p className="text-xs text-slate-500">
           Mientras no llenes un campo, el visitante verá "Contenido próximamente" al abrir ese enlace.
@@ -10188,7 +10221,7 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
 
           <div className="mb-4">
             <p className="text-xs font-medium text-slate-500 uppercase mb-2">¿Cómo quieres pagar?</p>
-            <div className="flex gap-2 mb-3">
+            <div className="flex gap-2 mb-3 flex-wrap">
               <button
                 onClick={() => setFormaPagoElegida("entrega")}
                 className={`flex-1 py-2 rounded-full text-xs font-medium border ${formaPagoElegida === "entrega" ? "bg-black text-white border-black" : "border-slate-300"}`}
@@ -10203,14 +10236,33 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
               >
                 Pagar en línea ahora
               </button>
+              <button
+                onClick={() => setFormaPagoElegida("transferencia")}
+                disabled={!config?.datosTransferencia?.clabe}
+                className={`flex-1 py-2 rounded-full text-xs font-medium border disabled:opacity-40 ${formaPagoElegida === "transferencia" ? "bg-black text-white border-black" : "border-slate-300"}`}
+                title={!config?.datosTransferencia?.clabe ? "El pago por transferencia todavía no está configurado" : ""}
+              >
+                Transferencia bancaria
+              </button>
             </div>
 
             {formaPagoElegida === "entrega" && (
               <select value={formaPagoEntrega} onChange={(e) => setFormaPagoEntrega(e.target.value)} className="w-full border rounded-lg px-2 py-2 text-sm">
                 <option value="efectivo">Efectivo al recoger</option>
                 <option value="tarjeta">Tarjeta al recoger</option>
-                <option value="transferencia">Transferencia bancaria</option>
               </select>
+            )}
+
+            {formaPagoElegida === "transferencia" && config?.datosTransferencia?.clabe && (
+              <div className="bg-slate-50 border rounded-xl p-3">
+                <p className="text-xs text-slate-500 mb-2">Haz tu transferencia por <b>${totalConEnvio.toFixed(2)} MXN</b> a esta cuenta:</p>
+                <p className="text-sm mb-1">Banco: <b>{config.datosTransferencia.banco}</b></p>
+                <p className="text-sm mb-1">CLABE: <b>{config.datosTransferencia.clabe}</b></p>
+                <p className="text-sm mb-2">Titular: <b>{config.datosTransferencia.titular}</b></p>
+                <p className="text-xs text-amber-600">
+                  Tu pedido se crea en cuanto confirmes, pero queda pendiente hasta que verifiquemos que la transferencia llegó — te avisamos en cuanto quede lista.
+                </p>
+              </div>
             )}
           </div>
 
@@ -10248,7 +10300,8 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
               onClick={() =>
                 onConfirmar(receta, {
                   pagadoEnLinea: false,
-                  formaPago: formaPagoEntrega,
+                  formaPago: formaPagoElegida === "transferencia" ? "transferencia" : formaPagoEntrega,
+                  transferenciaPendiente: formaPagoElegida === "transferencia",
                   metodoEntrega,
                   cpEnvio: metodoEntrega === "domicilio" ? cpEnvio : "",
                   envioSeleccionado: metodoEntrega === "domicilio" ? envioSeleccionado : null,
@@ -10257,9 +10310,16 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
                   porcentajeDescuento: cuponAplicado ? promo.porcentaje : 0,
                 })
               }
-              disabled={carrito.length === 0 || faltaReceta || subiendoReceta || faltaEnvio || cuponBloqueaCompra}
+              disabled={
+                carrito.length === 0 ||
+                faltaReceta ||
+                subiendoReceta ||
+                faltaEnvio ||
+                cuponBloqueaCompra ||
+                (formaPagoElegida === "transferencia" && !config?.datosTransferencia?.clabe)
+              }
             >
-              Confirmar pedido
+              {formaPagoElegida === "transferencia" ? "Ya realicé mi transferencia" : "Confirmar pedido"}
             </BotonNegro>
           )}
         </div>
@@ -10448,6 +10508,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
       cpEnvio: infoPago?.cpEnvio || "",
       envioSeleccionado: infoPago?.envioSeleccionado || null,
       envioEstatus: infoPago?.metodoEntrega === "domicilio" ? "por_verificar" : null,
+      transferenciaPendiente: !!infoPago?.transferenciaPendiente,
       pagos: pagadoEnLinea
         ? [{ fecha: ahora, monto: total, formaPago: infoPago?.formaPago || "PayPal", tipo: "venta_completa" }]
         : [],
@@ -10500,6 +10561,8 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         ? huboPendienteReceta
           ? `¡Pago recibido! Tu pedido #${folio} quedó confirmado, pero necesitamos tu receta vigente para poder elaborarlo — agenda tu examen de la vista gratis o contáctanos si ya la tienes.`
           : `¡Pago recibido! Tu pedido #${folio} quedó confirmado. Te avisamos por WhatsApp o correo cuando esté listo.`
+        : infoPago?.transferenciaPendiente
+        ? `¡Listo! Tu pedido quedó registrado con folio #${folio}. En cuanto confirmemos que tu transferencia llegó, tu pedido pasa a proceso y te avisamos por WhatsApp o correo.`
         : `¡Listo! Tu pedido quedó registrado con folio #${folio}. Te avisamos por WhatsApp o correo en cuanto esté confirmado.`
     );
   }
