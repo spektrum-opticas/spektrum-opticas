@@ -185,7 +185,7 @@ const emptyConfig = () => ({
   paypalClientId: "",
   paypalModoProduccion: false,
   costosEnvio: [],
-  promocion: { activa: false, titulo: "15% DE DESCUENTO", porcentaje: 15, fechaInicio: "", fechaFin: "", bases: "", codigo: "" },
+  promocion: { activa: false, titulo: "20% DE DESCUENTO", porcentaje: 20, fechaInicio: "", fechaFin: "", bases: "", codigo: "SPEKTRUM2026", avisoLegalCupon: "" },
   avisoLegalBanner: "",
 });
 
@@ -7817,6 +7817,16 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
               className="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
             />
           </label>
+          <label className="block">
+            <span className="text-xs font-medium text-slate-500 uppercase">Aviso legal bajo el cupón (se ve en rojo, como el cupón)</span>
+            <textarea
+              value={local.promocion?.avisoLegalCupon || ""}
+              onChange={(e) => setLocal({ ...local, promocion: { ...local.promocion, avisoLegalCupon: e.target.value } })}
+              rows={2}
+              placeholder="Ej. Promoción válida por tiempo limitado. Consulta restricciones."
+              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
+            />
+          </label>
           <button onClick={() => { setConfig(local); mostrarToast("Cupón guardado ✓"); }} className="px-4 py-2 rounded-lg text-white text-sm" style={{ background: SKY_DARK }}>
             Guardar cupón
           </button>
@@ -8623,18 +8633,26 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
         )}
         <div className="text-center px-4 py-6">
           {promoVigente && (
-            <button
-              onClick={() => setVerBasesPromo(true)}
-              className="inline-flex items-center gap-2 mb-3 pl-3 pr-4 py-2 rounded-2xl text-white text-left"
-              style={{ background: "#dc2626" }}
-            >
-              <span className="font-black leading-none" style={{ fontSize: 40 }}>{promo.porcentaje}%</span>
-              <span className="text-xs font-bold leading-tight">
-                {promo.titulo || "DE DESCUENTO"}
-                <br />
-                <span className="underline font-normal opacity-90">Ver detalles</span>
-              </span>
-            </button>
+            <>
+              <button
+                onClick={() => setVerBasesPromo(true)}
+                className="inline-flex items-center gap-2 mb-1 pl-3 pr-4 py-2 rounded-2xl text-white text-left"
+                style={{ background: "#dc2626" }}
+              >
+                <span className="font-black leading-none" style={{ fontSize: 40 }}>{promo.porcentaje}%</span>
+                <span className="text-xs font-bold leading-tight">
+                  {promo.titulo || "DE DESCUENTO"}
+                  <br />
+                  <span className="underline font-normal opacity-90">Ver detalles</span>
+                </span>
+              </button>
+              {promo.bases && <p className="text-[10px] text-slate-400 max-w-xs mx-auto mb-1">{promo.bases}</p>}
+              {promo.avisoLegalCupon && (
+                <p className="inline-block text-[10px] font-medium text-white px-3 py-1 rounded-full mb-3" style={{ background: "#dc2626" }}>
+                  {promo.avisoLegalCupon}
+                </p>
+              )}
+            </>
           )}
           <p className="font-serif font-semibold mb-4 text-3xl leading-tight whitespace-pre-line">{config?.eslogan || "Mi mirada. Mi estilo"}</p>
           <div className="flex flex-col gap-2 max-w-[220px] mx-auto">
@@ -8655,18 +8673,26 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
         )}
         <div className="absolute -translate-x-1/2 left-[80%] top-0 bottom-[38%] max-w-xs md:max-w-sm px-4 flex flex-col items-start justify-center">
           {promoVigente && (
-            <button
-              onClick={() => setVerBasesPromo(true)}
-              className="flex items-center gap-2 mb-3 pl-4 pr-5 py-2.5 rounded-2xl text-white text-left"
-              style={{ background: "#dc2626" }}
-            >
-              <span className="font-black leading-none" style={{ fontSize: 52 }}>{promo.porcentaje}%</span>
-              <span className="text-sm font-bold leading-tight">
-                {promo.titulo || "DE DESCUENTO"}
-                <br />
-                <span className="underline font-normal opacity-90">Ver detalles</span>
-              </span>
-            </button>
+            <>
+              <button
+                onClick={() => setVerBasesPromo(true)}
+                className="flex items-center gap-2 mb-1 pl-4 pr-5 py-2.5 rounded-2xl text-white text-left"
+                style={{ background: "#dc2626" }}
+              >
+                <span className="font-black leading-none" style={{ fontSize: 52 }}>{promo.porcentaje}%</span>
+                <span className="text-sm font-bold leading-tight">
+                  {promo.titulo || "DE DESCUENTO"}
+                  <br />
+                  <span className="underline font-normal opacity-90">Ver detalles</span>
+                </span>
+              </button>
+              {promo.bases && <p className="text-[10px] text-slate-400 mb-1 max-w-xs">{promo.bases}</p>}
+              {promo.avisoLegalCupon && (
+                <p className="inline-block text-[10px] font-medium text-white px-3 py-1 rounded-full mb-3" style={{ background: "#dc2626" }}>
+                  {promo.avisoLegalCupon}
+                </p>
+              )}
+            </>
           )}
           <p className="font-serif font-semibold text-left whitespace-pre-line" style={{ fontSize: "clamp(30px, 4vw, 50px)", lineHeight: 1.15 }}>
             {config?.eslogan || "Mi mirada. Mi estilo"}
@@ -9918,8 +9944,30 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
     !!promo?.activa &&
     (!promo.fechaInicio || hoy >= promo.fechaInicio) &&
     (!promo.fechaFin || hoy <= promo.fechaFin);
-  const montoDescuento = promoVigenteCheckout ? Math.round(total * (Number(promo.porcentaje || 0) / 100) * 100) / 100 : 0;
+
+  const [codigoCupon, setCodigoCupon] = useState("");
+  const [cuponEstado, setCuponEstado] = useState("ninguno"); // ninguno | aplicado | invalido
+
+  function aplicarCupon() {
+    const escrito = codigoCupon.trim().toUpperCase();
+    const correcto = (promo?.codigo || "").trim().toUpperCase();
+    if (escrito && correcto && escrito === correcto) {
+      setCuponEstado("aplicado");
+      mostrarToast("Cupón aplicado ✓");
+    } else {
+      setCuponEstado("invalido");
+    }
+  }
+
+  function cancelarCupon() {
+    setCodigoCupon("");
+    setCuponEstado("ninguno");
+  }
+
+  const cuponAplicado = promoVigenteCheckout && cuponEstado === "aplicado";
+  const montoDescuento = cuponAplicado ? Math.round(total * (Number(promo.porcentaje || 0) / 100) * 100) / 100 : 0;
   const totalConDescuento = total - montoDescuento;
+  const cuponBloqueaCompra = promoVigenteCheckout && cuponEstado === "invalido";
 
   const [subiendoReceta, setSubiendoReceta] = useState(false);
   const [metodoEntrega, setMetodoEntrega] = useState("recoger"); // recoger | domicilio
@@ -9983,12 +10031,39 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
           <p className="flex justify-between text-sm mb-1">
             <span>Subtotal</span><span>${total.toFixed(2)} MXN</span>
           </p>
+
           {promoVigenteCheckout && (
-            <div className="flex justify-between text-sm mb-1 px-2 py-1 rounded bg-red-50">
-              <span className="text-red-600 font-semibold">🏷️ Descuento aplicado ({promo.porcentaje}%)</span>
-              <span className="text-red-600 font-semibold">-${montoDescuento.toFixed(2)} MXN</span>
+            <div className="mb-3">
+              {cuponAplicado ? (
+                <div className="flex justify-between items-center text-sm px-2 py-2 rounded bg-red-50">
+                  <span className="text-red-600 font-semibold">🏷️ Descuento aplicado ({promo.porcentaje}%) — -${montoDescuento.toFixed(2)} MXN</span>
+                  <button onClick={cancelarCupon} className="text-xs underline text-slate-500">Quitar</button>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-xs text-slate-500 block mb-1">Aplicar cupón</label>
+                  <div className="flex gap-2">
+                    <input
+                      value={codigoCupon}
+                      onChange={(e) => { setCodigoCupon(e.target.value); if (cuponEstado === "invalido") setCuponEstado("ninguno"); }}
+                      placeholder="Escribe tu código"
+                      className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                    />
+                    <button onClick={aplicarCupon} className="px-4 py-2 rounded-lg bg-black text-white text-sm font-medium">
+                      Aplicar
+                    </button>
+                  </div>
+                  {cuponEstado === "invalido" && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-2 mt-2">
+                      <p className="text-xs text-red-600 mb-1">Ese código no es válido. Corrígelo e inténtalo de nuevo, o cancela el cupón para continuar sin descuento.</p>
+                      <button onClick={cancelarCupon} className="text-xs underline text-slate-500">Cancelar cupón y continuar sin descuento</button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
+
           {requiereReceta && (
             <div className="mb-4">
               <label className="text-xs text-slate-500 block mb-1">Sube tu receta (foto o PDF)</label>
@@ -10148,6 +10223,8 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
               )}
               {faltaEnvio ? (
                 <p className="text-xs text-red-500 mb-2">Elige primero cómo quieres recibir tu pedido.</p>
+              ) : cuponBloqueaCompra ? (
+                <p className="text-xs text-red-500 mb-2">Corrige o cancela el cupón antes de continuar.</p>
               ) : (
                 <BotonesPayPal
                   clientId={config.paypalClientId}
@@ -10162,7 +10239,7 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
                       envioSeleccionado: metodoEntrega === "domicilio" ? envioSeleccionado : null,
                       costoEnvio,
                       montoDescuento,
-                      porcentajeDescuento: promoVigenteCheckout ? promo.porcentaje : 0,
+                      porcentajeDescuento: cuponAplicado ? promo.porcentaje : 0,
                     })
                   }
                 />
@@ -10179,10 +10256,10 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
                   envioSeleccionado: metodoEntrega === "domicilio" ? envioSeleccionado : null,
                   costoEnvio,
                   montoDescuento,
-                  porcentajeDescuento: promoVigenteCheckout ? promo.porcentaje : 0,
+                  porcentajeDescuento: cuponAplicado ? promo.porcentaje : 0,
                 })
               }
-              disabled={carrito.length === 0 || faltaReceta || subiendoReceta || faltaEnvio}
+              disabled={carrito.length === 0 || faltaReceta || subiendoReceta || faltaEnvio || cuponBloqueaCompra}
             >
               Confirmar pedido
             </BotonNegro>
