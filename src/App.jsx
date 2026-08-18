@@ -8646,7 +8646,6 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
                   <span className="underline font-normal opacity-90">Ver detalles</span>
                 </span>
               </button>
-              {promo.bases && <p className="text-[10px] text-slate-400 max-w-xs mx-auto mb-1">{promo.bases}</p>}
               {promo.avisoLegalCupon && (
                 <p className="inline-block text-[10px] font-medium text-white px-3 py-1 rounded-full mb-3" style={{ background: "#dc2626" }}>
                   {promo.avisoLegalCupon}
@@ -8686,7 +8685,6 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
                   <span className="underline font-normal opacity-90">Ver detalles</span>
                 </span>
               </button>
-              {promo.bases && <p className="text-[10px] text-slate-400 mb-1 max-w-xs">{promo.bases}</p>}
               {promo.avisoLegalCupon && (
                 <p className="inline-block text-[10px] font-medium text-white px-3 py-1 rounded-full mb-3" style={{ background: "#dc2626" }}>
                   {promo.avisoLegalCupon}
