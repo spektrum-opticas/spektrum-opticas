@@ -2478,6 +2478,8 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
     nombre: "",
     precio: "",
     existencias: "",
+    marcaGraduado: "",
+    notasGraduado: "",
     tipo: "",
     material: "",
     tratamiento: "",
@@ -2542,6 +2544,13 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
     setConfig({ ...config, catalogoArmazones: { ...actual, [marca]: [...modelosActuales, modelo] } });
   }
 
+  const catalogoMarcasGraduados = config?.catalogoMarcasGraduados || [];
+  function agregarMarcaGraduadoCatalogo(nombreMarca) {
+    const nombre = nombreMarca.trim();
+    if (!nombre || catalogoMarcasGraduados.includes(nombre)) return;
+    setConfig({ ...config, catalogoMarcasGraduados: [...catalogoMarcasGraduados, nombre] });
+  }
+
   const lista = inventario[cat] || [];
   const esArmazon = cat === "armazones";
   const esGraduado = cat === "lentesGraduados";
@@ -2577,6 +2586,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
   function limpiarNuevo() {
     setNuevo({
       nombre: "", precio: "", existencias: "", tipo: "", material: "", tratamiento: "", rango: "",
+      marcaGraduado: "", notasGraduado: "",
       tipoLinea: "", categoriaArmazon: "", tipoReemplazo: "", marcaContacto: "",
       nombreProductoContacto: "", caracteristicasContacto: "", rangosContacto: "", presentacionContacto: "",
       tipoLenteContacto: "", reemplazoContacto: "", modoManualContacto: false, cosmetico: false,
@@ -2606,7 +2616,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
       nombreFinal = `${nuevo.tipoLinea} · ${nuevo.categoriaArmazon}`;
     } else if (esGraduado) {
       if (!nuevo.material || !nuevo.tipo || !nuevo.tratamiento || !nuevo.rango) return;
-      nombreFinal = `${nuevo.material} · ${nuevo.tipo} · ${nuevo.tratamiento} · ${nuevo.rango}`;
+      nombreFinal = `${nuevo.marcaGraduado ? nuevo.marcaGraduado + " · " : ""}${nuevo.material} · ${nuevo.tipo} · ${nuevo.tratamiento} · ${nuevo.rango}`;
       extra = { rangoDescripcion: `${nuevo.rango}: ${RANGOS_RX[nuevo.rango]}` };
     } else if (esContacto) {
       if (!nuevo.marcaContacto || !nuevo.nombreProductoContacto) return;
@@ -2904,6 +2914,45 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
 
         {esGraduado && (
           <>
+            <div>
+              <label className="text-xs text-slate-500">Marca</label>
+              <div className="flex gap-1">
+                <select
+                  value={nuevo.marcaGraduado}
+                  onChange={(e) => setNuevo({ ...nuevo, marcaGraduado: e.target.value })}
+                  className="block border rounded-lg px-2 py-1.5 text-sm"
+                >
+                  <option value="">—</option>
+                  {catalogoMarcasGraduados.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nueva = window.prompt("Nombre de la nueva marca:");
+                    if (nueva) {
+                      agregarMarcaGraduadoCatalogo(nueva);
+                      setNuevo({ ...nuevo, marcaGraduado: nueva.trim() });
+                    }
+                  }}
+                  className="border rounded-lg px-2 text-sm"
+                  title="Agregar nueva marca"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <div className="w-full">
+              <label className="text-xs text-slate-500">Datos adicionales de esta marca (a discreción — notas, precio especial, lo que necesites)</label>
+              <textarea
+                value={nuevo.notasGraduado}
+                onChange={(e) => setNuevo({ ...nuevo, notasGraduado: e.target.value })}
+                rows={2}
+                placeholder="Ej. Precio de mayoreo $850, proveedor directo, garantía de 1 año..."
+                className="block border rounded-lg px-2 py-1.5 text-sm w-full"
+              />
+            </div>
             <div>
               <label className="text-xs text-slate-500">Material</label>
               <select
@@ -3342,11 +3391,9 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
                   <span className="hidden print:inline">{a.existencias}</span>
                 </td>
                 <td className="px-3 py-2 text-right print:hidden">
-                  {esArmazon && (
-                    <button onClick={() => setEditando(a)} className="text-slate-600 hover:text-slate-800 mr-2 text-xs underline">
-                      Editar detalles
-                    </button>
-                  )}
+                  <button onClick={() => setEditando(a)} className="text-slate-600 hover:text-slate-800 mr-2 text-xs underline">
+                    Editar detalles
+                  </button>
                   <button onClick={() => eliminar(a.id)} className="text-red-400 hover:text-red-600">
                     <Trash2 size={16} />
                   </button>
@@ -3368,6 +3415,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
       {editando && (
         <EditarArticuloModal
           articulo={editando}
+          cat={cat}
           onCerrar={() => setEditando(null)}
           onGuardar={(actualizado) => {
             setInventario({ ...inventario, [cat]: lista.map((x) => (x.id === actualizado.id ? actualizado : x)) });
@@ -3381,7 +3429,8 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
   );
 }
 
-function EditarArticuloModal({ articulo, onCerrar, onGuardar, config, setConfig }) {
+function EditarArticuloModal({ articulo, cat, onCerrar, onGuardar, config, setConfig }) {
+  const esArmazonEdit = cat === "armazones";
   const [datos, setDatos] = useState({
     ...articulo,
     tallas: articulo.tallas || [],
@@ -3421,6 +3470,77 @@ function EditarArticuloModal({ articulo, onCerrar, onGuardar, config, setConfig 
   return (
     <Modal open={true} onClose={onCerrar} title={`Editar detalles — ${articulo.nombre}`} wide>
       <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <label className="text-xs text-slate-500">Nombre / descripción del artículo</label>
+            <input
+              value={datos.nombre || ""}
+              onChange={(e) => setDatos({ ...datos, nombre: e.target.value })}
+              className="block border rounded-lg px-2 py-1.5 text-sm w-full"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Precio</label>
+            <input
+              type="number"
+              value={datos.precio ?? ""}
+              onChange={(e) => setDatos({ ...datos, precio: e.target.value })}
+              className="block border rounded-lg px-2 py-1.5 text-sm w-full"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500">Existencias</label>
+            <input
+              type="number"
+              value={datos.existencias ?? ""}
+              onChange={(e) => setDatos({ ...datos, existencias: e.target.value })}
+              className="block border rounded-lg px-2 py-1.5 text-sm w-full"
+            />
+          </div>
+        </div>
+
+        {cat === "lentesGraduados" && (
+          <>
+            <div>
+              <label className="text-xs text-slate-500">Marca</label>
+              <input
+                value={datos.marcaGraduado || ""}
+                onChange={(e) => setDatos({ ...datos, marcaGraduado: e.target.value })}
+                className="block border rounded-lg px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Material</label>
+              <select value={datos.material || ""} onChange={(e) => setDatos({ ...datos, material: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm">
+                <option value="">—</option>
+                <option>CR39</option>
+                <option>Policarbonato</option>
+                <option>Hi Index</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Tipo</label>
+              <select value={datos.tipo || ""} onChange={(e) => setDatos({ ...datos, tipo: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm">
+                <option value="">—</option>
+                <option>Monofocal</option>
+                <option>Bifocal</option>
+                <option>Progresivo</option>
+              </select>
+            </div>
+            <div className="w-full">
+              <label className="text-xs text-slate-500">Datos adicionales de esta marca (a discreción)</label>
+              <textarea
+                value={datos.notasGraduado || ""}
+                onChange={(e) => setDatos({ ...datos, notasGraduado: e.target.value })}
+                rows={2}
+                className="block border rounded-lg px-2 py-1.5 text-sm w-full"
+              />
+            </div>
+          </>
+        )}
+
+        {esArmazonEdit && (
+        <>
         <div>
           <label className="text-xs text-slate-500">Descripción (color)</label>
           <select value={datos.descripcion} onChange={(e) => setDatos({ ...datos, descripcion: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm">
@@ -3560,6 +3680,8 @@ function EditarArticuloModal({ articulo, onCerrar, onGuardar, config, setConfig 
             />
           </div>
         </div>
+        </>
+        )}
         <button onClick={() => onGuardar(datos)} className="w-full py-2 rounded-lg text-white text-sm font-medium" style={{ background: SKY_DARK }}>
           Guardar detalles
         </button>
