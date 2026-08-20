@@ -724,8 +724,12 @@ function useStoredState(key, initial) {
     cargar();
   }, [cargar]);
 
+  const valueRef = useRef(initial);
+
   const persist = useCallback(
-    async (next) => {
+    async (nextOrFn) => {
+      const next = typeof nextOrFn === "function" ? nextOrFn(valueRef.current) : nextOrFn;
+      valueRef.current = next;
       setValue(next);
       setStatus("saving");
       try {
@@ -747,7 +751,6 @@ function useStoredState(key, initial) {
     [key]
   );
 
-  const valueRef = useRef(value);
   valueRef.current = value;
   const reintentar = useCallback(() => persist(valueRef.current), [persist]);
 
@@ -786,8 +789,12 @@ function useRowStorage(tabla) {
     cargar();
   }, [cargar]);
 
+  const valueRef = useRef([]);
+
   const persist = useCallback(
-    async (next) => {
+    async (nextOrFn) => {
+      const next = typeof nextOrFn === "function" ? nextOrFn(valueRef.current) : nextOrFn;
+      valueRef.current = next;
       setValue(next);
       setStatus("saving");
 
@@ -833,7 +840,6 @@ function useRowStorage(tabla) {
     [tabla]
   );
 
-  const valueRef = useRef(value);
   valueRef.current = value;
   const reintentar = useCallback(() => persist(valueRef.current), [persist]);
 
@@ -6179,7 +6185,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
   const esDelDia = (isoFecha) => isoFecha.slice(0, 10) === fecha;
 
   // Ventas (notas confirmadas) creadas ese día
-  const ventasDelDia = ventas.filter((v) => v.estatus === "venta" && esDelDia(v.fecha));
+  const ventasDelDia = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && esDelDia(v.fecha));
   const totalVendido = ventasDelDia.reduce((s, v) => s + v.total, 0);
 
   // Pagos individuales de todas las notas, filtrados por fecha del pago
@@ -6573,7 +6579,7 @@ function diasEnMes(mesStr) {
 }
 
 function datosDelMes(mes, ventas, dashboard, pagosProveedores) {
-  const ventasDelMes = ventas.filter((v) => v.estatus === "venta" && v.fecha && v.fecha.slice(0, 7) === mes);
+  const ventasDelMes = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && v.fecha && v.fecha.slice(0, 7) === mes);
   const vendidoReal = ventasDelMes.reduce((s, v) => s + v.total, 0);
   const todosPagos = ventas.flatMap((v) => (v.pagos || []));
   const cobradoReal = todosPagos
@@ -6600,7 +6606,7 @@ function CorteMensual({ ventas, pagosProveedores }) {
 
   const esDelMes = (isoFecha) => isoFecha.slice(0, 7) === mes;
 
-  const ventasDelMes = ventas.filter((v) => v.estatus === "venta" && esDelMes(v.fecha));
+  const ventasDelMes = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && esDelMes(v.fecha));
   const totalVendido = ventasDelMes.reduce((s, v) => s + v.total, 0);
   const totalTicketsMes = ventasDelMes.length;
   const ticketPromedioMes = totalTicketsMes > 0 ? totalVendido / totalTicketsMes : 0;
@@ -6949,7 +6955,9 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
     return { totalReembolso, totalRetenido, itemsBloqueados, itemsProcesables };
   }
 
-  function registrarEventoCancelacion(folio, calculo, autorizado) {
+  const [avisoReembolso, setAvisoReembolso] = useState(null);
+
+  function registrarEventoCancelacion(folio, calculo, autorizado, montoAReembolsar) {
     setVentas((prev) =>
       prev.map((v) =>
         v.folio === folio
@@ -6961,6 +6969,7 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
                   fecha: new Date().toISOString(),
                   montoReembolsado: calculo.totalReembolso,
                   montoRetenido: calculo.totalRetenido,
+                  montoDevueltoEnEfectivoOTarjeta: montoAReembolsar,
                   autorizadoAdmin: autorizado,
                 },
               ],
@@ -6979,18 +6988,25 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
     reintegrarInventario(calculo.itemsProcesables);
     const itemsRestantes = nota.items.filter((it) => !calculo.itemsProcesables.includes(it));
     const todoDevuelto = itemsRestantes.length === 0;
+    const nuevoTotal = itemsRestantes.reduce((s, it) => s + Number(it.precio || 0), 0);
+    const montoAReembolsar = Math.min(calculo.totalReembolso, Number(nota.abono || 0));
+    const nuevoAbono = Number(nota.abono || 0) - montoAReembolsar;
+    const nuevoSaldo = Math.max(0, nuevoTotal - nuevoAbono);
     setVentas((prev) =>
       prev.map((v) =>
         v.folio === nota.folio
-          ? { ...v, items: itemsRestantes, total: itemsRestantes.reduce((s, it) => s + Number(it.precio || 0), 0), saldo: 0, estatus: todoDevuelto ? "cancelada" : "devolucion" }
+          ? { ...v, items: itemsRestantes, total: nuevoTotal, abono: nuevoAbono, saldo: nuevoSaldo, estatus: todoDevuelto ? "cancelada" : "devolucion" }
           : v
       )
     );
-    registrarEventoCancelacion(nota.folio, calculo, autorizado);
+    registrarEventoCancelacion(nota.folio, calculo, autorizado, montoAReembolsar);
     setFolioSel(null);
     setMarcados({});
     setAutorizadoAdmin(false);
     setAvisoRetencion(null);
+    if (montoAReembolsar > 0) {
+      setAvisoReembolso({ folio: nota.folio, cliente: nota.nombreCliente, monto: montoAReembolsar, formaPago: nota.formaPago });
+    }
     mostrarToast(calculo.totalRetenido > 0 ? `Cancelado — se retuvieron $${calculo.totalRetenido.toFixed(2)} por trabajo ya iniciado en laboratorio` : "Nota cancelada ✓");
   }
 
@@ -7006,18 +7022,24 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
     const itemsRestantes = nota.items.filter((it) => !calculo.itemsProcesables.includes(it));
     const nuevoTotal = itemsRestantes.reduce((s, it) => s + Number(it.precio || 0), 0);
     const todoDevuelto = itemsRestantes.length === 0;
+    const montoAReembolsar = Math.min(calculo.totalReembolso, Number(nota.abono || 0));
+    const nuevoAbono = Number(nota.abono || 0) - montoAReembolsar;
+    const nuevoSaldo = Math.max(0, nuevoTotal - nuevoAbono);
     setVentas((prev) =>
       prev.map((v) =>
         v.folio === nota.folio
-          ? { ...v, items: itemsRestantes, total: nuevoTotal, saldo: Math.max(0, nuevoTotal - v.abono), estatus: todoDevuelto ? "cancelada" : "devolucion" }
+          ? { ...v, items: itemsRestantes, total: nuevoTotal, abono: nuevoAbono, saldo: nuevoSaldo, estatus: todoDevuelto ? "cancelada" : "devolucion" }
           : v
       )
     );
-    registrarEventoCancelacion(nota.folio, calculo, autorizado);
+    registrarEventoCancelacion(nota.folio, calculo, autorizado, montoAReembolsar);
     setFolioSel(null);
     setMarcados({});
     setAutorizadoAdmin(false);
     setAvisoRetencion(null);
+    if (montoAReembolsar > 0) {
+      setAvisoReembolso({ folio: nota.folio, cliente: nota.nombreCliente, monto: montoAReembolsar, formaPago: nota.formaPago });
+    }
     mostrarToast(calculo.totalRetenido > 0 ? `Devuelto — se retuvieron $${calculo.totalRetenido.toFixed(2)} por trabajo ya iniciado en laboratorio` : "Devolución registrada ✓");
   }
 
@@ -7088,13 +7110,16 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
         <div className="bg-white border rounded-xl overflow-hidden max-h-40 overflow-y-auto">
           <table className="w-full text-sm">
             <tbody>
-              {canceladas.map((v) => (
-                <tr key={v.folio} className="border-t">
-                  <td className="px-2 py-1">{v.folio}</td>
-                  <td className="px-2 py-1">{v.nombreCliente}</td>
-                  <td className="px-2 py-1 text-right">${v.total.toFixed(2)}</td>
-                </tr>
-              ))}
+              {canceladas.map((v) => {
+                const montoDevuelto = (v.historialCancelacion || []).reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
+                return (
+                  <tr key={v.folio} className="border-t">
+                    <td className="px-2 py-1">{v.folio}</td>
+                    <td className="px-2 py-1">{v.nombreCliente}</td>
+                    <td className="px-2 py-1 text-right">${montoDevuelto.toFixed(2)}</td>
+                  </tr>
+                );
+              })}
               {canceladas.length === 0 && (
                 <tr><td className="text-center text-slate-400 py-3">Ninguna todavía.</td></tr>
               )}
@@ -7208,6 +7233,21 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
           else ejecutarCancelacionCompleta(true);
         }}
       />
+
+      <Modal open={!!avisoReembolso} onClose={() => setAvisoReembolso(null)} title="Devolución de pago pendiente">
+        {avisoReembolso && (
+          <div className="text-center py-2">
+            <p className="text-sm text-slate-500 mb-1">Folio #{avisoReembolso.folio} — {avisoReembolso.cliente}</p>
+            <p className="text-3xl font-bold text-red-600 mb-2">${avisoReembolso.monto.toFixed(2)}</p>
+            <p className="text-sm text-slate-600 mb-4">
+              Este monto ya estaba cobrado{avisoReembolso.formaPago ? ` (${avisoReembolso.formaPago})` : ""} y debe devolverse físicamente al cliente ahora mismo.
+            </p>
+            <button onClick={() => setAvisoReembolso(null)} className="px-6 py-2 rounded-lg text-white text-sm font-medium" style={{ background: SKY_DARK }}>
+              Entendido, ya lo devolví
+            </button>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
@@ -11096,6 +11136,8 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
   const [cargaManual, setCargaManual] = useState({ mes: mesISO(new Date()), vendido: "", cobrado: "", meta: "" });
 
   const datosMes = datosDelMes(mesAnalisis, ventas, dashboard, pagosProveedores);
+  const cancelacionesMesDashboard = ventas.flatMap((v) => (v.historialCancelacion || []).filter((c) => c.fecha.slice(0, 7) === mesAnalisis));
+  const totalCanceladoMesDashboard = cancelacionesMesDashboard.reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
   const meta = datosMes.meta;
   const alcanzado = datosMes.vendido; // siempre automático: vendido real del mes
   const pctMeta = meta > 0 ? (alcanzado / meta) * 100 : 0;
@@ -11107,7 +11149,7 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
   const proyectadoCobrado = diaActual > 0 ? (datosMes.cobrado / diaActual) * diasTotalesMes : 0;
   const pctProyectado = meta > 0 ? (proyectadoVendido / meta) * 100 : 0;
 
-  const ventasDelMes = ventas.filter((v) => v.estatus === "venta" && v.fecha && v.fecha.slice(0, 7) === mesAnalisis);
+  const ventasDelMes = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && v.fecha && v.fecha.slice(0, 7) === mesAnalisis);
 
   function montoPorOptometrista(nombre) {
     const clave = (nombre || "").trim().toLowerCase();
@@ -11322,6 +11364,14 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
             ]}
           />
         </div>
+        {totalCanceladoMesDashboard > 0 && (
+          <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-center justify-between flex-wrap gap-2">
+            <p className="text-sm text-red-700 font-medium">
+              🔻 Cancelaciones y devoluciones este mes: {cancelacionesMesDashboard.length} evento(s)
+            </p>
+            <p className="text-lg font-bold text-red-700">-${totalCanceladoMesDashboard.toFixed(2)} MXN</p>
+          </div>
+        )}
       </div>
 
       <div className="bg-white border rounded-xl p-4">
