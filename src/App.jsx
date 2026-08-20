@@ -260,6 +260,17 @@ function zonaPorCP(cp, mapaCP) {
   return "Nacional a Extremos (Tijuana, Mexicali, Hermosillo, Cancún, Los Cabos, zonas alejadas)"; // por defecto, la más segura si no se reconoce
 }
 
+// Monto original ("bruto") de una venta, para el rastro de auditoría. Si la venta ya
+// trae guardado totalOriginal (ventas creadas después de este ajuste), se usa directo.
+// Si es una venta anterior que ya fue cancelada antes de que existiera ese campo, se
+// reconstruye sumando de vuelta lo reembolsado y lo retenido de su historial de cancelación.
+function montoOriginalVenta(v) {
+  if (v.totalOriginal != null) return Number(v.totalOriginal);
+  const historial = v.historialCancelacion || [];
+  const recuperado = historial.reduce((s, c) => s + Number(c.montoReembolsado || 0) + Number(c.montoRetenido || 0), 0);
+  return Number(v.total || 0) + recuperado;
+}
+
 function folioBase(o, pacientes) {
   if (o.folioVenta) return o.folioVenta;
   const p = pacientes?.find((x) => x.id === o.pacienteId);
@@ -6188,7 +6199,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
   // Ventas (notas confirmadas, sin contar presupuestos) creadas ese día — el monto BRUTO original,
   // aunque después se haya cancelado, para dejar rastro completo de auditoría.
   const ventasDelDia = ventas.filter((v) => v.estatus !== "presupuesto" && esDelDia(v.fecha));
-  const totalVendido = ventasDelDia.reduce((s, v) => s + Number(v.totalOriginal ?? v.total), 0);
+  const totalVendido = ventasDelDia.reduce((s, v) => s + montoOriginalVenta(v), 0);
 
   // Pagos individuales de todas las notas, filtrados por fecha del pago
   const todosPagos = ventas.flatMap((v) => (v.pagos || []).map((p) => ({ ...p, folio: v.folio, cliente: v.nombreCliente })));
@@ -6360,7 +6371,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
                       <span className="text-red-500"> ({v.estatus === "cancelada" ? "cancelada" : "con devolución"})</span>
                     )}
                   </td>
-                  <td className="text-right py-1">${Number(v.totalOriginal ?? v.total).toFixed(2)}</td>
+                  <td className="text-right py-1">${montoOriginalVenta(v).toFixed(2)}</td>
                 </tr>
               ))}
               {ventasDelDia.length === 0 && <tr><td className="text-slate-400 py-2">Sin ventas este día.</td></tr>}
@@ -6604,7 +6615,7 @@ function diasEnMes(mesStr) {
 
 function datosDelMes(mes, ventas, dashboard, pagosProveedores) {
   const ventasDelMes = ventas.filter((v) => v.estatus !== "presupuesto" && v.fecha && v.fecha.slice(0, 7) === mes);
-  const vendidoReal = ventasDelMes.reduce((s, v) => s + Number(v.totalOriginal ?? v.total), 0);
+  const vendidoReal = ventasDelMes.reduce((s, v) => s + montoOriginalVenta(v), 0);
   const todosPagos = ventas.flatMap((v) => (v.pagos || []));
   const cobradoReal = todosPagos
     .filter((p) => p.fecha && p.fecha.slice(0, 7) === mes)
@@ -6645,7 +6656,7 @@ function CorteMensual({ ventas, pagosProveedores }) {
   const esDelMes = (isoFecha) => isoFecha.slice(0, 7) === mes;
 
   const ventasDelMes = ventas.filter((v) => v.estatus !== "presupuesto" && esDelMes(v.fecha));
-  const totalVendido = ventasDelMes.reduce((s, v) => s + Number(v.totalOriginal ?? v.total), 0);
+  const totalVendido = ventasDelMes.reduce((s, v) => s + montoOriginalVenta(v), 0);
   const totalTicketsMes = ventasDelMes.length;
   const ticketPromedioMes = totalTicketsMes > 0 ? totalVendido / totalTicketsMes : 0;
 
@@ -6759,7 +6770,7 @@ function CorteMensual({ ventas, pagosProveedores }) {
                         <span className="text-red-500"> ({v.estatus === "cancelada" ? "cancelada" : "con devolución"})</span>
                       )}
                     </td>
-                    <td className="text-right py-1">${Number(v.totalOriginal ?? v.total).toFixed(2)}</td>
+                    <td className="text-right py-1">${montoOriginalVenta(v).toFixed(2)}</td>
                   </tr>
                 ))}
                 {ventasDelMes.length === 0 && <tr><td className="text-slate-400 py-2">Sin ventas este mes.</td></tr>}
