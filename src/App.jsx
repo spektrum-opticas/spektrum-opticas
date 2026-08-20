@@ -1718,6 +1718,7 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
       descuentoValor: Number(descuentoValor || 0),
       montoDescuento,
       total,
+      totalOriginal: original?.totalOriginal ?? total,
       abono: montoAbono,
       saldo,
       estatus,
@@ -6184,9 +6185,10 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
 
   const esDelDia = (isoFecha) => isoFecha.slice(0, 10) === fecha;
 
-  // Ventas (notas confirmadas) creadas ese día
-  const ventasDelDia = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && esDelDia(v.fecha));
-  const totalVendido = ventasDelDia.reduce((s, v) => s + v.total, 0);
+  // Ventas (notas confirmadas, sin contar presupuestos) creadas ese día — el monto BRUTO original,
+  // aunque después se haya cancelado, para dejar rastro completo de auditoría.
+  const ventasDelDia = ventas.filter((v) => v.estatus !== "presupuesto" && esDelDia(v.fecha));
+  const totalVendido = ventasDelDia.reduce((s, v) => s + Number(v.totalOriginal ?? v.total), 0);
 
   // Pagos individuales de todas las notas, filtrados por fecha del pago
   const todosPagos = ventas.flatMap((v) => (v.pagos || []).map((p) => ({ ...p, folio: v.folio, cliente: v.nombreCliente })));
@@ -6214,6 +6216,11 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
 
   const cancelacionesDelDia = ventas.flatMap((v) => (v.historialCancelacion || []).filter((c) => esDelDia(c.fecha)).map((c) => ({ ...c, folio: v.folio, cliente: v.nombreCliente })));
   const totalCancelacionesDia = cancelacionesDelDia.reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
+  const totalDevueltoEnPagoDia = cancelacionesDelDia.reduce((s, c) => s + Number(c.montoDevueltoEnEfectivoOTarjeta || 0), 0);
+
+  // La fórmula de auditoría: lo vendido en bruto, menos lo cancelado ese mismo día, da la venta real neta.
+  const ventaRealDia = totalVendido - totalCancelacionesDia;
+  const cobroRealDia = totalCobradoHoy - totalDevueltoEnPagoDia;
 
   const debeHaberCaja = totalCobradoHoy - totalProveedores - totalCancelacionesDia;
 
@@ -6300,22 +6307,29 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
       <div id="corte-imprimible">
         <p className="hidden print:block font-bold mb-3">Corte Diario — {fecha}</p>
         <div className="flex gap-3 mb-6 overflow-x-auto pb-1 print:hidden">
-          <TotalBox titulo="Vendido del día" monto={totalVendido} color="#111827" subtitulo={`${ventasDelDia.length} nota(s)`} />
+          <TotalBox titulo="Vendido del día (bruto)" monto={totalVendido} color="#111827" subtitulo={`${ventasDelDia.length} nota(s) — incluye lo cancelado`} />
+          <TotalBox titulo="Cancelado del día" monto={totalCancelacionesDia} color="#dc2626" subtitulo={`${cancelacionesDelDia.length} evento(s)`} />
+          <TotalBox titulo="Venta real del día" monto={ventaRealDia} color={ventaRealDia >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Vendido − Cancelado" />
           <TotalBox titulo="Total de tickets del día" monto={totalTicketsDia} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioDia.toFixed(2)}`} esConteo />
           <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#6B7280" subtitulo={`${anticipos.length} pago(s)`} />
           <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
           <TotalBox titulo="Abonos parciales (apartados)" monto={totalAbonosParciales} color="#eab308" subtitulo={`${abonosParciales.length} pago(s)`} />
-          <TotalBox titulo="Total cobrado hoy" monto={totalCobradoHoy} color="#047857" subtitulo="Anticipos + liquidaciones + abonos + contado" />
+          <TotalBox titulo="Cobrado hoy (bruto)" monto={totalCobradoHoy} color="#047857" subtitulo="Anticipos + liquidaciones + abonos + contado" />
+          <TotalBox titulo="Devuelto al cliente" monto={totalDevueltoEnPagoDia} color="#dc2626" subtitulo="Efectivo/tarjeta regresado por cancelaciones" />
+          <TotalBox titulo="Cobro real del día" monto={cobroRealDia} color={cobroRealDia >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado − Devuelto" />
           <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
           <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelDia.length} pago(s)`} />
-          <TotalBox titulo="Cancelaciones y devoluciones" monto={totalCancelacionesDia} color="#dc2626" subtitulo={`${cancelacionesDelDia.length} evento(s)`} />
           <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado hoy − proveedores − cancelaciones" />
         </div>
 
         <div className="hidden print:grid" style={{ gridTemplateColumns: "1fr 1fr", columnGap: 24, rowGap: 2, fontSize: 12, marginBottom: 16 }}>
           <div>
-            <p><b>Vendido del día:</b> ${totalVendido.toFixed(2)}</p>
+            <p><b>Vendido del día (bruto):</b> ${totalVendido.toFixed(2)}</p>
+            <p><b>Cancelado del día:</b> ${totalCancelacionesDia.toFixed(2)}</p>
+            <p><b>Venta real del día:</b> ${ventaRealDia.toFixed(2)}</p>
             <p><b>Total de tickets del día:</b> {totalTicketsDia}</p>
+            <p><b>Devuelto al cliente:</b> ${totalDevueltoEnPagoDia.toFixed(2)}</p>
+            <p><b>Cobro real del día:</b> ${cobroRealDia.toFixed(2)}</p>
             <p><b>Ticket promedio:</b> ${ticketPromedioDia.toFixed(2)}</p>
             <p><b>Anticipos cobrados:</b> ${totalAnticipos.toFixed(2)}</p>
           </div>
@@ -6339,7 +6353,15 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
             </thead>
             <tbody>
               {ventasDelDia.map((v) => (
-                <tr key={v.folio} className="border-t"><td className="py-1">#{v.folio} — {v.nombreCliente}</td><td className="text-right py-1">${v.total.toFixed(2)}</td></tr>
+                <tr key={v.folio} className="border-t">
+                  <td className="py-1">
+                    #{v.folio} — {v.nombreCliente}
+                    {(v.estatus === "cancelada" || v.estatus === "devolucion") && (
+                      <span className="text-red-500"> ({v.estatus === "cancelada" ? "cancelada" : "con devolución"})</span>
+                    )}
+                  </td>
+                  <td className="text-right py-1">${Number(v.totalOriginal ?? v.total).toFixed(2)}</td>
+                </tr>
               ))}
               {ventasDelDia.length === 0 && <tr><td className="text-slate-400 py-2">Sin ventas este día.</td></tr>}
             </tbody>
@@ -6408,7 +6430,9 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
                 <tr key={i} className="border-t">
                   <td className="py-1">
                     #{c.folio} {c.cliente}
-                    {c.montoRetenido > 0 && <span className="text-amber-600"> (retenido ${c.montoRetenido.toFixed(2)})</span>}
+                    {c.motivo && <span className="text-slate-500"> · {c.motivo}</span>}
+                    {c.formaDevolucion && <span className="text-slate-400"> ({c.formaDevolucion})</span>}
+                    {c.montoRetenido > 0 && <span className="text-amber-600"> · retenido ${c.montoRetenido.toFixed(2)}</span>}
                     {c.autorizadoAdmin && <span className="text-slate-400"> · autorizado por admin</span>}
                   </td>
                   <td className="text-right py-1">${c.montoReembolsado.toFixed(2)}</td>
@@ -6579,8 +6603,8 @@ function diasEnMes(mesStr) {
 }
 
 function datosDelMes(mes, ventas, dashboard, pagosProveedores) {
-  const ventasDelMes = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && v.fecha && v.fecha.slice(0, 7) === mes);
-  const vendidoReal = ventasDelMes.reduce((s, v) => s + v.total, 0);
+  const ventasDelMes = ventas.filter((v) => v.estatus !== "presupuesto" && v.fecha && v.fecha.slice(0, 7) === mes);
+  const vendidoReal = ventasDelMes.reduce((s, v) => s + Number(v.totalOriginal ?? v.total), 0);
   const todosPagos = ventas.flatMap((v) => (v.pagos || []));
   const cobradoReal = todosPagos
     .filter((p) => p.fecha && p.fecha.slice(0, 7) === mes)
@@ -6588,17 +6612,31 @@ function datosDelMes(mes, ventas, dashboard, pagosProveedores) {
   const gastosReal = (pagosProveedores || [])
     .filter((p) => p.fecha && p.fecha.slice(0, 7) === mes && !p.esAjusteMayor)
     .reduce((s, p) => s + Number(p.monto || 0), 0);
+  const cancelacionesReal = ventas
+    .flatMap((v) => v.historialCancelacion || [])
+    .filter((c) => c.fecha && c.fecha.slice(0, 7) === mes)
+    .reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
   const hayDatosReales = ventasDelMes.length > 0;
   const manual = (dashboard.historialManual || []).find((h) => h.mes === mes);
   const meta = Number((dashboard.metasPorMes || {})[mes]) || Number(manual?.meta) || 0;
   if (hayDatosReales) {
-    return { vendido: vendidoReal, cobrado: cobradoReal, gastos: gastosReal, caja: cobradoReal - gastosReal, meta, origen: "real", tickets: ventasDelMes.length };
+    return {
+      vendido: vendidoReal,
+      cancelado: cancelacionesReal,
+      ventaReal: vendidoReal - cancelacionesReal,
+      cobrado: cobradoReal,
+      gastos: gastosReal,
+      caja: cobradoReal - gastosReal,
+      meta,
+      origen: "real",
+      tickets: ventasDelMes.length,
+    };
   }
   if (manual) {
     const cobradoManual = Number(manual.cobrado) || 0;
-    return { vendido: Number(manual.vendido) || 0, cobrado: cobradoManual, gastos: gastosReal, caja: cobradoManual - gastosReal, meta, origen: "manual", tickets: 0 };
+    return { vendido: Number(manual.vendido) || 0, cancelado: 0, ventaReal: Number(manual.vendido) || 0, cobrado: cobradoManual, gastos: gastosReal, caja: cobradoManual - gastosReal, meta, origen: "manual", tickets: 0 };
   }
-  return { vendido: 0, cobrado: 0, gastos: gastosReal, caja: -gastosReal, meta, origen: "sin_datos", tickets: 0 };
+  return { vendido: 0, cancelado: 0, ventaReal: 0, cobrado: 0, gastos: gastosReal, caja: -gastosReal, meta, origen: "sin_datos", tickets: 0 };
 }
 
 function CorteMensual({ ventas, pagosProveedores }) {
@@ -6606,8 +6644,8 @@ function CorteMensual({ ventas, pagosProveedores }) {
 
   const esDelMes = (isoFecha) => isoFecha.slice(0, 7) === mes;
 
-  const ventasDelMes = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && esDelMes(v.fecha));
-  const totalVendido = ventasDelMes.reduce((s, v) => s + v.total, 0);
+  const ventasDelMes = ventas.filter((v) => v.estatus !== "presupuesto" && esDelMes(v.fecha));
+  const totalVendido = ventasDelMes.reduce((s, v) => s + Number(v.totalOriginal ?? v.total), 0);
   const totalTicketsMes = ventasDelMes.length;
   const ticketPromedioMes = totalTicketsMes > 0 ? totalVendido / totalTicketsMes : 0;
 
@@ -6630,6 +6668,10 @@ function CorteMensual({ ventas, pagosProveedores }) {
 
   const cancelacionesDelMes = ventas.flatMap((v) => (v.historialCancelacion || []).filter((c) => esDelMes(c.fecha)).map((c) => ({ ...c, folio: v.folio, cliente: v.nombreCliente })));
   const totalCancelacionesMes = cancelacionesDelMes.reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
+  const totalDevueltoEnPagoMes = cancelacionesDelMes.reduce((s, c) => s + Number(c.montoDevueltoEnEfectivoOTarjeta || 0), 0);
+
+  const ventaRealMes = totalVendido - totalCancelacionesMes;
+  const cobroRealMes = totalCobradoMes - totalDevueltoEnPagoMes;
 
   const debeHaberCaja = totalCobradoMes - totalProveedores - totalCancelacionesMes;
 
@@ -6665,21 +6707,26 @@ function CorteMensual({ ventas, pagosProveedores }) {
       <div id="corte-mes-imprimible">
         <p className="hidden print:block font-bold mb-3">Corte del mes — {mes}</p>
         <div className="flex gap-3 mb-6 overflow-x-auto pb-1 print:hidden">
-          <TotalBox titulo="Vendido del mes" monto={totalVendido} color="#111827" subtitulo={`${ventasDelMes.length} nota(s)`} />
+          <TotalBox titulo="Vendido del mes (bruto)" monto={totalVendido} color="#111827" subtitulo={`${ventasDelMes.length} nota(s) — incluye lo cancelado`} />
+          <TotalBox titulo="Cancelado del mes" monto={totalCancelacionesMes} color="#dc2626" subtitulo={`${cancelacionesDelMes.length} evento(s)`} />
+          <TotalBox titulo="Venta real del mes" monto={ventaRealMes} color={ventaRealMes >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Vendido − Cancelado" />
           <TotalBox titulo="Total de tickets del mes" monto={totalTicketsMes} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioMes.toFixed(2)}`} esConteo />
           <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#6B7280" subtitulo={`${anticipos.length} pago(s)`} />
           <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
           <TotalBox titulo="Abonos parciales (apartados)" monto={totalAbonosParciales} color="#eab308" subtitulo={`${abonosParciales.length} pago(s)`} />
-          <TotalBox titulo="Total cobrado en el mes" monto={totalCobradoMes} color="#047857" subtitulo="Anticipos + liquidaciones + abonos + contado" />
+          <TotalBox titulo="Cobrado en el mes (bruto)" monto={totalCobradoMes} color="#047857" subtitulo="Anticipos + liquidaciones + abonos + contado" />
+          <TotalBox titulo="Devuelto al cliente" monto={totalDevueltoEnPagoMes} color="#dc2626" subtitulo="Efectivo/tarjeta regresado por cancelaciones" />
+          <TotalBox titulo="Cobro real del mes" monto={cobroRealMes} color={cobroRealMes >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado − Devuelto" />
           <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
           <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelMes.length} pago(s)`} />
-          <TotalBox titulo="Cancelaciones y devoluciones" monto={totalCancelacionesMes} color="#dc2626" subtitulo={`${cancelacionesDelMes.length} evento(s)`} />
           <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado del mes − proveedores − cancelaciones" />
         </div>
 
         <div className="hidden print:grid" style={{ gridTemplateColumns: "1fr 1fr", columnGap: 24, rowGap: 2, fontSize: 12, marginBottom: 16 }}>
           <div>
-            <p><b>Vendido del mes:</b> ${totalVendido.toFixed(2)}</p>
+            <p><b>Vendido del mes (bruto):</b> ${totalVendido.toFixed(2)}</p>
+            <p><b>Cancelado del mes:</b> ${totalCancelacionesMes.toFixed(2)}</p>
+            <p><b>Venta real del mes:</b> ${ventaRealMes.toFixed(2)}</p>
             <p><b>Total de tickets del mes:</b> {totalTicketsMes}</p>
             <p><b>Ticket promedio:</b> ${ticketPromedioMes.toFixed(2)}</p>
             <p><b>Anticipos cobrados:</b> ${totalAnticipos.toFixed(2)}</p>
@@ -6688,9 +6735,10 @@ function CorteMensual({ ventas, pagosProveedores }) {
             <p><b>Saldos cobrados al entregar:</b> ${totalLiquidaciones.toFixed(2)}</p>
             <p><b>Abonos parciales (apartados):</b> ${totalAbonosParciales.toFixed(2)}</p>
             <p><b>Total cobrado en el mes:</b> ${totalCobradoMes.toFixed(2)}</p>
+            <p><b>Devuelto al cliente:</b> ${totalDevueltoEnPagoMes.toFixed(2)}</p>
+            <p><b>Cobro real del mes:</b> ${cobroRealMes.toFixed(2)}</p>
             <p><b>Saldo pendiente:</b> ${totalSaldoPendiente.toFixed(2)}</p>
             <p><b>Pago a proveedores:</b> ${totalProveedores.toFixed(2)}</p>
-            <p><b>Cancelaciones y devoluciones:</b> ${totalCancelacionesMes.toFixed(2)}</p>
             <p><b>Debe haber en caja:</b> ${debeHaberCaja.toFixed(2)}</p>
           </div>
         </div>
@@ -6704,7 +6752,15 @@ function CorteMensual({ ventas, pagosProveedores }) {
               </thead>
               <tbody>
                 {ventasDelMes.map((v) => (
-                  <tr key={v.folio} className="border-t"><td className="py-1">#{v.folio} — {v.nombreCliente}</td><td className="text-right py-1">${v.total.toFixed(2)}</td></tr>
+                  <tr key={v.folio} className="border-t">
+                    <td className="py-1">
+                      #{v.folio} — {v.nombreCliente}
+                      {(v.estatus === "cancelada" || v.estatus === "devolucion") && (
+                        <span className="text-red-500"> ({v.estatus === "cancelada" ? "cancelada" : "con devolución"})</span>
+                      )}
+                    </td>
+                    <td className="text-right py-1">${Number(v.totalOriginal ?? v.total).toFixed(2)}</td>
+                  </tr>
                 ))}
                 {ventasDelMes.length === 0 && <tr><td className="text-slate-400 py-2">Sin ventas este mes.</td></tr>}
               </tbody>
@@ -6796,7 +6852,9 @@ function CorteMensual({ ventas, pagosProveedores }) {
                   <tr key={i} className="border-t">
                     <td className="py-1">
                       #{c.folio} {c.cliente}
-                      {c.montoRetenido > 0 && <span className="text-amber-600"> (retenido ${c.montoRetenido.toFixed(2)})</span>}
+                      {c.motivo && <span className="text-slate-500"> · {c.motivo}</span>}
+                      {c.formaDevolucion && <span className="text-slate-400"> ({c.formaDevolucion})</span>}
+                      {c.montoRetenido > 0 && <span className="text-amber-600"> · retenido ${c.montoRetenido.toFixed(2)}</span>}
                       {c.autorizadoAdmin && <span className="text-slate-400"> · autorizado por admin</span>}
                     </td>
                     <td className="text-right py-1">${c.montoReembolsado.toFixed(2)}</td>
@@ -6912,9 +6970,32 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
   const ordenesLab = nota ? laboratorio.filter((o) => o.folioVenta === nota.folio) : [];
 
   const [pedirConfirmar, setPedirConfirmar] = useState(null); // "completa" | "parcial" | null
+  const [preparandoCancelacion, setPreparandoCancelacion] = useState(null); // "completa" | "parcial" | null
+  const [motivoCancelacion, setMotivoCancelacion] = useState("");
+  const [formaDevolucion, setFormaDevolucion] = useState("");
+  const [confirmoReembolsoPaypal, setConfirmoReembolsoPaypal] = useState(false);
   const [pedirAutorizar, setPedirAutorizar] = useState(false);
   const [autorizadoAdmin, setAutorizadoAdmin] = useState(false);
   const [avisoRetencion, setAvisoRetencion] = useState(null);
+
+  const MOTIVOS_CANCELACION = [
+    "Venta duplicada",
+    "Cancela cliente sin motivo",
+    "Error en la elaboración",
+    "Error de optometría",
+    "Cobro duplicado",
+  ];
+  const esPagoPaypal = nota?.formaPago === "paypal" || !!nota?.referenciaPago;
+  const esDevolucionConTarjeta = formaDevolucion === "Tarjeta de débito" || formaDevolucion === "Tarjeta de crédito";
+  const faltaConfirmarPaypal = esPagoPaypal && esDevolucionConTarjeta && !confirmoReembolsoPaypal;
+  const puedeContinuarPreparacion = !!motivoCancelacion && !!formaDevolucion && !faltaConfirmarPaypal;
+
+  function limpiarPreparacion() {
+    setPreparandoCancelacion(null);
+    setMotivoCancelacion("");
+    setFormaDevolucion("");
+    setConfirmoReembolsoPaypal(false);
+  }
 
   function reintegrarInventario(items) {
     let inv = { ...inventario };
@@ -6971,6 +7052,8 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
                   montoRetenido: calculo.totalRetenido,
                   montoDevueltoEnEfectivoOTarjeta: montoAReembolsar,
                   autorizadoAdmin: autorizado,
+                  motivo: motivoCancelacion,
+                  formaDevolucion: formaDevolucion,
                 },
               ],
             }
@@ -7004,8 +7087,9 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
     setMarcados({});
     setAutorizadoAdmin(false);
     setAvisoRetencion(null);
+    limpiarPreparacion();
     if (montoAReembolsar > 0) {
-      setAvisoReembolso({ folio: nota.folio, cliente: nota.nombreCliente, monto: montoAReembolsar, formaPago: nota.formaPago });
+      setAvisoReembolso({ folio: nota.folio, cliente: nota.nombreCliente, monto: montoAReembolsar, formaPago: nota.formaPago, formaDevolucion, esPagoPaypal: nota.formaPago === "paypal" || !!nota.referenciaPago, referenciaPago: nota.referenciaPago });
     }
     mostrarToast(calculo.totalRetenido > 0 ? `Cancelado — se retuvieron $${calculo.totalRetenido.toFixed(2)} por trabajo ya iniciado en laboratorio` : "Nota cancelada ✓");
   }
@@ -7037,8 +7121,9 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
     setMarcados({});
     setAutorizadoAdmin(false);
     setAvisoRetencion(null);
+    limpiarPreparacion();
     if (montoAReembolsar > 0) {
-      setAvisoReembolso({ folio: nota.folio, cliente: nota.nombreCliente, monto: montoAReembolsar, formaPago: nota.formaPago });
+      setAvisoReembolso({ folio: nota.folio, cliente: nota.nombreCliente, monto: montoAReembolsar, formaPago: nota.formaPago, formaDevolucion, esPagoPaypal: nota.formaPago === "paypal" || !!nota.referenciaPago, referenciaPago: nota.referenciaPago });
     }
     mostrarToast(calculo.totalRetenido > 0 ? `Devuelto — se retuvieron $${calculo.totalRetenido.toFixed(2)} por trabajo ya iniciado en laboratorio` : "Devolución registrada ✓");
   }
@@ -7167,19 +7252,76 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
 
             <div className="flex gap-2 mt-4">
               <button
-                onClick={() => setPedirConfirmar("parcial")}
+                onClick={() => setPreparandoCancelacion("parcial")}
                 disabled={Object.values(marcados).every((v) => !v)}
                 className="flex-1 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium disabled:opacity-40"
               >
                 Devolución parcial (marcados)
               </button>
-              <button onClick={() => setPedirConfirmar("completa")} className="flex-1 py-2 rounded-lg bg-red-500 text-white text-sm font-medium">
+              <button onClick={() => setPreparandoCancelacion("completa")} className="flex-1 py-2 rounded-lg bg-red-500 text-white text-sm font-medium">
                 Cancelar nota completa
               </button>
             </div>
             <p className="text-xs text-slate-400 mt-2">
               Los artículos devueltos se reintegran al inventario de inmediato y el monto se descuenta del corte del día. Si la orden ya está en laboratorio, se retiene el 30% del costo de los lentes graduados; los lentes de contacto no se pueden cancelar sin autorización del administrador.
             </p>
+
+            {preparandoCancelacion && !pedirConfirmar && (
+              <div className="bg-slate-50 border rounded-lg p-3 mt-3">
+                <label className="block mb-3">
+                  <span className="text-xs font-medium text-slate-500 uppercase">Motivo de la cancelación</span>
+                  <select
+                    value={motivoCancelacion}
+                    onChange={(e) => setMotivoCancelacion(e.target.value)}
+                    className="mt-1 w-full border rounded-lg px-2 py-2 text-sm"
+                  >
+                    <option value="">Elige un motivo…</option>
+                    {MOTIVOS_CANCELACION.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block mb-2">
+                  <span className="text-xs font-medium text-slate-500 uppercase">Forma de devolución</span>
+                  <select
+                    value={formaDevolucion}
+                    onChange={(e) => { setFormaDevolucion(e.target.value); setConfirmoReembolsoPaypal(false); }}
+                    className="mt-1 w-full border rounded-lg px-2 py-2 text-sm"
+                  >
+                    <option value="">Elige una opción…</option>
+                    <option>Efectivo</option>
+                    <option>Tarjeta de débito</option>
+                    <option>Tarjeta de crédito</option>
+                    <option>Transferencia</option>
+                  </select>
+                </label>
+
+                {esPagoPaypal && esDevolucionConTarjeta && (
+                  <div className="bg-sky-50 border border-sky-200 rounded-lg p-3 mb-2">
+                    <p className="text-xs text-sky-800 mb-2">
+                      Esta venta se pagó originalmente por <b>PayPal</b>{nota?.referenciaPago ? ` (ID de transacción: ${nota.referenciaPago})` : ""}. No se puede "devolver en tarjeta" desde caja — el reembolso se hace directo desde tu cuenta de PayPal:
+                      Actividad → busca esa transacción con este ID → botón "Reembolsar". PayPal regresa el dinero directo a la tarjeta o cuenta con la que pagó el cliente.
+                    </p>
+                    <label className="flex items-center gap-2 text-xs text-sky-800">
+                      <input type="checkbox" checked={confirmoReembolsoPaypal} onChange={(e) => setConfirmoReembolsoPaypal(e.target.checked)} />
+                      Ya procesé (o voy a procesar de inmediato) el reembolso en PayPal
+                    </label>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPedirConfirmar(preparandoCancelacion)}
+                    disabled={!puedeContinuarPreparacion}
+                    className="flex-1 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-40"
+                    style={{ background: SKY_DARK }}
+                  >
+                    Continuar
+                  </button>
+                  <button onClick={limpiarPreparacion} className="flex-1 py-2 rounded-lg bg-white border text-sm">Cancelar</button>
+                </div>
+              </div>
+            )}
 
             {pedirConfirmar && (
               <div className="bg-red-50 border border-red-300 rounded-lg p-3 mt-3">
@@ -7239,9 +7381,14 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
           <div className="text-center py-2">
             <p className="text-sm text-slate-500 mb-1">Folio #{avisoReembolso.folio} — {avisoReembolso.cliente}</p>
             <p className="text-3xl font-bold text-red-600 mb-2">${avisoReembolso.monto.toFixed(2)}</p>
-            <p className="text-sm text-slate-600 mb-4">
-              Este monto ya estaba cobrado{avisoReembolso.formaPago ? ` (${avisoReembolso.formaPago})` : ""} y debe devolverse físicamente al cliente ahora mismo.
+            <p className="text-sm text-slate-600 mb-2">
+              Este monto ya estaba cobrado{avisoReembolso.formaPago ? ` (pago original: ${avisoReembolso.formaPago})` : ""} y debe devolverse por: <b>{avisoReembolso.formaDevolucion}</b>.
             </p>
+            {avisoReembolso.esPagoPaypal && (avisoReembolso.formaDevolucion === "Tarjeta de débito" || avisoReembolso.formaDevolucion === "Tarjeta de crédito") && (
+              <p className="text-xs text-sky-700 bg-sky-50 border border-sky-200 rounded-lg p-2 mb-2">
+                Recuerda: este reembolso se procesa directo en tu cuenta de PayPal (Actividad → busca la transacción{avisoReembolso.referenciaPago ? ` con ID ${avisoReembolso.referenciaPago}` : ""} → Reembolsar) — no se entrega en efectivo de caja.
+              </p>
+            )}
             <button onClick={() => setAvisoReembolso(null)} className="px-6 py-2 rounded-lg text-white text-sm font-medium" style={{ background: SKY_DARK }}>
               Entendido, ya lo devolví
             </button>
@@ -10783,6 +10930,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
       porcentajeDescuento,
       costoEnvio,
       total,
+      totalOriginal: total,
       abono: pagadoEnLinea ? total : 0,
       saldo: pagadoEnLinea ? 0 : total,
       estatus: pagadoEnLinea ? "venta" : "presupuesto",
