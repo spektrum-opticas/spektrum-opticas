@@ -6623,10 +6623,11 @@ function datosDelMes(mes, ventas, dashboard, pagosProveedores) {
   const gastosReal = (pagosProveedores || [])
     .filter((p) => p.fecha && p.fecha.slice(0, 7) === mes && !p.esAjusteMayor)
     .reduce((s, p) => s + Number(p.monto || 0), 0);
-  const cancelacionesReal = ventas
+  const historialCancelacionesMes = ventas
     .flatMap((v) => v.historialCancelacion || [])
-    .filter((c) => c.fecha && c.fecha.slice(0, 7) === mes)
-    .reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
+    .filter((c) => c.fecha && c.fecha.slice(0, 7) === mes);
+  const cancelacionesReal = historialCancelacionesMes.reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
+  const devueltoReal = historialCancelacionesMes.reduce((s, c) => s + Number(c.montoDevueltoEnEfectivoOTarjeta || 0), 0);
   const hayDatosReales = ventasDelMes.length > 0;
   const manual = (dashboard.historialManual || []).find((h) => h.mes === mes);
   const meta = Number((dashboard.metasPorMes || {})[mes]) || Number(manual?.meta) || 0;
@@ -6636,6 +6637,8 @@ function datosDelMes(mes, ventas, dashboard, pagosProveedores) {
       cancelado: cancelacionesReal,
       ventaReal: vendidoReal - cancelacionesReal,
       cobrado: cobradoReal,
+      devuelto: devueltoReal,
+      cobradoNeto: cobradoReal - devueltoReal,
       gastos: gastosReal,
       caja: cobradoReal - gastosReal,
       meta,
@@ -6645,9 +6648,9 @@ function datosDelMes(mes, ventas, dashboard, pagosProveedores) {
   }
   if (manual) {
     const cobradoManual = Number(manual.cobrado) || 0;
-    return { vendido: Number(manual.vendido) || 0, cancelado: 0, ventaReal: Number(manual.vendido) || 0, cobrado: cobradoManual, gastos: gastosReal, caja: cobradoManual - gastosReal, meta, origen: "manual", tickets: 0 };
+    return { vendido: Number(manual.vendido) || 0, cancelado: 0, ventaReal: Number(manual.vendido) || 0, cobrado: cobradoManual, devuelto: 0, cobradoNeto: cobradoManual, gastos: gastosReal, caja: cobradoManual - gastosReal, meta, origen: "manual", tickets: 0 };
   }
-  return { vendido: 0, cancelado: 0, ventaReal: 0, cobrado: 0, gastos: gastosReal, caja: -gastosReal, meta, origen: "sin_datos", tickets: 0 };
+  return { vendido: 0, cancelado: 0, ventaReal: 0, cobrado: 0, devuelto: 0, cobradoNeto: 0, gastos: gastosReal, caja: -gastosReal, meta, origen: "sin_datos", tickets: 0 };
 }
 
 function CorteMensual({ ventas, pagosProveedores }) {
@@ -11281,6 +11284,86 @@ function GraficaDonut({ segmentos, size = 150, grosor = 20, valorCentro, tituloC
   );
 }
 
+// Dos círculos concéntricos: el de adentro (más chico) marca lo bruto, el de afuera
+// (más grande) marca lo neto — el que de verdad cuenta para el logro de la meta.
+function GraficaDonutBrutoNeto({ titulo, bruto, neto, meta, colorBruto = "#94a3b8", colorNeto = "#111827", size = 170 }) {
+  const grosorExterior = 20;
+  const grosorInterior = 14;
+  const hueco = 6;
+  const radioExterior = (size - grosorExterior) / 2;
+  const radioInterior = radioExterior - grosorExterior / 2 - hueco - grosorInterior / 2;
+
+  const circExterior = 2 * Math.PI * radioExterior;
+  const circInterior = 2 * Math.PI * radioInterior;
+
+  const pctNeto = meta > 0 ? Math.min(100, (neto / meta) * 100) : neto > 0 ? 100 : 0;
+  const pctBruto = meta > 0 ? Math.min(100, (bruto / meta) * 100) : bruto > 0 ? 100 : 0;
+  const largoExterior = (pctNeto / 100) * circExterior;
+  const largoInterior = (pctBruto / 100) * circInterior;
+
+  const diferencia = bruto - neto;
+
+  return (
+    <div className="flex flex-col items-center">
+      <p className="text-xs font-medium text-slate-500 uppercase mb-1">{titulo}</p>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {/* pistas de fondo */}
+        <circle cx={size / 2} cy={size / 2} r={radioExterior} fill="none" stroke="#e5e7eb" strokeWidth={grosorExterior} />
+        <circle cx={size / 2} cy={size / 2} r={radioInterior} fill="none" stroke="#f1f5f9" strokeWidth={grosorInterior} />
+        {/* círculo mayor: venta/cobro NETO (el definitivo para la meta) */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radioExterior}
+          fill="none"
+          stroke={colorNeto}
+          strokeWidth={grosorExterior}
+          strokeLinecap="round"
+          strokeDasharray={`${largoExterior} ${circExterior - largoExterior}`}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+        {/* círculo menor: venta/cobro BRUTO (antes de restar cancelaciones/devoluciones) */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radioInterior}
+          fill="none"
+          stroke={colorBruto}
+          strokeWidth={grosorInterior}
+          strokeLinecap="round"
+          strokeDasharray={`${largoInterior} ${circInterior - largoInterior}`}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+        <text x="50%" y="46%" textAnchor="middle" fontSize="17" fontWeight="700" fill="#111827">
+          ${neto.toFixed(0)}
+        </text>
+        <text x="50%" y="60%" textAnchor="middle" fontSize="8" fill="#64748b">
+          neto {meta > 0 ? `(${pctNeto.toFixed(0)}% de la meta)` : ""}
+        </text>
+      </svg>
+      <div className="mt-2 space-y-1 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: colorNeto }} />
+          <span className="text-slate-600">Neto (definitivo):</span>
+          <span className="font-semibold">${neto.toFixed(2)}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: colorBruto }} />
+          <span className="text-slate-600">Bruto:</span>
+          <span className="font-medium">${bruto.toFixed(2)}</span>
+        </div>
+        {diferencia > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-red-400" />
+            <span className="text-slate-600">Diferencia:</span>
+            <span className="font-medium text-red-600">-${diferencia.toFixed(2)}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
   const { optometristas, vendedores } = dashboard;
   const metasPorMes = dashboard.metasPorMes || {};
@@ -11298,14 +11381,14 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
   const cancelacionesMesDashboard = ventas.flatMap((v) => (v.historialCancelacion || []).filter((c) => c.fecha.slice(0, 7) === mesAnalisis));
   const totalCanceladoMesDashboard = cancelacionesMesDashboard.reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
   const meta = datosMes.meta;
-  const alcanzado = datosMes.vendido; // siempre automático: vendido real del mes
+  const alcanzado = datosMes.ventaReal; // lo neto es lo definitivo para el logro de la meta
   const pctMeta = meta > 0 ? (alcanzado / meta) * 100 : 0;
 
   const esMesActual = mesAnalisis === mesISO(new Date());
   const diasTotalesMes = diasEnMes(mesAnalisis);
   const diaActual = esMesActual ? new Date().getDate() : diasTotalesMes;
-  const proyectadoVendido = diaActual > 0 ? (datosMes.vendido / diaActual) * diasTotalesMes : 0;
-  const proyectadoCobrado = diaActual > 0 ? (datosMes.cobrado / diaActual) * diasTotalesMes : 0;
+  const proyectadoVendido = diaActual > 0 ? (datosMes.ventaReal / diaActual) * diasTotalesMes : 0;
+  const proyectadoCobrado = diaActual > 0 ? (datosMes.cobradoNeto / diaActual) * diasTotalesMes : 0;
   const pctProyectado = meta > 0 ? (proyectadoVendido / meta) * 100 : 0;
 
   const ventasDelMes = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && v.fecha && v.fecha.slice(0, 7) === mesAnalisis);
@@ -11531,6 +11614,17 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
             <p className="text-lg font-bold text-red-700">-${totalCanceladoMesDashboard.toFixed(2)} MXN</p>
           </div>
         )}
+      </div>
+
+      <div className="bg-white border rounded-xl p-4">
+        <h3 className="font-semibold text-slate-700 mb-1">Ventas y Cobranza — bruto vs. neto</h3>
+        <p className="text-xs text-slate-500 mb-4">
+          El círculo de adentro (más chico) es el monto bruto; el de afuera (más grande) es el neto — ya con las cancelaciones y devoluciones descontadas. El neto es el que cuenta de verdad para el logro de la meta.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 justify-items-center">
+          <GraficaDonutBrutoNeto titulo="Ventas del mes" bruto={datosMes.vendido} neto={datosMes.ventaReal} meta={meta} colorNeto="#111827" colorBruto="#94a3b8" />
+          <GraficaDonutBrutoNeto titulo="Cobranza del mes" bruto={datosMes.cobrado} neto={datosMes.cobradoNeto} meta={meta} colorNeto="#059669" colorBruto="#6ee7b7" />
+        </div>
       </div>
 
       <div className="bg-white border rounded-xl p-4">
