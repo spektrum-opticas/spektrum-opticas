@@ -188,6 +188,7 @@ const emptyConfig = () => ({
   promocion: { activa: false, titulo: "20% DE DESCUENTO", porcentaje: 20, fechaInicio: "", fechaFin: "", bases: "", codigo: "SPEKTRUM2026", avisoLegalCupon: "" },
   datosTransferencia: { banco: "", clabe: "", titular: "" },
   avisoLegalBanner: "",
+  salariosSemana: { ADMIN: 1000, OPTOMETRISTA: 800, VENDEDOR: 500, LABORATORIO: 0, GERENTE: 0 },
 });
 
 // --- Avisos ("toast") reutilizables: cualquier componente puede llamar mostrarToast(...)
@@ -867,6 +868,10 @@ function useAsistenciaStorage() {
 
 function useFacturasStorage() {
   return useRowStorage("facturas");
+}
+
+function useNominasStorage() {
+  return useRowStorage("nominas");
 }
 
 function Icon({ name, size = 20 }) {
@@ -6113,7 +6118,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
 /* ============================================================
    REPORTES
    ============================================================ */
-function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes, laboratorio, pagosProveedores, setPagosProveedores, proveedores, usuarios, sesion }) {
+function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes, laboratorio, pagosProveedores, setPagosProveedores, proveedores, usuarios, nominas, sesion }) {
   const [modo, setModo] = useState("corte");
   const canceladas = ventas.filter((v) => v.estatus === "cancelada" || v.estatus === "devolucion");
 
@@ -6139,10 +6144,11 @@ function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes,
           pagosProveedores={pagosProveedores}
           setPagosProveedores={setPagosProveedores}
           proveedores={proveedores}
+          nominas={nominas}
           sesion={sesion}
         />
       ) : modo === "mes" ? (
-        <CorteMensual ventas={ventas} pagosProveedores={pagosProveedores} proveedores={proveedores} />
+        <CorteMensual ventas={ventas} pagosProveedores={pagosProveedores} proveedores={proveedores} nominas={nominas} />
       ) : (
         <CancelacionesTab
           ventas={ventas}
@@ -6171,7 +6177,7 @@ function TotalBox({ titulo, monto, color, subtitulo, esConteo }) {
   );
 }
 
-function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosProveedores, proveedores, sesion }) {
+function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosProveedores, proveedores, nominas, sesion }) {
   const [fecha, setFecha] = useState(fechaISO(new Date()));
   const [cobrando, setCobrando] = useState(null); // folio de nota a cobrar saldo
   const [montoCobro, setMontoCobro] = useState("");
@@ -6233,7 +6239,10 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
   const ventaRealDia = totalVendido - totalCancelacionesDia;
   const cobroRealDia = totalCobradoHoy - totalDevueltoEnPagoDia;
 
-  const debeHaberCaja = totalCobradoHoy - totalProveedores - totalCancelacionesDia;
+  const nominaDelDia = (nominas || []).filter((n) => n.pagada && n.fechaPago && esDelDia(n.fechaPago));
+  const totalNominaDia = nominaDelDia.reduce((s, n) => s + n.pagoTotal, 0);
+
+  const debeHaberCaja = totalCobradoHoy - totalProveedores - totalCancelacionesDia - totalNominaDia;
 
   function cambiarDia(delta) {
     const d = new Date(fecha);
@@ -6622,7 +6631,7 @@ function diasEnMes(mesStr) {
   return new Date(y, m, 0).getDate();
 }
 
-function datosDelMes(mes, ventas, dashboard, pagosProveedores) {
+function datosDelMes(mes, ventas, dashboard, pagosProveedores, nominas) {
   const ventasDelMes = ventas.filter((v) => v.estatus !== "presupuesto" && v.fecha && v.fecha.slice(0, 7) === mes);
   const vendidoReal = ventasDelMes.reduce((s, v) => s + montoOriginalVenta(v), 0);
   const todosPagos = ventas.flatMap((v) => (v.pagos || []));
@@ -6632,6 +6641,9 @@ function datosDelMes(mes, ventas, dashboard, pagosProveedores) {
   const gastosReal = (pagosProveedores || [])
     .filter((p) => p.fecha && p.fecha.slice(0, 7) === mes && !p.esAjusteMayor)
     .reduce((s, p) => s + Number(p.monto || 0), 0);
+  const nominaReal = (nominas || [])
+    .filter((n) => n.pagada && n.fechaPago && n.fechaPago.slice(0, 7) === mes)
+    .reduce((s, n) => s + n.pagoTotal, 0);
   const historialCancelacionesMes = ventas
     .flatMap((v) => v.historialCancelacion || [])
     .filter((c) => c.fecha && c.fecha.slice(0, 7) === mes);
@@ -6649,7 +6661,8 @@ function datosDelMes(mes, ventas, dashboard, pagosProveedores) {
       devuelto: devueltoReal,
       cobradoNeto: cobradoReal - devueltoReal,
       gastos: gastosReal,
-      caja: cobradoReal - gastosReal,
+      nomina: nominaReal,
+      caja: cobradoReal - gastosReal - nominaReal,
       meta,
       origen: "real",
       tickets: ventasDelMes.length,
@@ -6657,12 +6670,12 @@ function datosDelMes(mes, ventas, dashboard, pagosProveedores) {
   }
   if (manual) {
     const cobradoManual = Number(manual.cobrado) || 0;
-    return { vendido: Number(manual.vendido) || 0, cancelado: 0, ventaReal: Number(manual.vendido) || 0, cobrado: cobradoManual, devuelto: 0, cobradoNeto: cobradoManual, gastos: gastosReal, caja: cobradoManual - gastosReal, meta, origen: "manual", tickets: 0 };
+    return { vendido: Number(manual.vendido) || 0, cancelado: 0, ventaReal: Number(manual.vendido) || 0, cobrado: cobradoManual, devuelto: 0, cobradoNeto: cobradoManual, gastos: gastosReal, nomina: nominaReal, caja: cobradoManual - gastosReal - nominaReal, meta, origen: "manual", tickets: 0 };
   }
-  return { vendido: 0, cancelado: 0, ventaReal: 0, cobrado: 0, devuelto: 0, cobradoNeto: 0, gastos: gastosReal, caja: -gastosReal, meta, origen: "sin_datos", tickets: 0 };
+  return { vendido: 0, cancelado: 0, ventaReal: 0, cobrado: 0, devuelto: 0, cobradoNeto: 0, gastos: gastosReal, nomina: nominaReal, caja: -gastosReal - nominaReal, meta, origen: "sin_datos", tickets: 0 };
 }
 
-function CorteMensual({ ventas, pagosProveedores }) {
+function CorteMensual({ ventas, pagosProveedores, nominas }) {
   const [mes, setMes] = useState(mesISO(new Date()));
 
   const esDelMes = (isoFecha) => isoFecha.slice(0, 7) === mes;
@@ -6696,7 +6709,10 @@ function CorteMensual({ ventas, pagosProveedores }) {
   const ventaRealMes = totalVendido - totalCancelacionesMes;
   const cobroRealMes = totalCobradoMes - totalDevueltoEnPagoMes;
 
-  const debeHaberCaja = totalCobradoMes - totalProveedores - totalCancelacionesMes;
+  const nominaDelMes = (nominas || []).filter((n) => n.pagada && n.fechaPago && n.fechaPago.slice(0, 7) === mes);
+  const totalNominaMes = nominaDelMes.reduce((s, n) => s + n.pagoTotal, 0);
+
+  const debeHaberCaja = totalCobradoMes - totalProveedores - totalCancelacionesMes - totalNominaMes;
 
   function cambiarMes(delta) {
     const [y, m] = mes.split("-").map(Number);
@@ -6744,13 +6760,14 @@ function CorteMensual({ ventas, pagosProveedores }) {
 
         <div className="mb-6 print:hidden">
           <p className="text-xs font-semibold text-slate-400 uppercase mb-2 mt-4">Flujo de caja del mes</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
             <TotalBox titulo="Cobrado en el mes (bruto)" monto={totalCobradoMes} color="#047857" subtitulo="Anticipos + liquidaciones + abonos + contado" />
             <TotalBox titulo="Devuelto al cliente" monto={totalDevueltoEnPagoMes} color="#dc2626" subtitulo="Efectivo/tarjeta regresado por cancelaciones" />
             <TotalBox titulo="Cobro real del mes" monto={cobroRealMes} color={cobroRealMes >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado − Devuelto" />
             <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
             <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelMes.length} pago(s)`} />
-            <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado del mes − proveedores − cancelaciones" />
+            <TotalBox titulo="Nómina" monto={totalNominaMes} color="#7c3aed" subtitulo={`${nominaDelMes.length} pago(s) — ver detalle en Nóminas`} />
+            <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado − proveedores − cancelaciones − nómina" />
           </div>
         </div>
 
@@ -6771,6 +6788,7 @@ function CorteMensual({ ventas, pagosProveedores }) {
             <p><b>Cobro real del mes:</b> ${cobroRealMes.toFixed(2)}</p>
             <p><b>Saldo pendiente:</b> ${totalSaldoPendiente.toFixed(2)}</p>
             <p><b>Pago a proveedores:</b> ${totalProveedores.toFixed(2)}</p>
+            <p><b>Nómina:</b> ${totalNominaMes.toFixed(2)}</p>
             <p><b>Debe haber en caja:</b> ${debeHaberCaja.toFixed(2)}</p>
           </div>
         </div>
@@ -6981,6 +6999,48 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
   const [busqueda, setBusqueda] = useState("");
   const [folioSel, setFolioSel] = useState(null);
   const [marcados, setMarcados] = useState({}); // uidLinea -> true (a devolver)
+  const [ajustandoFolio, setAjustandoFolio] = useState("");
+  const [montoAjuste, setMontoAjuste] = useState("");
+  const [notaAjuste, setNotaAjuste] = useState("");
+
+  function aplicarAjusteManual() {
+    const folioNum = Number(ajustandoFolio);
+    const monto = Number(montoAjuste);
+    if (!folioNum || !monto || monto <= 0) return;
+    const venta = ventas.find((v) => v.folio === folioNum);
+    if (!venta) {
+      mostrarToast("No se encontró ese folio", "error");
+      return;
+    }
+    const montoReal = Math.min(monto, Number(venta.saldo || 0));
+    setVentas((prev) =>
+      prev.map((v) =>
+        v.folio === folioNum
+          ? {
+              ...v,
+              saldo: Math.max(0, Number(v.saldo || 0) - montoReal),
+              historialCancelacion: [
+                ...(v.historialCancelacion || []),
+                {
+                  fecha: new Date().toISOString(),
+                  montoReembolsado: montoReal,
+                  montoRetenido: 0,
+                  montoDevueltoEnEfectivoOTarjeta: 0,
+                  autorizadoAdmin: true,
+                  motivo: "Ajuste de cobranza" + (notaAjuste ? ` — ${notaAjuste}` : ""),
+                  formaDevolucion: "",
+                  ajusteManual: true,
+                },
+              ],
+            }
+          : v
+      )
+    );
+    setAjustandoFolio("");
+    setMontoAjuste("");
+    setNotaAjuste("");
+    mostrarToast(`Ajustado: se descontó $${montoReal.toFixed(2)} del saldo pendiente del folio #${folioNum} ✓`);
+  }
 
   const activas = ventas.filter((v) => v.estatus === "venta" || v.estatus === "devolucion");
   const q = busqueda.trim().toLowerCase();
@@ -7182,7 +7242,32 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div>
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+        <h4 className="text-sm font-semibold text-amber-800 mb-1">Ajuste manual de saldo pendiente</h4>
+        <p className="text-xs text-amber-700 mb-2">
+          Para descontar un saldo pendiente que quedó mal calculado o atorado en algún folio (por ejemplo, un remanente de un ajuste anterior). Esto no devuelve artículos al inventario — solo descuenta el saldo y deja rastro en cancelaciones/devoluciones.
+        </p>
+        <div className="flex gap-2 flex-wrap items-end">
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Folio</label>
+            <input value={ajustandoFolio} onChange={(e) => setAjustandoFolio(e.target.value.replace(/\D/g, ""))} placeholder="Ej. 10" className="border rounded-lg px-2 py-1.5 text-sm w-24" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Monto a descontar</label>
+            <input type="number" value={montoAjuste} onChange={(e) => setMontoAjuste(e.target.value)} placeholder="Ej. 99" className="border rounded-lg px-2 py-1.5 text-sm w-28" />
+          </div>
+          <div className="flex-1 min-w-[160px]">
+            <label className="text-xs text-slate-500 block mb-1">Nota (opcional)</label>
+            <input value={notaAjuste} onChange={(e) => setNotaAjuste(e.target.value)} placeholder="Ej. Remanente sin resolver" className="border rounded-lg px-2 py-1.5 text-sm w-full" />
+          </div>
+          <button onClick={aplicarAjusteManual} className="px-3 py-1.5 rounded-lg text-white text-sm" style={{ background: "#b45309" }}>
+            Aplicar ajuste
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
       <div>
         <input
           value={busqueda}
@@ -7428,6 +7513,7 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
         )}
       </Modal>
     </div>
+    </div>
   );
 }
 
@@ -7601,7 +7687,155 @@ function ProveedoresView({ proveedores, setProveedores }) {
   );
 }
 
-function AdministracionView({ usuarios, setUsuarios, proveedores, setProveedores, asistencia, setAsistencia }) {
+function NominasView({ nominas, setNominas, config, setConfig }) {
+  const [semanaVer, setSemanaVer] = useState(null); // semanaInicio elegida, o null = todas
+  const [editandoSalarios, setEditandoSalarios] = useState(false);
+  const [salariosLocal, setSalariosLocal] = useState(config?.salariosSemana || {});
+
+  const semanas = [...new Set(nominas.map((n) => n.semanaInicio))].sort().reverse();
+  const listaVisible = semanaVer ? nominas.filter((n) => n.semanaInicio === semanaVer) : nominas;
+
+  function guardarSalarios() {
+    setConfig({ ...config, salariosSemana: salariosLocal });
+    setEditandoSalarios(false);
+    mostrarToast("Salarios semanales guardados ✓");
+  }
+
+  function marcarSemanaPagada(semanaInicio) {
+    const hoy = new Date().toISOString();
+    setNominas((prev) => prev.map((n) => (n.semanaInicio === semanaInicio ? { ...n, pagada: true, fechaPago: hoy } : n)));
+    mostrarToast("Nómina de esa semana marcada como pagada — ya se descuenta de la caja ✓");
+  }
+
+  function totalSemana(semanaInicio) {
+    return nominas.filter((n) => n.semanaInicio === semanaInicio).reduce((s, n) => s + n.pagoTotal, 0);
+  }
+
+  return (
+    <div className="p-4">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+        <h2 className="font-semibold text-lg">Nóminas</h2>
+        <button onClick={() => { setSalariosLocal(config?.salariosSemana || {}); setEditandoSalarios(true); }} className="text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">
+          Editar salarios semanales (48 h)
+        </button>
+      </div>
+
+      <p className="text-xs text-slate-400 mb-4">
+        La nómina se genera desde <b>Administración → Asistencia</b>, eligiendo la semana y dando clic a "Generar nómina de esta semana". Aquí la revisas, la marcas como pagada, e imprimes el reporte detallado si lo necesitas. El monto pagado sale del remanente de caja ("Debe haber en caja"), y en el Corte Mensual y el Dashboard solo aparece el total de "Nómina" del mes, sin nombres.
+      </p>
+
+      <div className="flex gap-2 flex-wrap mb-4">
+        <button onClick={() => setSemanaVer(null)} className={`text-xs px-3 py-1.5 rounded-full ${!semanaVer ? "text-white" : "bg-white border"}`} style={!semanaVer ? { background: SKY_DARK } : {}}>
+          Todas las semanas
+        </button>
+        {semanas.map((s) => {
+          const fechaIni = new Date(s + "T00:00:00");
+          const pagada = nominas.filter((n) => n.semanaInicio === s).every((n) => n.pagada);
+          return (
+            <button
+              key={s}
+              onClick={() => setSemanaVer(s)}
+              className={`text-xs px-3 py-1.5 rounded-full ${semanaVer === s ? "text-white" : "bg-white border"}`}
+              style={semanaVer === s ? { background: SKY_DARK } : {}}
+            >
+              Semana del {fechaIni.toLocaleDateString("es-MX")} {pagada && "✓"}
+            </button>
+          );
+        })}
+      </div>
+
+      {semanas.length === 0 ? (
+        <p className="text-sm text-slate-400">Aún no se ha generado ninguna nómina. Ve a Administración → Asistencia para generar la de esta semana.</p>
+      ) : (
+        <>
+          <div className="flex justify-end gap-2 mb-3">
+            <button onClick={() => imprimirElemento("reporte-nomina-imprimible")} className="text-xs px-3 py-1.5 rounded-full text-white" style={{ background: SKY_DARK }}>
+              Imprimir reporte
+            </button>
+          </div>
+
+          <div id="reporte-nomina-imprimible" className="bg-white border rounded-xl overflow-hidden mb-4">
+            <p className="hidden print:block font-bold px-3 pt-3">
+              Reporte de nómina {semanaVer ? `— semana del ${new Date(semanaVer + "T00:00:00").toLocaleDateString("es-MX")}` : "(todas las semanas)"}
+            </p>
+            <table className="w-full text-sm">
+              <thead style={{ background: BEIGE }}>
+                <tr>
+                  <th className="text-left px-3 py-2">Semana</th>
+                  <th className="text-left px-3 py-2">Empleado</th>
+                  <th className="text-left px-3 py-2">Rol</th>
+                  <th className="text-left px-3 py-2">Horas</th>
+                  <th className="text-left px-3 py-2">Horas extra</th>
+                  <th className="text-left px-3 py-2">Pago base</th>
+                  <th className="text-left px-3 py-2">Pago extra</th>
+                  <th className="text-left px-3 py-2">Total</th>
+                  <th className="text-left px-3 py-2 print:hidden">Estatus</th>
+                </tr>
+              </thead>
+              <tbody>
+                {listaVisible
+                  .slice()
+                  .sort((a, b) => (a.semanaInicio < b.semanaInicio ? 1 : -1))
+                  .map((n) => (
+                    <tr key={n.id} className="border-t">
+                      <td className="px-3 py-2">{new Date(n.semanaInicio + "T00:00:00").toLocaleDateString("es-MX")}</td>
+                      <td className="px-3 py-2 font-medium">{n.usuario}</td>
+                      <td className="px-3 py-2">{n.rol || "—"}</td>
+                      <td className="px-3 py-2">{n.horas.toFixed(1)} h</td>
+                      <td className="px-3 py-2">{n.horasExtra > 0 ? `${n.horasExtra.toFixed(1)} h` : "—"}</td>
+                      <td className="px-3 py-2">${n.pagoBase.toFixed(2)}</td>
+                      <td className="px-3 py-2">{n.pagoExtra > 0 ? `$${n.pagoExtra.toFixed(2)}` : "—"}</td>
+                      <td className="px-3 py-2 font-semibold">${n.pagoTotal.toFixed(2)}</td>
+                      <td className="px-3 py-2 print:hidden">
+                        {n.pagada ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Pagada</span>
+                        ) : (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Pendiente</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t font-semibold">
+                  <td colSpan={7} className="px-3 py-2">Total</td>
+                  <td className="px-3 py-2">${listaVisible.reduce((s, n) => s + n.pagoTotal, 0).toFixed(2)}</td>
+                  <td className="print:hidden"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {semanaVer && !nominas.filter((n) => n.semanaInicio === semanaVer).every((n) => n.pagada) && (
+            <button onClick={() => marcarSemanaPagada(semanaVer)} className="px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ background: "#059669" }}>
+              Marcar nómina de esta semana como pagada (${totalSemana(semanaVer).toFixed(2)})
+            </button>
+          )}
+        </>
+      )}
+
+      <Modal open={editandoSalarios} onClose={() => setEditandoSalarios(false)} title="Salarios semanales (por 48 horas)">
+        <p className="text-xs text-slate-500 mb-3">
+          Este es el pago completo por una semana de 48 horas trabajadas, según el rol del empleado. Si trabaja menos, se paga proporcional; si trabaja más, se paga el excedente como horas extra a la misma tarifa por hora.
+        </p>
+        {["ADMIN", "OPTOMETRISTA", "VENDEDOR", "LABORATORIO", "GERENTE"].map((rol) => (
+          <Field
+            key={rol}
+            label={rol.charAt(0) + rol.slice(1).toLowerCase()}
+            type="number"
+            value={salariosLocal[rol] ?? ""}
+            onChange={(e) => setSalariosLocal({ ...salariosLocal, [rol]: e.target.value })}
+          />
+        ))}
+        <button onClick={guardarSalarios} className="w-full py-2 rounded-lg text-white text-sm font-medium" style={{ background: SKY_DARK }}>
+          Guardar salarios
+        </button>
+      </Modal>
+    </div>
+  );
+}
+
+function AdministracionView({ usuarios, setUsuarios, proveedores, setProveedores, asistencia, setAsistencia, config, setConfig, nominas, setNominas }) {
   const [tab, setTab] = useState("usuarios");
   return (
     <div>
@@ -7615,19 +7849,24 @@ function AdministracionView({ usuarios, setUsuarios, proveedores, setProveedores
         <button onClick={() => setTab("asistencia")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${tab === "asistencia" ? "text-white" : "bg-white border"}`} style={tab === "asistencia" ? { background: SKY_DARK } : {}}>
           Asistencia
         </button>
+        <button onClick={() => setTab("nominas")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${tab === "nominas" ? "text-white" : "bg-white border"}`} style={tab === "nominas" ? { background: SKY_DARK } : {}}>
+          Nóminas
+        </button>
       </div>
       {tab === "usuarios" ? (
         <UsuariosView usuarios={usuarios} setUsuarios={setUsuarios} />
       ) : tab === "proveedores" ? (
         <ProveedoresView proveedores={proveedores} setProveedores={setProveedores} />
+      ) : tab === "asistencia" ? (
+        <AsistenciaView asistencia={asistencia} setAsistencia={setAsistencia} usuarios={usuarios} config={config} nominas={nominas} setNominas={setNominas} />
       ) : (
-        <AsistenciaView asistencia={asistencia} setAsistencia={setAsistencia} />
+        <NominasView nominas={nominas} setNominas={setNominas} config={config} setConfig={setConfig} />
       )}
     </div>
   );
 }
 
-function AsistenciaView({ asistencia, setAsistencia }) {
+function AsistenciaView({ asistencia, setAsistencia, usuarios, config, nominas, setNominas }) {
   const [semanaBase, setSemanaBase] = useState(() => fechaISO(new Date()));
 
   function inicioDeSemana(fechaStr) {
@@ -7682,6 +7921,51 @@ function AsistenciaView({ asistencia, setAsistencia }) {
     setAsistencia(asistencia.filter((r) => r.id !== id));
   }
 
+  const salarios = config?.salariosSemana || {};
+  const HORAS_BASE_SEMANA = 48;
+
+  function generarNominaSemana() {
+    if (resumen.length === 0) {
+      mostrarToast("No hay registros de asistencia esta semana para generar nómina", "error");
+      return;
+    }
+    const semanaInicio = fechaISO(inicio);
+    const semanaFin = fechaISO(fin);
+    const nuevos = resumen.map((r) => {
+      const usuarioInfo = usuarios.find((u) => u.nombre === r.usuario);
+      const rol = usuarioInfo?.rol || "";
+      const salarioSemana = Number(salarios[rol] || 0);
+      const tarifaHora = salarioSemana / HORAS_BASE_SEMANA;
+      const horasNormales = Math.min(r.horas, HORAS_BASE_SEMANA);
+      const horasExtra = Math.max(0, r.horas - HORAS_BASE_SEMANA);
+      const pagoBase = horasNormales * tarifaHora;
+      const pagoExtra = horasExtra * tarifaHora;
+      return {
+        id: uid(),
+        semanaInicio,
+        semanaFin,
+        usuario: r.usuario,
+        rol,
+        horas: r.horas,
+        horasNormales,
+        horasExtra,
+        salarioSemana,
+        pagoBase,
+        pagoExtra,
+        pagoTotal: pagoBase + pagoExtra,
+        fechaGenerada: new Date().toISOString(),
+        pagada: false,
+        fechaPago: null,
+      };
+    });
+    // Si ya existía nómina generada para esa semana y ese usuario, se reemplaza (no se duplica)
+    const sinEstaSemana = nominas.filter((n) => !(n.semanaInicio === semanaInicio && nuevos.some((x) => x.usuario === n.usuario)));
+    setNominas([...sinEstaSemana, ...nuevos]);
+    mostrarToast(`Nómina generada para la semana del ${inicio.toLocaleDateString("es-MX")} — revísala en Administración → Nóminas ✓`);
+  }
+
+  const nominaDeEstaSemana = nominas.filter((n) => n.semanaInicio === fechaISO(inicio));
+
   return (
     <div className="p-4">
       <div className="flex items-center gap-3 mb-4">
@@ -7690,10 +7974,23 @@ function AsistenciaView({ asistencia, setAsistencia }) {
           Semana del {inicio.toLocaleDateString("es-MX")} al {fin.toLocaleDateString("es-MX")}
         </p>
         <button onClick={() => cambiarSemana(1)} className="px-3 py-1.5 rounded-lg bg-white border text-sm">Semana siguiente →</button>
-        <button onClick={() => imprimirElemento("reporte-asistencia-semanal")} className="ml-auto px-3 py-1.5 rounded-lg text-white text-sm" style={{ background: SKY_DARK }}>
+        <button
+          onClick={generarNominaSemana}
+          className="ml-auto px-3 py-1.5 rounded-lg text-white text-sm"
+          style={{ background: nominaDeEstaSemana.length > 0 ? "#7c3aed" : "#059669" }}
+        >
+          {nominaDeEstaSemana.length > 0 ? "Regenerar nómina de esta semana" : "Generar nómina de esta semana"}
+        </button>
+        <button onClick={() => imprimirElemento("reporte-asistencia-semanal")} className="px-3 py-1.5 rounded-lg text-white text-sm" style={{ background: SKY_DARK }}>
           Imprimir reporte
         </button>
       </div>
+
+      {nominaDeEstaSemana.length > 0 && (
+        <p className="text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2 mb-4">
+          Ya se generó la nómina de esta semana — revísala y págala en <b>Administración → Nóminas</b>.
+        </p>
+      )}
 
       <div id="reporte-asistencia-semanal" className="bg-white border rounded-xl overflow-hidden mb-4">
         <p className="hidden print:block font-bold px-3 pt-3">
@@ -11382,7 +11679,7 @@ function GraficaDonutBrutoNeto({ titulo, bruto, neto, meta, colorBruto = "#94a3b
   );
 }
 
-function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
+function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nominas }) {
   const { optometristas, vendedores } = dashboard;
   const metasPorMes = dashboard.metasPorMes || {};
   const historialManual = dashboard.historialManual || [];
@@ -11395,7 +11692,7 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
   const [anioAnalisis, setAnioAnalisis] = useState(new Date().getFullYear());
   const [cargaManual, setCargaManual] = useState({ mes: mesISO(new Date()), vendido: "", cobrado: "", meta: "" });
 
-  const datosMes = datosDelMes(mesAnalisis, ventas, dashboard, pagosProveedores);
+  const datosMes = datosDelMes(mesAnalisis, ventas, dashboard, pagosProveedores, nominas);
   const cancelacionesMesDashboard = ventas.flatMap((v) => (v.historialCancelacion || []).filter((c) => c.fecha.slice(0, 7) === mesAnalisis));
   const totalCanceladoMesDashboard = cancelacionesMesDashboard.reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
   const meta = datosMes.meta;
@@ -11525,6 +11822,7 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
           ventas={ventas}
           dashboard={dashboard}
           pagosProveedores={pagosProveedores}
+          nominas={nominas}
           cargaManual={cargaManual}
           setCargaManual={setCargaManual}
           guardarCargaManual={guardarCargaManual}
@@ -11630,6 +11928,14 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
               🔻 Cancelaciones y devoluciones este mes: {cancelacionesMesDashboard.length} evento(s)
             </p>
             <p className="text-lg font-bold text-red-700">-${totalCanceladoMesDashboard.toFixed(2)} MXN</p>
+          </div>
+        )}
+        {datosMes.nomina > 0 && (
+          <div className="mt-3 bg-violet-50 border border-violet-200 rounded-lg p-3 flex items-center justify-between flex-wrap gap-2">
+            <p className="text-sm text-violet-700 font-medium">
+              💼 Nómina pagada este mes (detalle completo en Administración → Nóminas)
+            </p>
+            <p className="text-lg font-bold text-violet-700">-${datosMes.nomina.toFixed(2)} MXN</p>
           </div>
         )}
       </div>
@@ -11787,13 +12093,13 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores }) {
   );
 }
 
-function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, cargaManual, setCargaManual, guardarCargaManual, eliminarCargaManual }) {
+function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, nominas, cargaManual, setCargaManual, guardarCargaManual, eliminarCargaManual }) {
   const historialManual = dashboard.historialManual || [];
   const nombresMes = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
   const meses = Array.from({ length: 12 }, (_, i) => {
     const mesStr = `${anio}-${String(i + 1).padStart(2, "0")}`;
-    return { mes: mesStr, nombre: nombresMes[i], ...datosDelMes(mesStr, ventas, dashboard, pagosProveedores) };
+    return { mes: mesStr, nombre: nombresMes[i], ...datosDelMes(mesStr, ventas, dashboard, pagosProveedores, nominas) };
   });
 
   const totalAnioMeta = meses.reduce((s, m) => s + m.meta, 0);
@@ -11951,6 +12257,7 @@ export default function App() {
   const [pacientes, setPacientes, loadedP, statusP, errorP, retryP, cargarP] = usePacientesStorage();
   const [asistencia, setAsistencia, loadedAs] = useAsistenciaStorage();
   const [facturas, setFacturas, loadedFac] = useFacturasStorage();
+  const [nominas, setNominas, loadedNom] = useNominasStorage();
   const [inventario, setInventario, loadedI, statusI, errorI, retryI, cargarI] = useStoredState(STORAGE_KEYS.inventario, emptyInventario());
   const [agenda, setAgenda, loadedA, statusA, errorA, retryA, cargarA] = useStoredState(STORAGE_KEYS.agenda, []);
   const [ventas, setVentas, loadedV, statusV, errorV, retryV, cargarV] = useStoredState(STORAGE_KEYS.ventas, []);
@@ -12213,16 +12520,17 @@ export default function App() {
             setPagosProveedores={setPagosProveedores}
             proveedores={proveedores}
             usuarios={usuarios}
+            nominas={nominas}
             sesion={sesion}
           />
         )}
         {seccion === "administracion" && (
-          <AdministracionView usuarios={usuarios} setUsuarios={setUsuarios} proveedores={proveedores} setProveedores={setProveedores} asistencia={asistencia} setAsistencia={setAsistencia} />
+          <AdministracionView usuarios={usuarios} setUsuarios={setUsuarios} proveedores={proveedores} setProveedores={setProveedores} asistencia={asistencia} setAsistencia={setAsistencia} config={config} setConfig={setConfig} nominas={nominas} setNominas={setNominas} />
         )}
         {seccion === "importar" && (
           <ImportarView pacientes={pacientes} setPacientes={setPacientes} inventario={inventario} setInventario={setInventario} config={config} setConfig={setConfig} />
         )}
-        {seccion === "dashboard" && <DashboardView dashboard={dashboard} setDashboard={setDashboard} ventas={ventas} pagosProveedores={pagosProveedores} />}
+        {seccion === "dashboard" && <DashboardView dashboard={dashboard} setDashboard={setDashboard} ventas={ventas} pagosProveedores={pagosProveedores} nominas={nominas} />}
         {seccion === "config" && (
           <ConfigView
             config={config}
