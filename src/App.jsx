@@ -329,6 +329,12 @@ function mensajeCitaConfirmada(nombre, fecha, hora, consultorio, urlSitio) {
         `Tu cita para examen de la vista quedó agendada:\n📅 Fecha: ${fecha}\n⏰ Hora: ${hora}\n📍 ${consultorio}\n\n` +
         `Puedes ver o modificar tu cuenta aquí: ${urlSitio}\n\n` +
         `Te esperamos.\nEl equipo de ${NOMBRE_OPTICA}`,
+      cuerpoHtml:
+        `<p>Hola, ${nombre}:</p>` +
+        `<p>Tu cita para examen de la vista quedó agendada:</p>` +
+        `<p>📅 Fecha: ${fecha}<br>⏰ Hora: ${hora}<br>📍 ${consultorio}</p>` +
+        (urlSitio ? `<p>Puedes ver o modificar tu cuenta aquí: <a href="${urlSitio}">${urlSitio}</a></p>` : "") +
+        `<p>Te esperamos.<br>El equipo de ${NOMBRE_OPTICA}</p>`,
     },
     whatsapp:
       `¡Hola, ${nombre}! 👋 Tu cita en ${NOMBRE_OPTICA} quedó confirmada para el ${fecha} a las ${hora} (${consultorio}). ` +
@@ -1084,6 +1090,12 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS, labor
     const nueva = { id: uid(), fecha, ...datos, estatus: "proxima" };
     setAgenda([...agenda, nueva]);
     setNuevaCitaSlot(null);
+    const paciente = pacientes.find((p) => p.id === nueva.pacienteId);
+    if (paciente?.mail) {
+      const urlSitio = typeof window !== "undefined" ? window.location.origin : "";
+      const msj = mensajeCitaConfirmada(paciente.nombre, nueva.fecha, nueva.hora, nueva.consultorio, urlSitio);
+      enviarCorreoAutomatico(paciente.mail, msj.email.asunto, msj.email.cuerpoHtml);
+    }
   }
 
   const toggleCerrado = (key, tipo) => {
@@ -1612,6 +1624,8 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
   const [busquedaNota, setBusquedaNota] = useState("");
   const [procesandoPortalFolio, setProcesandoPortalFolio] = useState(null);
   const [mostrarCancelaciones, setMostrarCancelaciones] = useState(false);
+  const [mostrarPresupuestos, setMostrarPresupuestos] = useState(false);
+  const [confirmandoEliminarPresupuesto, setConfirmandoEliminarPresupuesto] = useState(null);
   const [modoFechaPasada, setModoFechaPasada] = useState(false);
   const [fechaVentaManual, setFechaVentaManual] = useState(fechaISO(new Date()));
 
@@ -1694,6 +1708,31 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
   function cancelarPresupuesto(folio) {
     if (!window.confirm(`¿Cancelar el presupuesto #${folio}? Ya no aparecerá en la lista de pendientes.`)) return;
     setVentas(ventas.map((v) => (v.folio === folio ? { ...v, estatus: "cancelada" } : v)));
+  }
+
+  function enviarRecordatorioPresupuesto(v) {
+    const paciente = pacientes.find((p) => p.id === v.pacienteId);
+    if (!paciente?.mail) {
+      mostrarToast("Este cliente no tiene correo guardado para enviarle el recordatorio", "error");
+      return;
+    }
+    const nombreArticulos = v.items.map((it) => it.nombre).join(", ");
+    const totalConDescuento = v.total * 0.9;
+    const asunto = `¿Aún te interesan tus lentes? Tienes un 10% de descuento — ${NOMBRE_OPTICA}`;
+    const cuerpoHtml =
+      `<p>Hola, ${v.nombreCliente}:</p>` +
+      `<p>Notamos que dejaste pendiente tu presupuesto (folio #${v.folio}) por <b>${nombreArticulos}</b>, con un total de $${v.total.toFixed(2)}.</p>` +
+      `<p>Para ayudarte a decidirte, te ofrecemos un <b>10% de descuento</b> si lo confirmas esta semana — tu nuevo total quedaría en <b>$${totalConDescuento.toFixed(2)}</b>.</p>` +
+      `<p>Contáctanos o pasa a la tienda para aprovecharlo.</p>` +
+      `<p>${NOMBRE_OPTICA}</p>`;
+    enviarCorreoAutomatico(paciente.mail, asunto, cuerpoHtml);
+    mostrarToast("Recordatorio con 10% de descuento enviado ✓");
+  }
+
+  function eliminarPresupuesto(folio) {
+    setVentas(ventas.filter((v) => v.folio !== folio));
+    setConfirmandoEliminarPresupuesto(null);
+    mostrarToast("Presupuesto eliminado");
   }
 
   function agregarArticulo(a) {
@@ -1815,7 +1854,13 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
           </button>
         </div>
       )}
-      <div className="flex justify-end mb-3">
+      <div className="flex justify-end gap-2 mb-3 flex-wrap">
+        <button
+          onClick={() => setMostrarPresupuestos(!mostrarPresupuestos)}
+          className="text-xs px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 font-medium border border-amber-200"
+        >
+          {mostrarPresupuestos ? "Ocultar" : `Ver presupuestos guardados (${presupuestosMostrador.length})`}
+        </button>
         <button
           onClick={() => setMostrarCancelaciones(!mostrarCancelaciones)}
           className="text-xs px-3 py-1.5 rounded-full bg-red-50 text-red-600 font-medium border border-red-200"
@@ -1918,37 +1963,53 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
         </div>
       )}
 
-      {presupuestosMostrador.length > 0 && (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4">
-          <h3 className="font-semibold text-slate-800 text-sm mb-2">
-            🧾 Presupuestos guardados ({presupuestosMostrador.length})
-          </h3>
+      {mostrarPresupuestos && (
+        <div className="mb-6 bg-slate-50 border rounded-xl p-4">
+          <h3 className="font-semibold text-sm mb-1">🧾 Presupuestos guardados ({presupuestosMostrador.length})</h3>
+          <p className="text-xs text-slate-400 mb-3">
+            Los artículos de un presupuesto NO se descuentan del inventario hasta que se convierta en venta — solo se descuentan al cancelar/devolver una venta ya cobrada.
+          </p>
           <div className="space-y-2">
             {presupuestosMostrador.map((v) => (
-              <div key={v.folio} className="bg-white rounded-lg border border-slate-200 p-2 flex items-center justify-between flex-wrap gap-2">
-                <div className="text-sm">
-                  <p className="font-medium">Folio #{v.folio} — {v.nombreCliente} — ${v.total.toFixed(2)} MXN</p>
-                  <p className="text-xs text-slate-500">
-                    {v.items.map((it) => it.nombre).join(", ")} · {new Date(v.fecha).toLocaleString("es-MX")}
-                  </p>
+              <div key={v.folio} className="bg-white rounded-lg border border-slate-200 p-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="text-sm">
+                    <p className="font-medium">Folio #{v.folio} — {v.nombreCliente} — ${v.total.toFixed(2)} MXN</p>
+                    <p className="text-xs text-slate-500">
+                      {v.items.map((it) => it.nombre).join(", ")} · {new Date(v.fecha).toLocaleString("es-MX")}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={() => setPreview(v)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600">
+                      Ver / imprimir / WhatsApp
+                    </button>
+                    <button
+                      onClick={() => cargarPedidoPortal(v)}
+                      className="text-xs px-3 py-1.5 rounded-lg text-white"
+                      style={{ background: SKY_DARK }}
+                    >
+                      Cargar en el POS para cobrar
+                    </button>
+                    <button onClick={() => enviarRecordatorioPresupuesto(v)} className="text-xs px-3 py-1.5 rounded-lg text-white bg-emerald-600">
+                      Enviar recordatorio
+                    </button>
+                    <button onClick={() => setConfirmandoEliminarPresupuesto(v.folio)} className="text-xs px-3 py-1.5 rounded-lg bg-red-100 text-red-700">
+                      Eliminar
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setPreview(v)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600">
-                    Ver / imprimir / WhatsApp
-                  </button>
-                  <button
-                    onClick={() => cargarPedidoPortal(v)}
-                    className="text-xs px-3 py-1.5 rounded-lg text-white"
-                    style={{ background: SKY_DARK }}
-                  >
-                    Cargar en el POS para cobrar
-                  </button>
-                  <button onClick={() => cancelarPresupuesto(v.folio)} className="text-xs px-3 py-1.5 rounded-lg bg-slate-200 text-slate-600">
-                    Cancelar
-                  </button>
-                </div>
+                {confirmandoEliminarPresupuesto === v.folio && (
+                  <div className="bg-red-100 border border-red-300 rounded-lg p-2 mt-2">
+                    <p className="text-xs font-bold text-red-700 mb-2">¿Estás seguro que quieres eliminar este presupuesto?</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => eliminarPresupuesto(v.folio)} className="flex-1 py-1.5 rounded-lg bg-red-700 text-white text-xs font-medium">Sí</button>
+                      <button onClick={() => setConfirmandoEliminarPresupuesto(null)} className="flex-1 py-1.5 rounded-lg bg-white border text-xs">No</button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
+            {presupuestosMostrador.length === 0 && <p className="text-sm text-slate-400">No hay presupuestos guardados por ahora.</p>}
           </div>
         </div>
       )}
@@ -2366,6 +2427,7 @@ const CATEGORIAS_INV = [
   { key: "lentesGraduados", label: "Lentes graduados" },
   { key: "lentesContacto", label: "Lentes de contacto" },
   { key: "lentesSolares", label: "Lentes solares" },
+  { key: "auditoria", label: "Auditoría" },
   { key: "accesorios", label: "Accesorios" },
 ];
 
@@ -2729,6 +2791,10 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
         ))}
       </div>
 
+      {cat === "auditoria" ? (
+        <AuditoriaInventarioView config={config} setConfig={setConfig} />
+      ) : (
+      <>
       {esArmazon && (
         <div className="bg-white border rounded-xl p-3 mb-4">
           <button onClick={() => setCatalogoAbierto(!catalogoAbierto)} className="text-sm font-semibold text-slate-700">
@@ -3448,6 +3514,182 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
           setConfig={setConfig}
         />
       )}
+      </>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Auditoría de inventario ---------- */
+function AuditoriaInventarioView({ config, setConfig }) {
+  const registros = config?.auditoriaInventario || [];
+  const [mesVer, setMesVer] = useState(() => new Date().toISOString().slice(0, 7));
+  const vacio = {
+    sku: "",
+    descripcion: "",
+    inventarioInicial: "",
+    cantidadInicioMes: "",
+    folioEntrada: "",
+    fechaEntrada: "",
+    fechaSalida: "",
+    folioSalida: "",
+    totalEntradasMes: "",
+    totalSalidasMes: "",
+    inventarioFinal: "",
+    inventarioFisico: "",
+    quienAudita: "",
+    responsableInventario: "",
+  };
+  const [nuevo, setNuevo] = useState(vacio);
+  const [editandoId, setEditandoId] = useState(null);
+
+  const registrosDelMes = registros.filter((r) => r.mes === mesVer);
+  const meses = [...new Set(registros.map((r) => r.mes))].sort().reverse();
+
+  function guardarRegistro() {
+    if (!nuevo.sku && !nuevo.descripcion) return;
+    if (editandoId) {
+      setConfig({ ...config, auditoriaInventario: registros.map((r) => (r.id === editandoId ? { ...r, ...nuevo, mes: mesVer } : r)) });
+      setEditandoId(null);
+    } else {
+      setConfig({ ...config, auditoriaInventario: [...registros, { id: uid(), mes: mesVer, ...nuevo }] });
+    }
+    setNuevo(vacio);
+    mostrarToast("Registro de auditoría guardado ✓");
+  }
+
+  function editarRegistro(r) {
+    setEditandoId(r.id);
+    setNuevo({ ...vacio, ...r });
+  }
+
+  function eliminarRegistro(id) {
+    setConfig({ ...config, auditoriaInventario: registros.filter((r) => r.id !== id) });
+    if (editandoId === id) {
+      setEditandoId(null);
+      setNuevo(vacio);
+    }
+  }
+
+  function diferencia(r) {
+    const fisico = Number(r.inventarioFisico || 0);
+    const final = Number(r.inventarioFinal || 0);
+    return fisico - final;
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <label className="text-sm">
+          Mes a auditar:{" "}
+          <input type="month" value={mesVer} onChange={(e) => setMesVer(e.target.value)} className="border rounded-lg px-2 py-1.5 text-sm" />
+        </label>
+        {meses.length > 0 && (
+          <div className="flex gap-1 flex-wrap">
+            {meses.map((m) => (
+              <button key={m} onClick={() => setMesVer(m)} className={`text-xs px-2 py-1 rounded-full ${mesVer === m ? "text-white" : "bg-white border"}`} style={mesVer === m ? { background: SKY_DARK } : {}}>
+                {m}
+              </button>
+            ))}
+          </div>
+        )}
+        <button onClick={() => imprimirElemento("reporte-auditoria-imprimible")} className="ml-auto px-3 py-1.5 rounded-lg text-white text-sm" style={{ background: SKY_DARK }}>
+          Imprimir reporte
+        </button>
+      </div>
+
+      <div className="bg-white border rounded-xl p-4 mb-6">
+        <h3 className="font-semibold text-sm mb-3">{editandoId ? "Editar registro de auditoría" : "Agregar registro de auditoría"}</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-3">
+          <Field label="SKU" value={nuevo.sku} onChange={(e) => setNuevo({ ...nuevo, sku: e.target.value })} />
+          <Field label="Descripción" value={nuevo.descripcion} onChange={(e) => setNuevo({ ...nuevo, descripcion: e.target.value })} />
+          <Field label="Inventario inicial" type="number" value={nuevo.inventarioInicial} onChange={(e) => setNuevo({ ...nuevo, inventarioInicial: e.target.value })} />
+          <Field label="Cantidad al inicio del mes" type="number" value={nuevo.cantidadInicioMes} onChange={(e) => setNuevo({ ...nuevo, cantidadInicioMes: e.target.value })} />
+          <Field label="Folio de nota/factura de entrada" value={nuevo.folioEntrada} onChange={(e) => setNuevo({ ...nuevo, folioEntrada: e.target.value })} />
+          <label className="block">
+            <span className="text-xs font-medium text-slate-500 uppercase">Fecha de entrada</span>
+            <input type="date" value={nuevo.fechaEntrada} onChange={(e) => setNuevo({ ...nuevo, fechaEntrada: e.target.value })} className="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm" />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-slate-500 uppercase">Fecha de salida</span>
+            <input type="date" value={nuevo.fechaSalida} onChange={(e) => setNuevo({ ...nuevo, fechaSalida: e.target.value })} className="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm" />
+          </label>
+          <Field label="Folio de salida" value={nuevo.folioSalida} onChange={(e) => setNuevo({ ...nuevo, folioSalida: e.target.value })} />
+          <Field label="Total entradas del mes" type="number" value={nuevo.totalEntradasMes} onChange={(e) => setNuevo({ ...nuevo, totalEntradasMes: e.target.value })} />
+          <Field label="Total salidas del mes" type="number" value={nuevo.totalSalidasMes} onChange={(e) => setNuevo({ ...nuevo, totalSalidasMes: e.target.value })} />
+          <Field label="Inventario final (según sistema)" type="number" value={nuevo.inventarioFinal} onChange={(e) => setNuevo({ ...nuevo, inventarioFinal: e.target.value })} />
+          <Field label="Inventario físico (contado)" type="number" value={nuevo.inventarioFisico} onChange={(e) => setNuevo({ ...nuevo, inventarioFisico: e.target.value })} />
+          <Field label="Quién audita" value={nuevo.quienAudita} onChange={(e) => setNuevo({ ...nuevo, quienAudita: e.target.value })} />
+          <Field label="Responsable del inventario" value={nuevo.responsableInventario} onChange={(e) => setNuevo({ ...nuevo, responsableInventario: e.target.value })} />
+        </div>
+        <div className="flex gap-2">
+          <button onClick={guardarRegistro} className="px-4 py-2 rounded-lg text-white text-sm" style={{ background: SKY_DARK }}>
+            {editandoId ? "Guardar cambios" : "Agregar registro"}
+          </button>
+          {editandoId && (
+            <button onClick={() => { setEditandoId(null); setNuevo(vacio); }} className="px-4 py-2 rounded-lg bg-slate-100 text-sm">
+              Cancelar edición
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div id="reporte-auditoria-imprimible" className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
+        <p className="hidden print:block font-bold px-3 pt-3">Auditoría de inventario — {mesVer}</p>
+        <table className="w-full text-xs">
+          <thead style={{ background: BEIGE }}>
+            <tr>
+              <th className="text-left px-2 py-2">SKU</th>
+              <th className="text-left px-2 py-2">Descripción</th>
+              <th className="text-left px-2 py-2">Inv. inicial</th>
+              <th className="text-left px-2 py-2">Cant. inicio mes</th>
+              <th className="text-left px-2 py-2">Folio entrada</th>
+              <th className="text-left px-2 py-2">Fecha entrada</th>
+              <th className="text-left px-2 py-2">Fecha salida</th>
+              <th className="text-left px-2 py-2">Folio salida</th>
+              <th className="text-left px-2 py-2">Total entradas</th>
+              <th className="text-left px-2 py-2">Total salidas</th>
+              <th className="text-left px-2 py-2">Inv. final</th>
+              <th className="text-left px-2 py-2">Inv. físico</th>
+              <th className="text-left px-2 py-2">Diferencia</th>
+              <th className="text-left px-2 py-2">Quién audita</th>
+              <th className="text-left px-2 py-2">Responsable</th>
+              <th className="px-2 py-2 print:hidden"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {registrosDelMes.map((r) => {
+              const dif = diferencia(r);
+              return (
+                <tr key={r.id} className="border-t">
+                  <td className="px-2 py-2 font-medium">{r.sku}</td>
+                  <td className="px-2 py-2">{r.descripcion}</td>
+                  <td className="px-2 py-2">{r.inventarioInicial}</td>
+                  <td className="px-2 py-2">{r.cantidadInicioMes}</td>
+                  <td className="px-2 py-2">{r.folioEntrada}</td>
+                  <td className="px-2 py-2">{r.fechaEntrada}</td>
+                  <td className="px-2 py-2">{r.fechaSalida}</td>
+                  <td className="px-2 py-2">{r.folioSalida}</td>
+                  <td className="px-2 py-2">{r.totalEntradasMes}</td>
+                  <td className="px-2 py-2">{r.totalSalidasMes}</td>
+                  <td className="px-2 py-2">{r.inventarioFinal}</td>
+                  <td className="px-2 py-2">{r.inventarioFisico}</td>
+                  <td className={`px-2 py-2 font-semibold ${dif === 0 ? "text-emerald-600" : "text-red-600"}`}>{dif > 0 ? `+${dif}` : dif}</td>
+                  <td className="px-2 py-2">{r.quienAudita}</td>
+                  <td className="px-2 py-2">{r.responsableInventario}</td>
+                  <td className="px-2 py-2 print:hidden whitespace-nowrap">
+                    <button onClick={() => editarRegistro(r)} className="text-slate-500 underline mr-2">Editar</button>
+                    <button onClick={() => eliminarRegistro(r.id)} className="text-red-400"><Trash2 size={14} /></button>
+                  </td>
+                </tr>
+              );
+            })}
+            {registrosDelMes.length === 0 && (
+              <tr><td colSpan={16} className="text-center text-slate-400 py-6">Sin registros de auditoría para {mesVer}.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -4045,6 +4287,7 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laborat
     material: "", descripcion: "", armazon: "",
   });
   const [agendandoCita, setAgendandoCita] = useState(false);
+  const [subiendoReceta, setSubiendoReceta] = useState(false);
   const [nuevaCitaExp, setNuevaCitaExp] = useState({ fecha: fechaISO(new Date()), hora: "", consultorio: "Consultorio 1" });
 
   const visitasOrdenadas = ordenarVisitasDesc(datos.compras);
@@ -4164,8 +4407,50 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laborat
             <button onClick={() => setAgendandoCita(true)} className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600 flex items-center gap-1">
               <Plus size={14} /> Agendar cita
             </button>
+            <label className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600 flex items-center gap-1 cursor-pointer">
+              <Plus size={14} /> {subiendoReceta ? "Subiendo…" : "Subir foto de receta"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={subiendoReceta}
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  setSubiendoReceta(true);
+                  subirImagenStorage(file, "recetas-fisicas").then((url) => {
+                    setSubiendoReceta(false);
+                    if (url) {
+                      const actualizado = {
+                        ...datos,
+                        fotosRecetaFisica: [...(datos.fotosRecetaFisica || []), { url, fecha: new Date().toISOString() }],
+                      };
+                      setDatos(actualizado);
+                      setPacientes(pacientes.map((p) => (p.id === paciente.id ? { ...p, ...actualizado } : p)));
+                      mostrarToast("Foto de receta guardada ✓");
+                    } else {
+                      mostrarToast("No se pudo subir la foto. Intenta de nuevo.", "error");
+                    }
+                  });
+                }}
+              />
+            </label>
           </div>
         </div>
+
+        {(datos.fotosRecetaFisica || []).length > 0 && (
+          <div className="mb-3">
+            <p className="text-xs font-medium text-slate-500 uppercase mb-1">Fotos de receta física</p>
+            <div className="flex gap-2 flex-wrap">
+              {datos.fotosRecetaFisica.map((f, i) => (
+                <a key={i} href={f.url} target="_blank" rel="noreferrer" className="block">
+                  <img src={f.url} alt="Receta" className="w-20 h-20 object-cover rounded-lg border" />
+                  <p className="text-[10px] text-slate-400 text-center mt-0.5">{new Date(f.fecha).toLocaleDateString("es-MX")}</p>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="space-y-2">
           {visitasOrdenadas.map((v) => (
             <ResumenVisita key={v.id || v.folio} v={v} paciente={datos} config={config} />
@@ -4394,6 +4679,11 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laborat
                 origen: "expediente",
               },
             ]);
+            if (datos.mail) {
+              const urlSitio = typeof window !== "undefined" ? window.location.origin : "";
+              const msj = mensajeCitaConfirmada(datos.nombre, nuevaCitaExp.fecha, nuevaCitaExp.hora, nuevaCitaExp.consultorio, urlSitio);
+              enviarCorreoAutomatico(datos.mail, msj.email.asunto, msj.email.cuerpoHtml);
+            }
             setAgendandoCita(false);
             onIrAgenda?.();
           }}
@@ -11109,7 +11399,7 @@ function TiendaAgendar({ open, onClose, agenda, setAgenda, pacientes, setPacient
     ]);
     const urlSitio = typeof window !== "undefined" ? window.location.origin : "";
     const msj = mensajeCitaConfirmada(sesionCliente.nombre, fecha, hora, consultorio, urlSitio);
-    if (sesionCliente.mail) abrirEmail(sesionCliente.mail, msj.email.asunto, msj.email.cuerpo);
+    if (sesionCliente.mail) enviarCorreoAutomatico(sesionCliente.mail, msj.email.asunto, msj.email.cuerpoHtml);
     setCitaConfirmada({ mensaje: msj.whatsapp, telefono: sesionCliente.telefono, texto: `Tu cita quedó agendada para el ${fecha} a las ${hora} (${consultorio}).` });
   }
 
