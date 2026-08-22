@@ -6161,7 +6161,7 @@ function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes,
 
 function TotalBox({ titulo, monto, color, subtitulo, esConteo }) {
   return (
-    <div className="bg-white border rounded-xl p-4 shrink-0" style={{ minWidth: 170 }}>
+    <div className="bg-white border rounded-xl p-4 w-full">
       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{titulo}</p>
       <p className="text-2xl font-bold mt-1 whitespace-nowrap" style={{ color }}>
         {esConteo ? monto : `$${monto.toFixed(2)}`}
@@ -6317,20 +6317,29 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
 
       <div id="corte-imprimible">
         <p className="hidden print:block font-bold mb-3">Corte Diario — {fecha}</p>
-        <div className="flex gap-3 mb-6 overflow-x-auto pb-1 print:hidden">
-          <TotalBox titulo="Vendido del día (bruto)" monto={totalVendido} color="#111827" subtitulo={`${ventasDelDia.length} nota(s) — incluye lo cancelado`} />
-          <TotalBox titulo="Cancelado del día" monto={totalCancelacionesDia} color="#dc2626" subtitulo={`${cancelacionesDelDia.length} evento(s)`} />
-          <TotalBox titulo="Venta real del día" monto={ventaRealDia} color={ventaRealDia >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Vendido − Cancelado" />
-          <TotalBox titulo="Total de tickets del día" monto={totalTicketsDia} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioDia.toFixed(2)}`} esConteo />
-          <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#6B7280" subtitulo={`${anticipos.length} pago(s)`} />
-          <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
-          <TotalBox titulo="Abonos parciales (apartados)" monto={totalAbonosParciales} color="#eab308" subtitulo={`${abonosParciales.length} pago(s)`} />
-          <TotalBox titulo="Cobrado hoy (bruto)" monto={totalCobradoHoy} color="#047857" subtitulo="Anticipos + liquidaciones + abonos + contado" />
-          <TotalBox titulo="Devuelto al cliente" monto={totalDevueltoEnPagoDia} color="#dc2626" subtitulo="Efectivo/tarjeta regresado por cancelaciones" />
-          <TotalBox titulo="Cobro real del día" monto={cobroRealDia} color={cobroRealDia >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado − Devuelto" />
-          <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
-          <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelDia.length} pago(s)`} />
-          <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado hoy − proveedores − cancelaciones" />
+        <div className="mb-2 print:hidden">
+          <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Ventas del día</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            <TotalBox titulo="Vendido del día (bruto)" monto={totalVendido} color="#111827" subtitulo={`${ventasDelDia.length} nota(s) — incluye lo cancelado`} />
+            <TotalBox titulo="Cancelado del día" monto={totalCancelacionesDia} color="#dc2626" subtitulo={`${cancelacionesDelDia.length} evento(s)`} />
+            <TotalBox titulo="Venta real del día" monto={ventaRealDia} color={ventaRealDia >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Vendido − Cancelado" />
+            <TotalBox titulo="Total de tickets del día" monto={totalTicketsDia} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioDia.toFixed(2)}`} esConteo />
+            <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#6B7280" subtitulo={`${anticipos.length} pago(s)`} />
+            <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
+            <TotalBox titulo="Abonos parciales (apartados)" monto={totalAbonosParciales} color="#eab308" subtitulo={`${abonosParciales.length} pago(s)`} />
+          </div>
+        </div>
+
+        <div className="mb-6 print:hidden">
+          <p className="text-xs font-semibold text-slate-400 uppercase mb-2 mt-4">Flujo de caja del día</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <TotalBox titulo="Cobrado hoy (bruto)" monto={totalCobradoHoy} color="#047857" subtitulo="Anticipos + liquidaciones + abonos + contado" />
+            <TotalBox titulo="Devuelto al cliente" monto={totalDevueltoEnPagoDia} color="#dc2626" subtitulo="Efectivo/tarjeta regresado por cancelaciones" />
+            <TotalBox titulo="Cobro real del día" monto={cobroRealDia} color={cobroRealDia >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado − Devuelto" />
+            <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
+            <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelDia.length} pago(s)`} />
+            <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado hoy − proveedores − cancelaciones" />
+          </div>
         </div>
 
         <div className="hidden print:grid" style={{ gridTemplateColumns: "1fr 1fr", columnGap: 24, rowGap: 2, fontSize: 12, marginBottom: 16 }}>
@@ -6720,20 +6729,29 @@ function CorteMensual({ ventas, pagosProveedores }) {
 
       <div id="corte-mes-imprimible">
         <p className="hidden print:block font-bold mb-3">Corte del mes — {mes}</p>
-        <div className="flex gap-3 mb-6 overflow-x-auto pb-1 print:hidden">
-          <TotalBox titulo="Vendido del mes (bruto)" monto={totalVendido} color="#111827" subtitulo={`${ventasDelMes.length} nota(s) — incluye lo cancelado`} />
-          <TotalBox titulo="Cancelado del mes" monto={totalCancelacionesMes} color="#dc2626" subtitulo={`${cancelacionesDelMes.length} evento(s)`} />
-          <TotalBox titulo="Venta real del mes" monto={ventaRealMes} color={ventaRealMes >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Vendido − Cancelado" />
-          <TotalBox titulo="Total de tickets del mes" monto={totalTicketsMes} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioMes.toFixed(2)}`} esConteo />
-          <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#6B7280" subtitulo={`${anticipos.length} pago(s)`} />
-          <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
-          <TotalBox titulo="Abonos parciales (apartados)" monto={totalAbonosParciales} color="#eab308" subtitulo={`${abonosParciales.length} pago(s)`} />
-          <TotalBox titulo="Cobrado en el mes (bruto)" monto={totalCobradoMes} color="#047857" subtitulo="Anticipos + liquidaciones + abonos + contado" />
-          <TotalBox titulo="Devuelto al cliente" monto={totalDevueltoEnPagoMes} color="#dc2626" subtitulo="Efectivo/tarjeta regresado por cancelaciones" />
-          <TotalBox titulo="Cobro real del mes" monto={cobroRealMes} color={cobroRealMes >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado − Devuelto" />
-          <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
-          <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelMes.length} pago(s)`} />
-          <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado del mes − proveedores − cancelaciones" />
+        <div className="mb-2 print:hidden">
+          <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Ventas del mes</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            <TotalBox titulo="Vendido del mes (bruto)" monto={totalVendido} color="#111827" subtitulo={`${ventasDelMes.length} nota(s) — incluye lo cancelado`} />
+            <TotalBox titulo="Cancelado del mes" monto={totalCancelacionesMes} color="#dc2626" subtitulo={`${cancelacionesDelMes.length} evento(s)`} />
+            <TotalBox titulo="Venta real del mes" monto={ventaRealMes} color={ventaRealMes >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Vendido − Cancelado" />
+            <TotalBox titulo="Total de tickets del mes" monto={totalTicketsMes} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioMes.toFixed(2)}`} esConteo />
+            <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#6B7280" subtitulo={`${anticipos.length} pago(s)`} />
+            <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
+            <TotalBox titulo="Abonos parciales (apartados)" monto={totalAbonosParciales} color="#eab308" subtitulo={`${abonosParciales.length} pago(s)`} />
+          </div>
+        </div>
+
+        <div className="mb-6 print:hidden">
+          <p className="text-xs font-semibold text-slate-400 uppercase mb-2 mt-4">Flujo de caja del mes</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <TotalBox titulo="Cobrado en el mes (bruto)" monto={totalCobradoMes} color="#047857" subtitulo="Anticipos + liquidaciones + abonos + contado" />
+            <TotalBox titulo="Devuelto al cliente" monto={totalDevueltoEnPagoMes} color="#dc2626" subtitulo="Efectivo/tarjeta regresado por cancelaciones" />
+            <TotalBox titulo="Cobro real del mes" monto={cobroRealMes} color={cobroRealMes >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado − Devuelto" />
+            <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
+            <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelMes.length} pago(s)`} />
+            <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado del mes − proveedores − cancelaciones" />
+          </div>
         </div>
 
         <div className="hidden print:grid" style={{ gridTemplateColumns: "1fr 1fr", columnGap: 24, rowGap: 2, fontSize: 12, marginBottom: 16 }}>
