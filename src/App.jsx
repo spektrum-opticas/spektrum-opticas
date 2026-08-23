@@ -1043,6 +1043,7 @@ const ESTATUS_COLORS = {
   llego: "#f97316", // naranja
   en_consulta: "#eab308", // amarillo
   piso_ventas: "#22c55e", // verde
+  cita_completa: "#2563eb", // azul
   no_acudio: "#ef4444", // rojo
 };
 const ESTATUS_LABEL = {
@@ -1050,6 +1051,7 @@ const ESTATUS_LABEL = {
   llego: "Llegó",
   en_consulta: "En consulta",
   piso_ventas: "Piso de ventas",
+  cita_completa: "Cita completa",
   no_acudio: "No acudió",
 };
 
