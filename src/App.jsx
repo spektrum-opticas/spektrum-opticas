@@ -1056,7 +1056,10 @@ const ESTATUS_LABEL = {
 };
 
 function fechaISO(d) {
-  return d.toISOString().slice(0, 10);
+  const anio = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${anio}-${mes}-${dia}`;
 }
 
 function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS, laboratorio, setLaboratorio }) {
