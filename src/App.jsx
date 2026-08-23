@@ -12202,10 +12202,10 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nomi
           />
           <GraficaDonut
             tituloCentro="cobrado de lo vendido"
-            valorCentro={`${(datosMes.vendido > 0 ? (Math.min(datosMes.cobrado, datosMes.vendido) / datosMes.vendido) * 100 : 0).toFixed(0)}%`}
+            valorCentro={`${(datosMes.ventaReal > 0 ? (Math.min(datosMes.cobradoNeto, datosMes.ventaReal) / datosMes.ventaReal) * 100 : 0).toFixed(0)}%`}
             segmentos={[
-              { valor: Math.min(datosMes.cobrado, datosMes.vendido), color: "#059669", label: "Cobrado", textoValor: `$${Math.min(datosMes.cobrado, datosMes.vendido).toFixed(2)}` },
-              { valor: Math.max(0, datosMes.vendido - datosMes.cobrado), color: "#fca5a5", label: "Por cobrar", textoValor: `$${Math.max(0, datosMes.vendido - datosMes.cobrado).toFixed(2)}` },
+              { valor: Math.min(datosMes.cobradoNeto, datosMes.ventaReal), color: "#059669", label: "Cobrado", textoValor: `$${Math.min(datosMes.cobradoNeto, datosMes.ventaReal).toFixed(2)}` },
+              { valor: Math.max(0, datosMes.ventaReal - datosMes.cobradoNeto), color: "#fca5a5", label: "Por cobrar", textoValor: `$${Math.max(0, datosMes.ventaReal - datosMes.cobradoNeto).toFixed(2)}` },
             ]}
           />
           <GraficaDonut
