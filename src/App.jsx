@@ -12398,8 +12398,8 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, no
   });
 
   const totalAnioMeta = meses.reduce((s, m) => s + m.meta, 0);
-  const totalAnioVendido = meses.reduce((s, m) => s + m.vendido, 0);
-  const totalAnioCobrado = meses.reduce((s, m) => s + m.cobrado, 0);
+  const totalAnioVendido = meses.reduce((s, m) => s + m.ventaReal, 0);
+  const totalAnioCobrado = meses.reduce((s, m) => s + m.cobradoNeto, 0);
   const totalAjustesMayoresAnio = (pagosProveedores || [])
     .filter((p) => p.esAjusteMayor && p.fecha && p.fecha.slice(0, 4) === String(anio))
     .reduce((s, p) => s + Number(p.monto || 0), 0);
@@ -12476,8 +12476,8 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, no
             <tr>
               <th className="text-left px-3 py-2">Mes</th>
               <th className="text-right px-3 py-2">Meta</th>
-              <th className="text-right px-3 py-2">Vendido</th>
-              <th className="text-right px-3 py-2">Cobrado</th>
+              <th className="text-right px-3 py-2">Vendido (neto)</th>
+              <th className="text-right px-3 py-2">Cobrado (neto)</th>
               <th className="text-right px-3 py-2">% Meta</th>
               <th className="px-3 py-2">Avance</th>
               <th className="px-3 py-2">Origen</th>
@@ -12485,13 +12485,13 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, no
           </thead>
           <tbody>
             {meses.map((m) => {
-              const pct = m.meta > 0 ? (m.vendido / m.meta) * 100 : 0;
+              const pct = m.meta > 0 ? (m.ventaReal / m.meta) * 100 : 0;
               return (
                 <tr key={m.mes} className="border-t">
                   <td className="px-3 py-2 font-medium">{m.nombre}</td>
                   <td className="px-3 py-2 text-right">${m.meta.toFixed(2)}</td>
-                  <td className="px-3 py-2 text-right">${m.vendido.toFixed(2)}</td>
-                  <td className="px-3 py-2 text-right">${m.cobrado.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right">${m.ventaReal.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right">${m.cobradoNeto.toFixed(2)}</td>
                   <td className="px-3 py-2 text-right">{pct.toFixed(1)}%</td>
                   <td className="px-3 py-2 w-32">
                     <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
