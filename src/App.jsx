@@ -6707,7 +6707,8 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
             <TotalBox titulo="Vendido del día (bruto)" monto={totalVendido} color="#111827" subtitulo={`${ventasDelDia.length} nota(s) — incluye lo cancelado`} />
             <TotalBox titulo="Cancelado del día" monto={totalCancelacionesDia} color="#dc2626" subtitulo={`${cancelacionesDelDia.length} evento(s)`} />
             <TotalBox titulo="Venta real del día" monto={ventaRealDia} color={ventaRealDia >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Vendido − Cancelado" />
-            <TotalBox titulo="Total de tickets del día" monto={totalTicketsDia} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioDia.toFixed(2)}`} esConteo />
+            <TotalBox titulo="Total de tickets del día" monto={totalTicketsDia} color="#0f766e" subtitulo="Cantidad de notas" esConteo />
+            <TotalBox titulo="Ticket promedio del día" monto={ticketPromedioDia} color="#0f766e" subtitulo="Vendido bruto ÷ tickets" />
             <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#6B7280" subtitulo={`${anticipos.length} pago(s)`} />
             <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
             <TotalBox titulo="Abonos parciales (apartados)" monto={totalAbonosParciales} color="#eab308" subtitulo={`${abonosParciales.length} pago(s)`} />
@@ -7133,7 +7134,8 @@ function CorteAnual({ ventas, pagosProveedores, nominas }) {
           <TotalBox titulo="Vendido del año (bruto)" monto={totalVendido} color="#111827" subtitulo={`${totalTickets} nota(s) — incluye lo cancelado`} />
           <TotalBox titulo="Cancelado del año" monto={totalCancelaciones} color="#dc2626" subtitulo={`${cancelacionesDelAnio.length} evento(s)`} />
           <TotalBox titulo="Venta real del año" monto={ventaReal} color={ventaReal >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Vendido − Cancelado" />
-          <TotalBox titulo="Total de tickets del año" monto={totalTickets} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedio.toFixed(2)}`} esConteo />
+          <TotalBox titulo="Total de tickets del año" monto={totalTickets} color="#0f766e" subtitulo="Cantidad de notas" esConteo />
+          <TotalBox titulo="Ticket promedio del año" monto={ticketPromedio} color="#0f766e" subtitulo="Vendido bruto ÷ tickets" />
           <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#6B7280" subtitulo={`${anticipos.length} pago(s)`} />
           <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
           <TotalBox titulo="Abonos parciales (apartados)" monto={totalAbonosParciales} color="#eab308" subtitulo={`${abonosParciales.length} pago(s)`} />
@@ -7265,7 +7267,8 @@ function CorteMensual({ ventas, pagosProveedores, nominas }) {
             <TotalBox titulo="Vendido del mes (bruto)" monto={totalVendido} color="#111827" subtitulo={`${ventasDelMes.length} nota(s) — incluye lo cancelado`} />
             <TotalBox titulo="Cancelado del mes" monto={totalCancelacionesMes} color="#dc2626" subtitulo={`${cancelacionesDelMes.length} evento(s)`} />
             <TotalBox titulo="Venta real del mes" monto={ventaRealMes} color={ventaRealMes >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Vendido − Cancelado" />
-            <TotalBox titulo="Total de tickets del mes" monto={totalTicketsMes} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedioMes.toFixed(2)}`} esConteo />
+            <TotalBox titulo="Total de tickets del mes" monto={totalTicketsMes} color="#0f766e" subtitulo="Cantidad de notas" esConteo />
+            <TotalBox titulo="Ticket promedio del mes" monto={ticketPromedioMes} color="#0f766e" subtitulo="Vendido bruto ÷ tickets" />
             <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#6B7280" subtitulo={`${anticipos.length} pago(s)`} />
             <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
             <TotalBox titulo="Abonos parciales (apartados)" monto={totalAbonosParciales} color="#eab308" subtitulo={`${abonosParciales.length} pago(s)`} />
@@ -7755,8 +7758,40 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
     else ejecutarDevolucionParcial(false);
   }
 
+  const notasSospechosas = ventas.filter((v) => v.estatus === "cancelada" && Number(v.saldo || 0) > 0);
+  const notasConSaldoTodas = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && Number(v.saldo || 0) > 0);
+
   return (
     <div>
+      {notasSospechosas.length > 0 && (
+        <div className="bg-red-50 border border-red-300 rounded-xl p-3 mb-4">
+          <h4 className="text-sm font-semibold text-red-800 mb-1">
+            ⚠️ {notasSospechosas.length} nota(s) canceladas/con devolución que TODAVÍA muestran saldo pendiente
+          </h4>
+          <p className="text-xs text-red-700 mb-2">
+            Esto es lo más probable causando que "por cobrar" salga inflado en tus reportes — una nota que ya está cancelada no debería seguir contando como deuda activa. Da clic en "Poner saldo en $0" para corregir cada una (no toca el inventario, solo limpia el saldo).
+          </p>
+          <div className="space-y-1">
+            {notasSospechosas.map((v) => (
+              <div key={v.folio} className="bg-white rounded-lg border border-red-200 p-2 flex items-center justify-between flex-wrap gap-2">
+                <p className="text-sm">
+                  Folio #{v.folio} — {v.nombreCliente} — estatus: <b>{v.estatus}</b> — saldo mostrado: <b className="text-red-600">${Number(v.saldo).toFixed(2)}</b>
+                </p>
+                <button
+                  onClick={() => {
+                    setVentas((prev) => prev.map((x) => (x.folio === v.folio ? { ...x, saldo: 0 } : x)));
+                    mostrarToast(`Folio #${v.folio}: saldo corregido a $0 ✓`);
+                  }}
+                  className="text-xs px-3 py-1.5 rounded-lg text-white bg-red-600"
+                >
+                  Poner saldo en $0
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
         <h4 className="text-sm font-semibold text-amber-800 mb-1">Ajuste manual de saldo pendiente</h4>
         <p className="text-xs text-amber-700 mb-2">
@@ -7778,6 +7813,41 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
           <button onClick={aplicarAjusteManual} className="px-3 py-1.5 rounded-lg text-white text-sm" style={{ background: "#b45309" }}>
             Aplicar ajuste
           </button>
+        </div>
+      </div>
+
+      <div className="bg-white border rounded-xl p-3 mb-4">
+        <h4 className="text-sm font-semibold mb-1">Todas las notas con saldo pendiente ({notasConSaldoTodas.length}) — total ${notasConSaldoTodas.reduce((s, v) => s + Number(v.saldo || 0), 0).toFixed(2)}</h4>
+        <p className="text-xs text-slate-400 mb-2">Revisa aquí uno por uno los folios que suman tu "por cobrar" — así puedes ubicar cuál ya se pagó en la vida real pero no se marcó aquí.</p>
+        <div className="max-h-64 overflow-y-auto">
+          <table className="w-full text-xs">
+            <thead style={{ background: BEIGE }}>
+              <tr>
+                <th className="text-left px-2 py-1">Folio</th>
+                <th className="text-left px-2 py-1">Cliente</th>
+                <th className="text-left px-2 py-1">Fecha</th>
+                <th className="text-left px-2 py-1">Estatus</th>
+                <th className="text-right px-2 py-1">Saldo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {notasConSaldoTodas
+                .slice()
+                .sort((a, b) => b.saldo - a.saldo)
+                .map((v) => (
+                  <tr key={v.folio} className="border-t">
+                    <td className="px-2 py-1">#{v.folio}</td>
+                    <td className="px-2 py-1">{v.nombreCliente}</td>
+                    <td className="px-2 py-1">{new Date(v.fecha).toLocaleDateString("es-MX")}</td>
+                    <td className="px-2 py-1">{v.estatus}</td>
+                    <td className="px-2 py-1 text-right font-medium">${Number(v.saldo).toFixed(2)}</td>
+                  </tr>
+                ))}
+              {notasConSaldoTodas.length === 0 && (
+                <tr><td colSpan={5} className="text-center text-slate-400 py-3">No hay ninguna nota con saldo pendiente.</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
