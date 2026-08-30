@@ -6486,6 +6486,9 @@ function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes,
         <button onClick={() => setModo("mes")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${modo === "mes" ? "text-white" : "bg-white border"}`} style={modo === "mes" ? { background: SKY_DARK } : {}}>
           Corte del mes
         </button>
+        <button onClick={() => setModo("anio")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${modo === "anio" ? "text-white" : "bg-white border"}`} style={modo === "anio" ? { background: SKY_DARK } : {}}>
+          Corte del año
+        </button>
       </div>
 
       {modo === "corte" ? (
@@ -6501,6 +6504,8 @@ function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes,
         />
       ) : modo === "mes" ? (
         <CorteMensual ventas={ventas} pagosProveedores={pagosProveedores} proveedores={proveedores} nominas={nominas} />
+      ) : modo === "anio" ? (
+        <CorteAnual ventas={ventas} pagosProveedores={pagosProveedores} nominas={nominas} />
       ) : (
         <CancelacionesTab
           ventas={ventas}
@@ -7042,6 +7047,128 @@ function datosDelMes(mes, ventas, dashboard, pagosProveedores, nominas) {
     return { vendido: Number(manual.vendido) || 0, cancelado: 0, ventaReal: Number(manual.vendido) || 0, cobrado: cobradoManual, devuelto: 0, cobradoNeto: cobradoManual, gastos: gastosReal, nomina: nominaReal, caja: cobradoManual - gastosReal - nominaReal, meta, origen: "manual", tickets: 0 };
   }
   return { vendido: 0, cancelado: 0, ventaReal: 0, cobrado: 0, devuelto: 0, cobradoNeto: 0, gastos: gastosReal, nomina: nominaReal, caja: -gastosReal - nominaReal, meta, origen: "sin_datos", tickets: 0 };
+}
+
+/* ---------- Corte del año ---------- */
+function CorteAnual({ ventas, pagosProveedores, nominas }) {
+  const [anio, setAnio] = useState(new Date().getFullYear());
+  const nombresMes = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+  const ventasDelAnio = ventas.filter((v) => v.estatus !== "presupuesto" && v.fecha && v.fecha.slice(0, 4) === String(anio));
+  const totalVendido = ventasDelAnio.reduce((s, v) => s + montoOriginalVenta(v), 0);
+  const totalTickets = ventasDelAnio.length;
+  const ticketPromedio = totalTickets > 0 ? totalVendido / totalTickets : 0;
+
+  const todosPagos = ventas.flatMap((v) => (v.pagos || []));
+  const pagosDelAnio = todosPagos.filter((p) => p.fecha && p.fecha.slice(0, 4) === String(anio));
+  const anticipos = pagosDelAnio.filter((p) => p.tipo === "anticipo");
+  const liquidaciones = pagosDelAnio.filter((p) => p.tipo === "liquidacion");
+  const abonosParciales = pagosDelAnio.filter((p) => p.tipo === "abono");
+  const ventasCompletas = pagosDelAnio.filter((p) => p.tipo === "venta_completa");
+  const totalAnticipos = anticipos.reduce((s, p) => s + p.monto, 0);
+  const totalLiquidaciones = liquidaciones.reduce((s, p) => s + p.monto, 0);
+  const totalAbonosParciales = abonosParciales.reduce((s, p) => s + p.monto, 0);
+  const totalCobrado = totalAnticipos + totalLiquidaciones + totalAbonosParciales + ventasCompletas.reduce((s, p) => s + p.monto, 0);
+
+  const notasConSaldo = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && v.saldo > 0);
+  const totalSaldoPendiente = notasConSaldo.reduce((s, v) => s + v.saldo, 0);
+
+  const pagosProvDelAnio = (pagosProveedores || []).filter((p) => p.fecha && p.fecha.slice(0, 4) === String(anio) && !p.esAjusteMayor);
+  const totalProveedores = pagosProvDelAnio.reduce((s, p) => s + Number(p.monto || 0), 0);
+
+  const cancelacionesDelAnio = ventas.flatMap((v) => (v.historialCancelacion || []).filter((c) => c.fecha && c.fecha.slice(0, 4) === String(anio)).map((c) => ({ ...c, folio: v.folio, cliente: v.nombreCliente })));
+  const totalCancelaciones = cancelacionesDelAnio.reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
+  const totalDevueltoEnPago = cancelacionesDelAnio.reduce((s, c) => s + Number(c.montoDevueltoEnEfectivoOTarjeta || 0), 0);
+
+  const nominaDelAnio = (nominas || []).filter((n) => n.pagada && n.fechaPago && n.fechaPago.slice(0, 4) === String(anio));
+  const totalNomina = nominaDelAnio.reduce((s, n) => s + n.pagoTotal, 0);
+
+  const ventaReal = totalVendido - totalCancelaciones;
+  const cobroReal = totalCobrado - totalDevueltoEnPago;
+  const debeHaberCaja = totalCobrado - totalProveedores - totalCancelaciones - totalNomina;
+
+  const meses = Array.from({ length: 12 }, (_, i) => {
+    const mesStr = `${anio}-${String(i + 1).padStart(2, "0")}`;
+    const ventasMes = ventas.filter((v) => v.estatus !== "presupuesto" && v.fecha && v.fecha.slice(0, 7) === mesStr);
+    const vendidoMes = ventasMes.reduce((s, v) => s + montoOriginalVenta(v), 0);
+    const cancelMes = ventas.flatMap((v) => v.historialCancelacion || []).filter((c) => c.fecha && c.fecha.slice(0, 7) === mesStr).reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
+    const cobradoMes = todosPagos.filter((p) => p.fecha && p.fecha.slice(0, 7) === mesStr).reduce((s, p) => s + p.monto, 0);
+    return { nombre: nombresMes[i], vendido: vendidoMes, cancelado: cancelMes, ventaReal: vendidoMes - cancelMes, cobrado: cobradoMes };
+  });
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-4">
+        <button onClick={() => setAnio(anio - 1)} className="px-3 py-1.5 rounded-lg bg-white border text-sm">← {anio - 1}</button>
+        <p className="text-lg font-semibold">Corte del año {anio}</p>
+        <button onClick={() => setAnio(anio + 1)} className="px-3 py-1.5 rounded-lg bg-white border text-sm">{anio + 1} →</button>
+        <button onClick={() => imprimirElemento("reporte-anual-imprimible")} className="ml-auto px-3 py-1.5 rounded-lg text-white text-sm" style={{ background: SKY_DARK }}>
+          Imprimir reporte anual
+        </button>
+      </div>
+
+      <div id="reporte-anual-imprimible">
+        <p className="hidden print:block font-bold mb-2">Corte anual — {anio}</p>
+
+        <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Ventas del año</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
+          <TotalBox titulo="Vendido del año (bruto)" monto={totalVendido} color="#111827" subtitulo={`${totalTickets} nota(s) — incluye lo cancelado`} />
+          <TotalBox titulo="Cancelado del año" monto={totalCancelaciones} color="#dc2626" subtitulo={`${cancelacionesDelAnio.length} evento(s)`} />
+          <TotalBox titulo="Venta real del año" monto={ventaReal} color={ventaReal >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Vendido − Cancelado" />
+          <TotalBox titulo="Total de tickets del año" monto={totalTickets} color="#0f766e" subtitulo={`Ticket promedio: $${ticketPromedio.toFixed(2)}`} esConteo />
+          <TotalBox titulo="Anticipos cobrados" monto={totalAnticipos} color="#6B7280" subtitulo={`${anticipos.length} pago(s)`} />
+          <TotalBox titulo="Saldos cobrados al entregar" monto={totalLiquidaciones} color="#059669" subtitulo={`${liquidaciones.length} pago(s)`} />
+          <TotalBox titulo="Abonos parciales (apartados)" monto={totalAbonosParciales} color="#eab308" subtitulo={`${abonosParciales.length} pago(s)`} />
+        </div>
+
+        <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Flujo de caja del año</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+          <TotalBox titulo="Cobrado en el año (bruto)" monto={totalCobrado} color="#047857" subtitulo="Anticipos + liquidaciones + abonos + contado" />
+          <TotalBox titulo="Devuelto al cliente" monto={totalDevueltoEnPago} color="#dc2626" subtitulo="Efectivo/tarjeta regresado por cancelaciones" />
+          <TotalBox titulo="Cobro real del año" monto={cobroReal} color={cobroReal >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado − Devuelto" />
+          <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
+          <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelAnio.length} pago(s)`} />
+          <TotalBox titulo="Nómina" monto={totalNomina} color="#7c3aed" subtitulo={`${nominaDelAnio.length} pago(s) — ver detalle en Nóminas`} />
+          <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado − proveedores − cancelaciones − nómina" />
+        </div>
+
+        <div className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
+          <p className="font-semibold text-sm px-3 pt-3">Desglose por mes</p>
+          <table className="w-full text-sm">
+            <thead style={{ background: BEIGE }}>
+              <tr>
+                <th className="text-left px-3 py-2">Mes</th>
+                <th className="text-right px-3 py-2">Vendido (bruto)</th>
+                <th className="text-right px-3 py-2">Cancelado</th>
+                <th className="text-right px-3 py-2">Venta real</th>
+                <th className="text-right px-3 py-2">Cobrado (bruto)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {meses.map((m) => (
+                <tr key={m.nombre} className="border-t">
+                  <td className="px-3 py-2 font-medium">{m.nombre}</td>
+                  <td className="px-3 py-2 text-right">${m.vendido.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right">${m.cancelado.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right">${m.ventaReal.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right">${m.cobrado.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t font-semibold">
+                <td className="px-3 py-2">Total</td>
+                <td className="px-3 py-2 text-right">${totalVendido.toFixed(2)}</td>
+                <td className="px-3 py-2 text-right">${totalCancelaciones.toFixed(2)}</td>
+                <td className="px-3 py-2 text-right">${ventaReal.toFixed(2)}</td>
+                <td className="px-3 py-2 text-right">${totalCobrado.toFixed(2)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function CorteMensual({ ventas, pagosProveedores, nominas }) {
@@ -8056,7 +8183,7 @@ function ProveedoresView({ proveedores, setProveedores }) {
   );
 }
 
-function NominasView({ nominas, setNominas, config, setConfig }) {
+function NominasView({ nominas, setNominas, config, setConfig, dashboard }) {
   const [semanaVer, setSemanaVer] = useState(null); // semanaInicio elegida, o null = todas
   const [editandoSalarios, setEditandoSalarios] = useState(false);
   const [salariosLocal, setSalariosLocal] = useState(config?.salariosSemana || {});
@@ -8076,6 +8203,20 @@ function NominasView({ nominas, setNominas, config, setConfig }) {
     mostrarToast("Nómina de esa semana marcada como pagada — ya se descuenta de la caja ✓");
   }
 
+  function actualizarComisiones(id, valor) {
+    setNominas((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, pagoExtra: Number(valor) || 0, pagoTotal: n.pagoBase + (Number(valor) || 0) } : n))
+    );
+  }
+
+  function comisionSugerida(nombre) {
+    const opto = (dashboard?.optometristas || []).find((o) => o.nombre === nombre);
+    if (opto) return calcOptometrista(opto, 0, 0).comisionAjustada || 0;
+    const vend = (dashboard?.vendedores || []).find((v) => v.nombre === nombre);
+    if (vend) return calcVendedor(vend, 0, 0, 0).comisionAjustada || 0;
+    return 0;
+  }
+
   function totalSemana(semanaInicio) {
     return nominas.filter((n) => n.semanaInicio === semanaInicio).reduce((s, n) => s + n.pagoTotal, 0);
   }
@@ -8088,6 +8229,9 @@ function NominasView({ nominas, setNominas, config, setConfig }) {
           Editar salarios semanales (48 h)
         </button>
       </div>
+      <p className="text-xs text-amber-600 mb-2">
+        La columna "Comisiones" es editable: ahí capturas la comisión calculada en Administración → Comisiones para la semana que corresponda (para no duplicarla, agrégala solo una vez al mes).
+      </p>
 
       <p className="text-xs text-slate-400 mb-4">
         La nómina se genera desde <b>Administración → Asistencia</b>, eligiendo la semana y dando clic a "Generar nómina de esta semana". Aquí la revisas, la marcas como pagada, e imprimes el reporte detallado si lo necesitas. El monto pagado sale del remanente de caja ("Debe haber en caja"), y en el Corte Mensual y el Dashboard solo aparece el total de "Nómina" del mes, sin nombres.
@@ -8136,7 +8280,7 @@ function NominasView({ nominas, setNominas, config, setConfig }) {
                   <th className="text-left px-3 py-2">Horas</th>
                   <th className="text-left px-3 py-2">Horas extra</th>
                   <th className="text-left px-3 py-2">Pago base</th>
-                  <th className="text-left px-3 py-2">Pago extra</th>
+                  <th className="text-left px-3 py-2">Comisiones</th>
                   <th className="text-left px-3 py-2">Total</th>
                   <th className="text-left px-3 py-2 print:hidden">Estatus</th>
                 </tr>
@@ -8153,7 +8297,16 @@ function NominasView({ nominas, setNominas, config, setConfig }) {
                       <td className="px-3 py-2">{n.horas.toFixed(1)} h</td>
                       <td className="px-3 py-2">{n.horasExtra > 0 ? `${n.horasExtra.toFixed(1)} h` : "—"}</td>
                       <td className="px-3 py-2">${n.pagoBase.toFixed(2)}</td>
-                      <td className="px-3 py-2">{n.pagoExtra > 0 ? `$${n.pagoExtra.toFixed(2)}` : "—"}</td>
+                      <td className="px-3 py-2 print:hidden">
+                        <input
+                          type="number"
+                          value={n.pagoExtra || ""}
+                          onChange={(e) => actualizarComisiones(n.id, e.target.value)}
+                          placeholder={comisionSugerida(n.usuario) > 0 ? `sugerido $${comisionSugerida(n.usuario).toFixed(2)}` : "0"}
+                          className="w-24 border rounded px-1.5 py-1 text-xs"
+                        />
+                      </td>
+                      <td className="px-3 py-2 hidden print:table-cell">{n.pagoExtra > 0 ? `$${n.pagoExtra.toFixed(2)}` : "—"}</td>
                       <td className="px-3 py-2 font-semibold">${n.pagoTotal.toFixed(2)}</td>
                       <td className="px-3 py-2 print:hidden">
                         {n.pagada ? (
@@ -8204,11 +8357,11 @@ function NominasView({ nominas, setNominas, config, setConfig }) {
   );
 }
 
-function AdministracionView({ usuarios, setUsuarios, proveedores, setProveedores, asistencia, setAsistencia, config, setConfig, nominas, setNominas }) {
+function AdministracionView({ usuarios, setUsuarios, proveedores, setProveedores, asistencia, setAsistencia, config, setConfig, nominas, setNominas, dashboard, setDashboard, ventas, pagosProveedores }) {
   const [tab, setTab] = useState("usuarios");
   return (
     <div>
-      <div className="flex gap-2 p-4 pb-0">
+      <div className="flex gap-2 p-4 pb-0 flex-wrap">
         <button onClick={() => setTab("usuarios")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${tab === "usuarios" ? "text-white" : "bg-white border"}`} style={tab === "usuarios" ? { background: SKY_DARK } : {}}>
           Usuarios
         </button>
@@ -8217,6 +8370,9 @@ function AdministracionView({ usuarios, setUsuarios, proveedores, setProveedores
         </button>
         <button onClick={() => setTab("asistencia")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${tab === "asistencia" ? "text-white" : "bg-white border"}`} style={tab === "asistencia" ? { background: SKY_DARK } : {}}>
           Asistencia
+        </button>
+        <button onClick={() => setTab("comisiones")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${tab === "comisiones" ? "text-white" : "bg-white border"}`} style={tab === "comisiones" ? { background: SKY_DARK } : {}}>
+          Comisiones
         </button>
         <button onClick={() => setTab("nominas")} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${tab === "nominas" ? "text-white" : "bg-white border"}`} style={tab === "nominas" ? { background: SKY_DARK } : {}}>
           Nóminas
@@ -8228,8 +8384,10 @@ function AdministracionView({ usuarios, setUsuarios, proveedores, setProveedores
         <ProveedoresView proveedores={proveedores} setProveedores={setProveedores} />
       ) : tab === "asistencia" ? (
         <AsistenciaView asistencia={asistencia} setAsistencia={setAsistencia} usuarios={usuarios} config={config} nominas={nominas} setNominas={setNominas} />
+      ) : tab === "comisiones" ? (
+        <ComisionesView dashboard={dashboard} setDashboard={setDashboard} ventas={ventas} pagosProveedores={pagosProveedores} nominas={nominas} />
       ) : (
-        <NominasView nominas={nominas} setNominas={setNominas} config={config} setConfig={setConfig} />
+        <NominasView nominas={nominas} setNominas={setNominas} config={config} setConfig={setConfig} dashboard={dashboard} />
       )}
     </div>
   );
@@ -12049,13 +12207,8 @@ function GraficaDonutBrutoNeto({ titulo, bruto, neto, meta, colorBruto = "#94a3b
 }
 
 function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nominas }) {
-  const { optometristas, vendedores } = dashboard;
   const metasPorMes = dashboard.metasPorMes || {};
   const historialManual = dashboard.historialManual || [];
-  const [nuevoOptoNombre, setNuevoOptoNombre] = useState("");
-  const [nuevoVendNombre, setNuevoVendNombre] = useState("");
-  const [asignando, setAsignando] = useState(false);
-  const [vendedorAsignado, setVendedorAsignado] = useState("");
   const [mesAnalisis, setMesAnalisis] = useState(mesISO(new Date()));
   const [vistaDashboard, setVistaDashboard] = useState("mensual"); // mensual | anual
   const [anioAnalisis, setAnioAnalisis] = useState(new Date().getFullYear());
@@ -12077,20 +12230,6 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nomi
 
   const ventasDelMes = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && v.fecha && v.fecha.slice(0, 7) === mesAnalisis);
 
-  function montoPorOptometrista(nombre) {
-    const clave = (nombre || "").trim().toLowerCase();
-    if (!clave) return { monto: 0, cantidad: 0 };
-    const propias = ventasDelMes.filter((v) => (v.optometrista || "").trim().toLowerCase() === clave);
-    return { monto: propias.reduce((s, v) => s + v.total, 0), cantidad: propias.length };
-  }
-
-  function ventasPorVendedor(nombre) {
-    const clave = (nombre || "").trim().toLowerCase();
-    if (!clave) return { monto: 0, cantidad: 0 };
-    const propias = ventasDelMes.filter((v) => (v.vendedor || "").trim().toLowerCase() === clave);
-    return { monto: propias.reduce((s, v) => s + v.total, 0), cantidad: propias.length };
-  }
-
   function actualizarMetaMes(valor) {
     setDashboard({ ...dashboard, metasPorMes: { ...metasPorMes, [mesAnalisis]: valor } });
   }
@@ -12109,69 +12248,6 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nomi
   function eliminarCargaManual(mes) {
     setDashboard({ ...dashboard, historialManual: historialManual.filter((h) => h.mes !== mes) });
   }
-
-  function agregarOptometrista() {
-    if (!nuevoOptoNombre.trim()) return;
-    setDashboard({
-      ...dashboard,
-      optometristas: [
-        ...optometristas,
-        {
-          id: uid(), nombre: nuevoOptoNombre, citasAtendidas: "", citasConCompra: "", citasSinCompra: "",
-          comprasCanceladas: "", retrabajos: "", montoExamenesVenta: "",
-        },
-      ],
-    });
-    setNuevoOptoNombre("");
-  }
-
-  function actualizarOptometrista(id, campo, valor) {
-    setDashboard({
-      ...dashboard,
-      optometristas: optometristas.map((o) => (o.id === id ? { ...o, [campo]: valor } : o)),
-    });
-  }
-
-  function eliminarOptometrista(id) {
-    setDashboard({ ...dashboard, optometristas: optometristas.filter((o) => o.id !== id) });
-  }
-
-  function agregarVendedor() {
-    if (!nuevoVendNombre.trim()) return;
-    setDashboard({
-      ...dashboard,
-      vendedores: [
-        ...vendedores,
-        { id: uid(), nombre: nuevoVendNombre, pacientesAsignados: "", posiblesVentas: "", ventasHechas: "", montoVentas: "" },
-      ],
-    });
-    setNuevoVendNombre("");
-  }
-
-  function actualizarVendedor(id, campo, valor) {
-    setDashboard({
-      ...dashboard,
-      vendedores: vendedores.map((v) => (v.id === id ? { ...v, [campo]: valor } : v)),
-    });
-  }
-
-  function eliminarVendedor(id) {
-    setDashboard({ ...dashboard, vendedores: vendedores.filter((v) => v.id !== id) });
-  }
-
-  function confirmarAsignacion() {
-    if (!vendedorAsignado) return;
-    setDashboard({
-      ...dashboard,
-      vendedores: vendedores.map((v) =>
-        v.id === vendedorAsignado ? { ...v, pacientesAsignados: (Number(v.pacientesAsignados) || 0) + 1 } : v
-      ),
-    });
-    setAsignando(false);
-    setVendedorAsignado("");
-  }
-
-  const inputCelda = "w-20 border rounded px-1 py-1 text-xs text-center";
 
   return (
     <div className="p-4 space-y-6">
@@ -12319,6 +12395,119 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nomi
           <GraficaDonutBrutoNeto titulo="Cobranza del mes" bruto={datosMes.cobrado} neto={datosMes.cobradoNeto} meta={meta} colorNeto="#059669" colorBruto="#6ee7b7" />
         </div>
       </div>
+      </div>
+
+      </>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Comisiones (Optometristas y Vendedores) ---------- */
+function ComisionesView({ dashboard, setDashboard, ventas, pagosProveedores, nominas }) {
+  const { optometristas, vendedores } = dashboard;
+  const [nuevoOptoNombre, setNuevoOptoNombre] = useState("");
+  const [nuevoVendNombre, setNuevoVendNombre] = useState("");
+  const [asignando, setAsignando] = useState(false);
+  const [vendedorAsignado, setVendedorAsignado] = useState("");
+  const [mesAnalisis, setMesAnalisis] = useState(mesISO(new Date()));
+
+  const datosMes = datosDelMes(mesAnalisis, ventas, dashboard, pagosProveedores, nominas);
+  const meta = datosMes.meta;
+  const alcanzado = datosMes.ventaReal; // lo neto es lo definitivo para el logro de la meta
+  const pctMeta = meta > 0 ? (alcanzado / meta) * 100 : 0;
+
+  const ventasDelMes = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && v.fecha && v.fecha.slice(0, 7) === mesAnalisis);
+
+  function montoPorOptometrista(nombre) {
+    const clave = (nombre || "").trim().toLowerCase();
+    if (!clave) return { monto: 0, cantidad: 0 };
+    const propias = ventasDelMes.filter((v) => (v.optometrista || "").trim().toLowerCase() === clave);
+    return { monto: propias.reduce((s, v) => s + v.total, 0), cantidad: propias.length };
+  }
+
+  function ventasPorVendedor(nombre) {
+    const clave = (nombre || "").trim().toLowerCase();
+    if (!clave) return { monto: 0, cantidad: 0 };
+    const propias = ventasDelMes.filter((v) => (v.vendedor || "").trim().toLowerCase() === clave);
+    return { monto: propias.reduce((s, v) => s + v.total, 0), cantidad: propias.length };
+  }
+
+  function agregarOptometrista() {
+    if (!nuevoOptoNombre.trim()) return;
+    setDashboard({
+      ...dashboard,
+      optometristas: [
+        ...optometristas,
+        {
+          id: uid(), nombre: nuevoOptoNombre, citasAtendidas: "", citasConCompra: "", citasSinCompra: "",
+          comprasCanceladas: "", retrabajos: "", montoExamenesVenta: "",
+        },
+      ],
+    });
+    setNuevoOptoNombre("");
+  }
+
+  function actualizarOptometrista(id, campo, valor) {
+    setDashboard({
+      ...dashboard,
+      optometristas: optometristas.map((o) => (o.id === id ? { ...o, [campo]: valor } : o)),
+    });
+  }
+
+  function eliminarOptometrista(id) {
+    setDashboard({ ...dashboard, optometristas: optometristas.filter((o) => o.id !== id) });
+  }
+
+  function agregarVendedor() {
+    if (!nuevoVendNombre.trim()) return;
+    setDashboard({
+      ...dashboard,
+      vendedores: [
+        ...vendedores,
+        { id: uid(), nombre: nuevoVendNombre, pacientesAsignados: "", posiblesVentas: "", ventasHechas: "", montoVentas: "" },
+      ],
+    });
+    setNuevoVendNombre("");
+  }
+
+  function actualizarVendedor(id, campo, valor) {
+    setDashboard({
+      ...dashboard,
+      vendedores: vendedores.map((v) => (v.id === id ? { ...v, [campo]: valor } : v)),
+    });
+  }
+
+  function eliminarVendedor(id) {
+    setDashboard({ ...dashboard, vendedores: vendedores.filter((v) => v.id !== id) });
+  }
+
+  function confirmarAsignacion() {
+    if (!vendedorAsignado) return;
+    setDashboard({
+      ...dashboard,
+      vendedores: vendedores.map((v) =>
+        v.id === vendedorAsignado ? { ...v, pacientesAsignados: (Number(v.pacientesAsignados) || 0) + 1 } : v
+      ),
+    });
+    setAsignando(false);
+    setVendedorAsignado("");
+  }
+
+  const inputCelda = "w-20 border rounded px-1 py-1 text-xs text-center";
+
+  return (
+    <div className="p-4">
+      <div className="flex items-center gap-3 mb-4">
+        <h2 className="font-semibold text-lg">Comisiones</h2>
+        <label className="text-sm ml-auto">
+          Mes a analizar:{" "}
+          <input type="month" value={mesAnalisis} onChange={(e) => setMesAnalisis(e.target.value)} className="border rounded-lg px-2 py-1.5 text-sm" />
+        </label>
+      </div>
+      <p className="text-xs text-slate-400 mb-4">
+        Estas comisiones (columna "Comisión ajustada") se suman al pago de nómina de cada empleado en la semana correspondiente — se ven reflejadas en Administración → Nóminas, bajo el concepto "Comisiones".
+      </p>
 
       <div className="bg-white border rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
@@ -12440,7 +12629,6 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nomi
           </table>
         </div>
       </div>
-      </div>
 
       <Modal open={asignando} onClose={() => setAsignando(false)} title="Asignar paciente a vendedor autorizado">
         <label className="block mb-3">
@@ -12456,8 +12644,6 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nomi
           Confirmar asignación
         </button>
       </Modal>
-      </>
-      )}
     </div>
   );
 }
@@ -12894,7 +13080,7 @@ export default function App() {
           />
         )}
         {seccion === "administracion" && (
-          <AdministracionView usuarios={usuarios} setUsuarios={setUsuarios} proveedores={proveedores} setProveedores={setProveedores} asistencia={asistencia} setAsistencia={setAsistencia} config={config} setConfig={setConfig} nominas={nominas} setNominas={setNominas} />
+          <AdministracionView usuarios={usuarios} setUsuarios={setUsuarios} proveedores={proveedores} setProveedores={setProveedores} asistencia={asistencia} setAsistencia={setAsistencia} config={config} setConfig={setConfig} nominas={nominas} setNominas={setNominas} dashboard={dashboard} setDashboard={setDashboard} ventas={ventas} pagosProveedores={pagosProveedores} />
         )}
         {seccion === "importar" && (
           <ImportarView pacientes={pacientes} setPacientes={setPacientes} inventario={inventario} setInventario={setInventario} config={config} setConfig={setConfig} />
