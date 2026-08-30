@@ -1155,7 +1155,7 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS, labor
           <div key={col} className="flex flex-col" style={{ minWidth: 0 }}>
             <div
               className="text-center font-semibold py-2 rounded-t-lg text-white text-sm"
-              style={{ background: SKY_DARK }}
+              style={{ background: SKY_DARK, position: "sticky", top: 0, zIndex: 10 }}
             >
               {col === "reasignar" ? "CITAS PARA REASIGNAR (CONSULTORIO VIRTUAL)" : col}
             </div>
@@ -1163,7 +1163,7 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS, labor
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
-                if (draggingId) moverCita(draggingId, col, null);
+                if (draggingId && col === "reasignar") moverCita(draggingId, col, null);
               }}
               className="flex-1 border border-dashed rounded-b-lg"
               style={{ borderColor: BEIGE_DARK }}
@@ -1187,6 +1187,11 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS, labor
                     return (
                       <div
                         key={hora}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (draggingId) moverCita(draggingId, col, hora);
+                        }}
                         style={{ background: BEIGE, borderColor: BEIGE_DARK }}
                         className="border-b border-dashed px-1 py-1 min-h-[46px] flex items-center gap-1"
                       >
