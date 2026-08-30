@@ -7519,6 +7519,7 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
   const [ajustandoFolio, setAjustandoFolio] = useState("");
   const [montoAjuste, setMontoAjuste] = useState("");
   const [notaAjuste, setNotaAjuste] = useState("");
+  const [fechaAjuste, setFechaAjuste] = useState("");
 
   function aplicarAjusteManual() {
     const folioNum = Number(ajustandoFolio);
@@ -7530,6 +7531,9 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
       return;
     }
     const montoReal = Math.min(monto, Number(venta.saldo || 0));
+    // Si no eliges una fecha, se usa la fecha original de la venta — así el ajuste
+    // se contabiliza en el mismo mes que la venta, y no descuadra ese reporte.
+    const fechaFinal = fechaAjuste ? new Date(fechaAjuste + "T12:00:00").toISOString() : venta.fecha;
     setVentas((prev) =>
       prev.map((v) =>
         v.folio === folioNum
@@ -7539,7 +7543,7 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
               historialCancelacion: [
                 ...(v.historialCancelacion || []),
                 {
-                  fecha: new Date().toISOString(),
+                  fecha: fechaFinal,
                   montoReembolsado: montoReal,
                   montoRetenido: 0,
                   montoDevueltoEnEfectivoOTarjeta: 0,
@@ -7556,6 +7560,7 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
     setAjustandoFolio("");
     setMontoAjuste("");
     setNotaAjuste("");
+    setFechaAjuste("");
     mostrarToast(`Ajustado: se descontó $${montoReal.toFixed(2)} del saldo pendiente del folio #${folioNum} ✓`);
   }
 
@@ -7759,6 +7764,24 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
   }
 
   const notasSospechosas = ventas.filter((v) => v.estatus === "cancelada" && Number(v.saldo || 0) > 0);
+  const ajustesManuales = ventas.flatMap((v) =>
+    (v.historialCancelacion || [])
+      .map((c, i) => ({ ...c, folio: v.folio, cliente: v.nombreCliente, indice: i }))
+      .filter((c) => c.ajusteManual)
+  );
+
+  function corregirFechaAjuste(folio, indice, nuevaFecha) {
+    const fechaFinal = new Date(nuevaFecha + "T12:00:00").toISOString();
+    setVentas((prev) =>
+      prev.map((v) =>
+        v.folio === folio
+          ? { ...v, historialCancelacion: v.historialCancelacion.map((c, i) => (i === indice ? { ...c, fecha: fechaFinal } : c)) }
+          : v
+      )
+    );
+    mostrarToast("Fecha del ajuste corregida ✓");
+  }
+
   const notasConSaldoTodas = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && Number(v.saldo || 0) > 0);
 
   return (
@@ -7796,6 +7819,7 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
         <h4 className="text-sm font-semibold text-amber-800 mb-1">Ajuste manual de saldo pendiente</h4>
         <p className="text-xs text-amber-700 mb-2">
           Para descontar un saldo pendiente que quedó mal calculado o atorado en algún folio (por ejemplo, un remanente de un ajuste anterior). Esto no devuelve artículos al inventario — solo descuenta el saldo y deja rastro en cancelaciones/devoluciones.
+          Si no eliges una fecha, el ajuste se contabiliza automáticamente en el mismo mes que la venta original, para que ese reporte no quede descuadrado.
         </p>
         <div className="flex gap-2 flex-wrap items-end">
           <div>
@@ -7806,6 +7830,10 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
             <label className="text-xs text-slate-500 block mb-1">Monto a descontar</label>
             <input type="number" value={montoAjuste} onChange={(e) => setMontoAjuste(e.target.value)} placeholder="Ej. 99" className="border rounded-lg px-2 py-1.5 text-sm w-28" />
           </div>
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Fecha del ajuste (opcional)</label>
+            <input type="date" value={fechaAjuste} onChange={(e) => setFechaAjuste(e.target.value)} className="border rounded-lg px-2 py-1.5 text-sm" />
+          </div>
           <div className="flex-1 min-w-[160px]">
             <label className="text-xs text-slate-500 block mb-1">Nota (opcional)</label>
             <input value={notaAjuste} onChange={(e) => setNotaAjuste(e.target.value)} placeholder="Ej. Remanente sin resolver" className="border rounded-lg px-2 py-1.5 text-sm w-full" />
@@ -7815,6 +7843,33 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
           </button>
         </div>
       </div>
+
+      {ajustesManuales.length > 0 && (
+        <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 mb-4">
+          <h4 className="text-sm font-semibold text-violet-800 mb-1">Ajustes manuales aplicados</h4>
+          <p className="text-xs text-violet-700 mb-2">
+            Si algún ajuste de aquí quedó con la fecha de cuando lo aplicaste (en vez del mes de la venta original), corrígela abajo para que ese mes no quede descuadrado.
+          </p>
+          <div className="space-y-2">
+            {ajustesManuales.map((a) => (
+              <div key={`${a.folio}-${a.indice}`} className="bg-white rounded-lg border border-violet-200 p-2 flex items-center justify-between flex-wrap gap-2">
+                <p className="text-xs">
+                  Folio #{a.folio} — {a.cliente} — ${Number(a.montoReembolsado || 0).toFixed(2)}{a.motivo ? ` — ${a.motivo}` : ""}
+                </p>
+                <label className="flex items-center gap-2 text-xs">
+                  Fecha del ajuste:
+                  <input
+                    type="date"
+                    defaultValue={a.fecha.slice(0, 10)}
+                    onChange={(e) => corregirFechaAjuste(a.folio, a.indice, e.target.value)}
+                    className="border rounded px-2 py-1 text-xs"
+                  />
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white border rounded-xl p-3 mb-4">
         <h4 className="text-sm font-semibold mb-1">Todas las notas con saldo pendiente ({notasConSaldoTodas.length}) — total ${notasConSaldoTodas.reduce((s, v) => s + Number(v.saldo || 0), 0).toFixed(2)}</h4>
