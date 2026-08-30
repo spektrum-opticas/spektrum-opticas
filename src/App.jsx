@@ -3298,6 +3298,57 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
             className="block border rounded-lg px-2 py-1.5 text-sm w-24"
           />
         </div>
+        {esArmazon ? (
+          <div>
+            <label className="text-xs text-slate-500 block mb-1">Fotos del armazón (hasta 3)</label>
+            <div className="flex items-center gap-3">
+              {[0, 1, 2].map((i) => {
+                const valorActual = i === 0 ? nuevo.imagen : nuevo.galeriaExtra[i - 1];
+                return (
+                  <div key={i} className="text-center">
+                    <p className="text-[10px] text-slate-400 mb-1">Foto {i + 1}</p>
+                    {valorActual ? (
+                      <div className="relative">
+                        <img src={valorActual} alt="" className="w-14 h-14 rounded object-cover border" />
+                        <button
+                          onClick={() => {
+                            if (i === 0) setNuevo({ ...nuevo, imagen: "" });
+                            else setNuevo({ ...nuevo, galeriaExtra: nuevo.galeriaExtra.filter((_, j) => j !== i - 1) });
+                          }}
+                          className="absolute -top-1 -right-1 bg-white rounded-full border text-red-500"
+                          style={{ width: 16, height: 16, fontSize: 10, lineHeight: "14px" }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="w-14 h-14 rounded border border-dashed bg-slate-50 flex items-center justify-center cursor-pointer text-slate-300 text-xl">
+                        +
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            subirImagenStorage(file, "productos").then((url) => {
+                              if (!url) {
+                                alert("No se pudo subir la imagen. Intenta de nuevo.");
+                                return;
+                              }
+                              if (i === 0) setNuevo((n) => ({ ...n, imagen: url }));
+                              else setNuevo((n) => ({ ...n, galeriaExtra: [...n.galeriaExtra, url] }));
+                            });
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
         <div>
           <label className="text-xs text-slate-500">Imagen (tienda en línea)</label>
           <div className="flex items-center gap-2">
@@ -3310,39 +3361,6 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
             {nuevo.subiendoImagen && <span className="text-xs text-slate-400">Subiendo…</span>}
           </div>
         </div>
-        {esArmazon && (
-          <div>
-            <label className="text-xs text-slate-500 block">Fotos adicionales (carrusel)</label>
-            <div className="flex items-center gap-1 flex-wrap max-w-[220px]">
-              {nuevo.galeriaExtra.map((img, i) => (
-                <div key={i} className="relative">
-                  <img src={img} alt="" className="w-8 h-8 rounded object-cover border" />
-                  <button
-                    onClick={() => setNuevo({ ...nuevo, galeriaExtra: nuevo.galeriaExtra.filter((_, j) => j !== i) })}
-                    className="absolute -top-1 -right-1 bg-white rounded-full border text-red-500"
-                    style={{ width: 14, height: 14, fontSize: 9, lineHeight: "12px" }}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  files.forEach((file) => {
-                    subirImagenStorage(file, "productos").then((url) => {
-                      if (url) setNuevo((n) => ({ ...n, galeriaExtra: [...n.galeriaExtra, url] }));
-                      else alert("No se pudo subir una de las imágenes. Intenta de nuevo.");
-                    });
-                  });
-                }}
-                className="text-xs w-32"
-              />
-            </div>
-          </div>
         )}
         <button onClick={agregar} className="px-3 py-1.5 rounded-lg text-white text-sm flex items-center gap-1" style={{ background: SKY_DARK }}>
           <Plus size={16} /> Agregar
@@ -8976,6 +8994,48 @@ function ImportarView({ pacientes, setPacientes, inventario, setInventario, conf
 /* ============================================================
    CONFIGURACIÓN
    ============================================================ */
+/* ---------- Reloj contador de la promoción ---------- */
+function ContadorPromocion({ fechaFin }) {
+  const [ahora, setAhora] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setAhora(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (!fechaFin) {
+    return (
+      <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
+        No pusiste "Vigente hasta" — el cupón se quedará activo indefinidamente, no bajará solo por tiempo.
+      </p>
+    );
+  }
+
+  const objetivo = new Date(fechaFin + "T23:59:59").getTime();
+  const restante = objetivo - ahora;
+
+  if (restante <= 0) {
+    return (
+      <p className="text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
+        ⏱️ La promoción ya venció — la tienda ya no la muestra, aunque la dejes marcada como "Activo".
+      </p>
+    );
+  }
+
+  const dias = Math.floor(restante / (1000 * 60 * 60 * 24));
+  const horas = Math.floor((restante / (1000 * 60 * 60)) % 24);
+  const mins = Math.floor((restante / (1000 * 60)) % 60);
+  const segs = Math.floor((restante / 1000) % 60);
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+      <p className="text-xs text-amber-700 mb-1">Tiempo restante para que el cupón se baje solo:</p>
+      <p className="text-2xl font-bold text-amber-800 font-mono">
+        {dias}d {String(horas).padStart(2, "0")}:{String(mins).padStart(2, "0")}:{String(segs).padStart(2, "0")}
+      </p>
+    </div>
+  );
+}
+
 function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) {
   const [local, setLocal] = useState(config);
   const fileRef = useRef(null);
@@ -9100,6 +9160,7 @@ function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) 
               />
             </label>
           </div>
+          {local.promocion?.activa && <ContadorPromocion fechaFin={local.promocion?.fechaFin} />}
           <Field
             label="Código de cupón (opcional)"
             value={local.promocion?.codigo || ""}
