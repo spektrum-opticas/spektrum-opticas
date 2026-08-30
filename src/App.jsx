@@ -2434,8 +2434,8 @@ const CATEGORIAS_INV = [
   { key: "lentesGraduados", label: "Lentes graduados" },
   { key: "lentesContacto", label: "Lentes de contacto" },
   { key: "lentesSolares", label: "Lentes solares" },
-  { key: "auditoria", label: "Auditoría" },
   { key: "accesorios", label: "Accesorios" },
+  { key: "auditoria", label: "Auditoría" },
 ];
 
 const RANGOS_RX = {
@@ -2911,7 +2911,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
             <div>
               <label className="text-xs text-slate-500 block">Tallas disponibles</label>
               <div className="flex gap-2">
-                {["M", "G", "EG"].map((t) => (
+                {["Ch", "M", "G"].map((t) => (
                   <label key={t} className="flex items-center gap-1 text-xs border rounded px-2 py-1.5">
                     <input
                       type="checkbox"
@@ -3843,7 +3843,7 @@ function EditarArticuloModal({ articulo, cat, onCerrar, onGuardar, config, setCo
         <div>
           <label className="text-xs text-slate-500 block">Tallas disponibles</label>
           <div className="flex gap-2">
-            {["M", "G", "EG"].map((t) => (
+            {["Ch", "M", "G"].map((t) => (
               <label key={t} className="flex items-center gap-1 text-xs border rounded px-2 py-1.5">
                 <input
                   type="checkbox"
@@ -10931,6 +10931,9 @@ function ProbadorVirtual({ imagenArmazon, modo, onCerrar }) {
 
 function TiendaProductoPagina({ producto, config, categoriaLabel, onVolver, onIrInicio, onAgregarCarrito }) {
   const [indiceFoto, setIndiceFoto] = useState(0);
+  const [zoomHover, setZoomHover] = useState(false);
+  const [zoomOrigin, setZoomOrigin] = useState("center center");
+  const [zoomAbierto, setZoomAbierto] = useState(false);
   const [tallaSel, setTallaSel] = useState(producto.tallas?.[0] || "");
   const [mostrarTodo, setMostrarTodo] = useState(false);
   const [probadorAbierto, setProbadorAbierto] = useState(false);
@@ -10972,6 +10975,8 @@ function TiendaProductoPagina({ producto, config, categoriaLabel, onVolver, onIr
   const esCosmeticoContacto = esContactoProducto && producto.tipoLente === "Cosmético / Color";
   const [costosEnvioAbierto, setCostosEnvioAbierto] = useState(false);
   const [paqueteriaElegida, setPaqueteriaElegida] = useState(null);
+  const [envioServicioCandidato, setEnvioServicioCandidato] = useState(null);
+  const [envioMetodoConfirmado, setEnvioMetodoConfirmado] = useState(null);
   const puedeProbarse = esArmazonProducto || esCosmeticoContacto;
 
   return (
@@ -10985,15 +10990,38 @@ function TiendaProductoPagina({ producto, config, categoriaLabel, onVolver, onIr
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
         <div>
-          <div className="relative rounded-2xl overflow-hidden h-64 sm:h-80 md:h-[420px]" style={{ background: "#f4f4f4" }}>
+          <div
+            className="relative rounded-2xl overflow-hidden h-64 sm:h-80 md:h-[420px]"
+            style={{ background: "#f4f4f4", cursor: galeria.length > 0 ? "zoom-in" : "default" }}
+            onMouseMove={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const x = ((e.clientX - rect.left) / rect.width) * 100;
+              const y = ((e.clientY - rect.top) / rect.height) * 100;
+              setZoomOrigin(`${x}% ${y}%`);
+            }}
+            onMouseEnter={() => setZoomHover(true)}
+            onMouseLeave={() => setZoomHover(false)}
+            onClick={() => galeria.length > 0 && setZoomAbierto(true)}
+          >
             {galeria.length > 0 ? (
-              <img src={galeria[indiceFoto]} alt={producto.nombre} className="w-full h-full object-cover" />
+              <img
+                src={galeria[indiceFoto]}
+                alt={producto.nombre}
+                className="w-full h-full object-cover transition-transform duration-200"
+                style={{ transform: zoomHover ? "scale(1.8)" : "scale(1)", transformOrigin: zoomOrigin }}
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-xs text-slate-300">Sin fotos todavía</div>
             )}
+            {galeria.length > 0 && (
+              <div className="absolute bottom-2 right-2 bg-white/85 rounded-full p-1.5 pointer-events-none shadow">
+                <Search size={16} className="text-slate-600" />
+              </div>
+            )}
             {puedeProbarse && (
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   if (galeria.length === 0) {
                     window.alert("Este producto todavía no tiene foto — sube una desde Inventario para poder probártelo.");
                     return;
@@ -11141,6 +11169,13 @@ function TiendaProductoPagina({ producto, config, categoriaLabel, onVolver, onIr
       )}
 
       <Modal open={costosEnvioAbierto} onClose={() => setCostosEnvioAbierto(false)} title="Costos de envío nacional">
+        {envioMetodoConfirmado && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mb-3">
+            <p className="text-xs text-emerald-700">
+              Método de envío confirmado: <b>{envioMetodoConfirmado.paqueteria} — {envioMetodoConfirmado.servicio}</b> (${Number(envioMetodoConfirmado.precio || 0).toFixed(2)})
+            </p>
+          </div>
+        )}
         {(config?.costosEnvio || []).length === 0 ? (
           <p className="text-sm text-slate-400">Aún no hay costos de envío publicados — contáctanos directamente para cotizar tu envío.</p>
         ) : (
@@ -11188,6 +11223,7 @@ function TiendaProductoPagina({ producto, config, categoriaLabel, onVolver, onIr
                                   <th className="px-4 py-2">Servicio</th>
                                   <th className="px-4 py-2">Peso</th>
                                   <th className="px-4 py-2 text-right">Precio</th>
+                                  <th className="px-4 py-2"></th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -11196,10 +11232,47 @@ function TiendaProductoPagina({ producto, config, categoriaLabel, onVolver, onIr
                                     <td className="px-4 py-2">{c.servicio || "—"}</td>
                                     <td className="px-4 py-2">{c.peso}</td>
                                     <td className="px-4 py-2 text-right font-medium">${Number(c.precio || 0).toFixed(2)}</td>
+                                    <td className="px-4 py-2 text-right">
+                                      <button
+                                        onClick={() => setEnvioServicioCandidato({ ...c, paqueteria, zona })}
+                                        className="text-xs px-2 py-1 rounded-full border"
+                                        style={
+                                          envioMetodoConfirmado?.id === c.id
+                                            ? { background: "#059669", color: "white", borderColor: "#059669" }
+                                            : {}
+                                        }
+                                      >
+                                        {envioMetodoConfirmado?.id === c.id ? "Elegido ✓" : "Elegir"}
+                                      </button>
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
                             </table>
+                            {envioServicioCandidato && envioServicioCandidato.paqueteria === paqueteria && envioServicioCandidato.zona === zona && (
+                              <div className="bg-amber-50 border-t border-amber-200 p-3">
+                                <p className="text-sm font-semibold text-amber-800 mb-1">¿Estás de acuerdo con tu selección de envío?</p>
+                                <p className="text-xs text-amber-700 mb-2">
+                                  {envioServicioCandidato.paqueteria} — {envioServicioCandidato.servicio} (${Number(envioServicioCandidato.precio || 0).toFixed(2)})
+                                </p>
+                                <div className="flex gap-2">
+                                  <button onClick={() => setEnvioServicioCandidato(null)} className="flex-1 py-1.5 rounded-lg bg-white border text-xs">
+                                    Regresar
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEnvioMetodoConfirmado(envioServicioCandidato);
+                                      setEnvioServicioCandidato(null);
+                                      mostrarToast("Método de envío confirmado ✓");
+                                    }}
+                                    className="flex-1 py-1.5 rounded-lg text-white text-xs font-medium"
+                                    style={{ background: "#059669" }}
+                                  >
+                                    Aceptar
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </>
                         )}
                       </div>
@@ -11212,6 +11285,27 @@ function TiendaProductoPagina({ producto, config, categoriaLabel, onVolver, onIr
         )}
         <p className="text-xs text-slate-400 mt-3">Los costos pueden variar según tu ubicación exacta — contáctanos para confirmar antes de tu pedido.</p>
       </Modal>
+
+      {zoomAbierto && galeria.length > 0 && (
+        <div
+          className="fixed inset-0 z-[300] bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setZoomAbierto(false)}
+        >
+          <button
+            onClick={() => setZoomAbierto(false)}
+            className="absolute top-4 right-4 bg-white/90 rounded-full p-2"
+          >
+            <X size={20} />
+          </button>
+          <img
+            src={galeria[indiceFoto]}
+            alt={producto.nombre}
+            className="max-w-none"
+            style={{ width: "300%", maxWidth: "1200px", cursor: "zoom-out" }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
