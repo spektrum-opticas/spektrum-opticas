@@ -1764,7 +1764,7 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
   function generarNota(estatus) {
     const esPortal = !!procesandoPortalFolio;
     const original = esPortal ? ventas.find((v) => v.folio === procesandoPortalFolio) : null;
-    const folio = esPortal ? procesandoPortalFolio : (ventas[ventas.length - 1]?.folio || 0) + 1;
+    const folio = esPortal ? procesandoPortalFolio : (Math.max(0, ...ventas.map((v) => Number(v.folio) || 0))) + 1;
     const ahora = modoFechaPasada
       ? new Date(`${fechaVentaManual}T12:00:00`).toISOString()
       : new Date().toISOString();
@@ -1890,6 +1890,7 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
             inventario={inventario}
             setInventario={setInventario}
             pacientes={pacientes}
+            setPacientes={setPacientes}
             laboratorio={laboratorio}
             usuarios={usuarios}
             canceladas={ventas.filter((v) => v.estatus === "cancelada" || v.estatus === "devolucion")}
@@ -2185,7 +2186,7 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
 
         <div className="bg-white rounded-xl border p-3">
           <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-            <h3 className="font-semibold text-sm">Nota de venta — folio #{(ventas[ventas.length - 1]?.folio || 0) + 1}</h3>
+            <h3 className="font-semibold text-sm">Nota de venta — folio #{(Math.max(0, ...ventas.map((v) => Number(v.folio) || 0))) + 1}</h3>
             <button
               onClick={() => setModoFechaPasada(!modoFechaPasada)}
               className={`text-xs px-2 py-1 rounded-lg ${modoFechaPasada ? "bg-amber-500 text-white" : "bg-slate-100 text-slate-600"}`}
@@ -6493,7 +6494,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
 /* ============================================================
    REPORTES
    ============================================================ */
-function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes, laboratorio, pagosProveedores, setPagosProveedores, proveedores, usuarios, nominas, sesion }) {
+function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes, setPacientes, laboratorio, pagosProveedores, setPagosProveedores, proveedores, usuarios, nominas, sesion }) {
   const [modo, setModo] = useState("corte");
   const canceladas = ventas.filter((v) => v.estatus === "cancelada" || v.estatus === "devolucion");
 
@@ -6536,6 +6537,7 @@ function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes,
           inventario={inventario}
           setInventario={setInventario}
           pacientes={pacientes}
+          setPacientes={setPacientes}
           laboratorio={laboratorio}
           usuarios={usuarios}
           canceladas={canceladas}
@@ -7517,7 +7519,7 @@ function ModalAutorizacionAdmin({ open, onClose, onAutorizado, usuarios, mensaje
   );
 }
 
-function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacientes, laboratorio, usuarios, canceladas }) {
+function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacientes, setPacientes, laboratorio, usuarios, canceladas }) {
   const [busqueda, setBusqueda] = useState("");
   const [folioSel, setFolioSel] = useState(null);
   const [marcados, setMarcados] = useState({}); // uidLinea -> true (a devolver)
@@ -7769,6 +7771,30 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
   }
 
   const notasSospechosas = ventas.filter((v) => v.estatus === "cancelada" && Number(v.saldo || 0) > 0);
+
+  // Ventas que quedaron guardadas dentro del expediente del paciente, pero que ya no existen
+  // en la lista general (típicamente por dos pestañas del navegador guardando al mismo tiempo
+  // y una sobrescribiendo a la otra con el mismo folio).
+  const ventasHuerfanas = pacientes.flatMap((p) =>
+    (p.compras || [])
+      .filter((c) => c.folio != null && !ventas.some((v) => v.folio === c.folio))
+      .map((c) => ({ ...c, pacienteNombre: p.nombre, pacienteId: p.id }))
+  );
+
+  function recuperarVentaHuerfana(compra) {
+    const folioNuevo = Math.max(0, ...ventas.map((v) => Number(v.folio) || 0)) + 1;
+    const notaRecuperada = { ...compra, folio: folioNuevo };
+    setVentas((prev) => [...prev, notaRecuperada]);
+    setPacientes((prev) =>
+      prev.map((p) =>
+        p.id === compra.pacienteId
+          ? { ...p, compras: (p.compras || []).map((c) => (c.folio === compra.folio ? notaRecuperada : c)) }
+          : p
+      )
+    );
+    mostrarToast(`Venta recuperada — ahora tiene el folio #${folioNuevo} ✓`);
+  }
+
   const ajustesManuales = ventas.flatMap((v) =>
     (v.historialCancelacion || [])
       .map((c, i) => ({ ...c, folio: v.folio, cliente: v.nombreCliente, indice: i }))
@@ -7848,6 +7874,29 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
           </button>
         </div>
       </div>
+
+      {ventasHuerfanas.length > 0 && (
+        <div className="bg-red-50 border border-red-300 rounded-xl p-3 mb-4">
+          <h4 className="text-sm font-semibold text-red-800 mb-1">
+            🔴 {ventasHuerfanas.length} venta(s) perdida(s) de la lista general (típico de dos pestañas guardando a la vez)
+          </h4>
+          <p className="text-xs text-red-700 mb-2">
+            Estas ventas siguen guardadas dentro del expediente del paciente, pero no aparecen en reportes ni en la contabilización porque su folio quedó pisado por otra venta. Al recuperarlas, se les asigna el siguiente folio libre.
+          </p>
+          <div className="space-y-1">
+            {ventasHuerfanas.map((c) => (
+              <div key={`${c.pacienteId}-${c.folio}`} className="bg-white rounded-lg border border-red-200 p-2 flex items-center justify-between flex-wrap gap-2">
+                <p className="text-sm">
+                  Folio original #{c.folio} — {c.pacienteNombre} — ${Number(c.total || 0).toFixed(2)} — {c.fecha ? new Date(c.fecha).toLocaleDateString("es-MX") : "sin fecha"}
+                </p>
+                <button onClick={() => recuperarVentaHuerfana(c)} className="text-xs px-3 py-1.5 rounded-lg text-white bg-red-600">
+                  Recuperar con folio nuevo
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {ajustesManuales.length > 0 && (
         <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 mb-4">
@@ -12052,7 +12101,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
 
   function confirmarPedido(receta, infoPago) {
     let paciente = pacientes.find((p) => p.id === sesionCliente.pacienteId);
-    const folio = (ventas[ventas.length - 1]?.folio || 0) + 1;
+    const folio = (Math.max(0, ...ventas.map((v) => Number(v.folio) || 0))) + 1;
     const subtotal = carrito.reduce((s, c) => s + Number(c.precio || 0), 0);
     const costoEnvio = Number(infoPago?.costoEnvio || 0);
     const montoDescuento = Number(infoPago?.montoDescuento || 0);
@@ -13355,6 +13404,7 @@ export default function App() {
             inventario={inventario}
             setInventario={setInventario}
             pacientes={pacientes}
+            setPacientes={setPacientes}
             laboratorio={laboratorio}
             pagosProveedores={pagosProveedores}
             setPagosProveedores={setPagosProveedores}
