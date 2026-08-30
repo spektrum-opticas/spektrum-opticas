@@ -910,6 +910,8 @@ const MODULOS_ASIGNABLES = [
   { id: "reportes", label: "Reportes (Corte diario/mensual)" },
   { id: "importar", label: "Importar datos" },
   { id: "dashboard", label: "Dashboard" },
+  { id: "administracion", label: "Administración" },
+  { id: "config", label: "Configuración" },
 ];
 
 function Ribbon({ current, onSelect, sesion, badges }) {
@@ -931,7 +933,7 @@ function Ribbon({ current, onSelect, sesion, badges }) {
   const esAdmin = sesion?.rol === "ADMIN";
   const itemsVisibles = esAdmin
     ? items
-    : items.filter((it) => it.id !== "administracion" && it.id !== "config" && (sesion?.permisos || []).includes(it.id));
+    : items.filter((it) => (sesion?.permisos || []).includes(it.id));
   return (
     <div
       style={{ background: SKY }}
@@ -1121,7 +1123,7 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS, labor
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
-              const d = new Date(fecha);
+              const d = new Date(fecha + "T00:00:00");
               d.setDate(d.getDate() - 1);
               setFecha(fechaISO(d));
             }}
@@ -1137,7 +1139,7 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS, labor
           />
           <button
             onClick={() => {
-              const d = new Date(fecha);
+              const d = new Date(fecha + "T00:00:00");
               d.setDate(d.getDate() + 1);
               setFecha(fechaISO(d));
             }}
@@ -4199,7 +4201,7 @@ function ordenarVisitasDesc(compras) {
   });
 }
 
-function ResumenVisita({ v, paciente, config }) {
+function ResumenVisita({ v, paciente, config, onEditarReceta }) {
   return (
     <div className="border rounded-lg p-3 text-sm">
       <p className="text-xs text-slate-400 mb-1">
@@ -4215,7 +4217,12 @@ function ResumenVisita({ v, paciente, config }) {
       )}
       {(v.od || v.os) && (
         <div className="mb-1">
-          <p className="font-medium">Receta</p>
+          <div className="flex items-center justify-between">
+            <p className="font-medium">Receta</p>
+            {onEditarReceta && (
+              <button onClick={() => onEditarReceta(v)} className="text-xs text-slate-500 underline">Editar</button>
+            )}
+          </div>
           {v.od && (
             <p className="text-xs text-slate-600">
               O.D.: {CAMPOS_RECETA_PACIENTE.map((c) => `${c} ${v.od[c.toLowerCase()] || "-"}`).join(" · ")}
@@ -4293,6 +4300,8 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laborat
   });
   const [agendandoCita, setAgendandoCita] = useState(false);
   const [subiendoReceta, setSubiendoReceta] = useState(false);
+  const [editandoVisitaId, setEditandoVisitaId] = useState(null);
+  const [recetaEdit, setRecetaEdit] = useState(null);
   const [nuevaCitaExp, setNuevaCitaExp] = useState({ fecha: fechaISO(new Date()), hora: "", consultorio: "Consultorio 1" });
 
   const visitasOrdenadas = ordenarVisitasDesc(datos.compras);
@@ -4458,7 +4467,7 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laborat
         )}
         <div className="space-y-2">
           {visitasOrdenadas.map((v) => (
-            <ResumenVisita key={v.id || v.folio} v={v} paciente={datos} config={config} />
+            <ResumenVisita key={v.id || v.folio} v={v} paciente={datos} config={config} onEditarReceta={(vv) => { setEditandoVisitaId(vv.id || vv.folio); setRecetaEdit({ od: { ...(vv.od || {}) }, os: { ...(vv.os || {}) }, descripcion: vv.descripcion || "", materialReceta: vv.materialReceta || "", fechaPrometido: vv.fechaPrometido || "" }); }} />
           ))}
           {visitasOrdenadas.length === 0 && <p className="text-xs text-slate-400">Sin visitas o compras registradas todavía.</p>}
         </div>
@@ -4571,6 +4580,54 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laborat
         <button onClick={agregarVisitaManual} className="w-full py-2 rounded-lg text-white text-sm font-medium mt-2" style={{ background: SKY_DARK }}>
           Guardar visita
         </button>
+      </Modal>
+
+      <Modal open={!!recetaEdit} onClose={() => { setEditandoVisitaId(null); setRecetaEdit(null); }} title="Editar receta / examen">
+        {recetaEdit && (
+          <>
+            <div className="grid grid-cols-2 gap-3 mb-2">
+              <Field label="Material" value={recetaEdit.materialReceta} onChange={(e) => setRecetaEdit({ ...recetaEdit, materialReceta: e.target.value })} />
+              <label className="block">
+                <span className="text-xs font-medium text-slate-500 uppercase">Fecha prometida</span>
+                <input type="date" value={recetaEdit.fechaPrometido} onChange={(e) => setRecetaEdit({ ...recetaEdit, fechaPrometido: e.target.value })} className="mt-1 w-full border rounded-lg px-2 py-1.5 text-sm" />
+              </label>
+            </div>
+            <Field label="Descripción" value={recetaEdit.descripcion} onChange={(e) => setRecetaEdit({ ...recetaEdit, descripcion: e.target.value })} />
+            {["od", "os"].map((ojo) => (
+              <div key={ojo} className="flex items-center gap-2 mb-2">
+                <span className="w-10 font-semibold text-sm">{ojo === "od" ? "O.D." : "O.S."}</span>
+                {CAMPOS_RECETA_PACIENTE.map((c) => (
+                  <input
+                    key={c}
+                    placeholder={c}
+                    value={recetaEdit[ojo][c.toLowerCase()] || ""}
+                    onChange={(e) => setRecetaEdit({ ...recetaEdit, [ojo]: { ...recetaEdit[ojo], [c.toLowerCase()]: e.target.value } })}
+                    className="w-16 border rounded px-1 py-1 text-xs text-center"
+                  />
+                ))}
+              </div>
+            ))}
+            <button
+              onClick={() => {
+                const nuevasCompras = (datos.compras || []).map((v) =>
+                  (v.id || v.folio) === editandoVisitaId
+                    ? { ...v, od: recetaEdit.od, os: recetaEdit.os, descripcion: recetaEdit.descripcion, materialReceta: recetaEdit.materialReceta, fechaPrometido: recetaEdit.fechaPrometido }
+                    : v
+                );
+                const actualizado = { ...datos, compras: nuevasCompras };
+                setDatos(actualizado);
+                setPacientes(pacientes.map((p) => (p.id === paciente.id ? { ...p, ...actualizado } : p)));
+                setEditandoVisitaId(null);
+                setRecetaEdit(null);
+                mostrarToast("Receta actualizada ✓");
+              }}
+              className="w-full py-2 rounded-lg text-white text-sm font-medium mt-2"
+              style={{ background: SKY_DARK }}
+            >
+              Guardar cambios
+            </button>
+          </>
+        )}
       </Modal>
 
       <Modal open={creandoReceta} onClose={() => setCreandoReceta(false)} title="Crear nueva receta">
@@ -6540,7 +6597,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
   const debeHaberCaja = totalCobradoHoy - totalProveedores - totalCancelacionesDia - totalNominaDia;
 
   function cambiarDia(delta) {
-    const d = new Date(fecha);
+    const d = new Date(fecha + "T00:00:00");
     d.setDate(d.getDate() + delta);
     setFecha(fechaISO(d));
   }
@@ -6636,13 +6693,14 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
 
         <div className="mb-6 print:hidden">
           <p className="text-xs font-semibold text-slate-400 uppercase mb-2 mt-4">Flujo de caja del día</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
             <TotalBox titulo="Cobrado hoy (bruto)" monto={totalCobradoHoy} color="#047857" subtitulo="Anticipos + liquidaciones + abonos + contado" />
             <TotalBox titulo="Devuelto al cliente" monto={totalDevueltoEnPagoDia} color="#dc2626" subtitulo="Efectivo/tarjeta regresado por cancelaciones" />
             <TotalBox titulo="Cobro real del día" monto={cobroRealDia} color={cobroRealDia >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado − Devuelto" />
             <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
             <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelDia.length} pago(s)`} />
-            <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado hoy − proveedores − cancelaciones" />
+            <TotalBox titulo="Nómina" monto={totalNominaDia} color="#7c3aed" subtitulo={`${nominaDelDia.length} pago(s) — ver detalle en Nóminas`} />
+            <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado − proveedores − cancelaciones − nómina" />
           </div>
         </div>
 
@@ -6663,6 +6721,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
             <p><b>Total cobrado hoy:</b> ${totalCobradoHoy.toFixed(2)}</p>
             <p><b>Saldo pendiente:</b> ${totalSaldoPendiente.toFixed(2)}</p>
             <p><b>Pago a proveedores:</b> ${totalProveedores.toFixed(2)}</p>
+            <p><b>Nómina:</b> ${totalNominaDia.toFixed(2)}</p>
             <p><b>Cancelaciones y devoluciones:</b> ${totalCancelacionesDia.toFixed(2)}</p>
             <p><b>Debe haber en caja:</b> ${debeHaberCaja.toFixed(2)}</p>
           </div>
@@ -6763,6 +6822,21 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
                 </tr>
               ))}
               {cancelacionesDelDia.length === 0 && <tr><td className="text-slate-400 py-2">Sin cancelaciones ni devoluciones este día.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="bg-white border rounded-xl p-3">
+          <h4 className="font-semibold text-sm mb-2">Desglose — Nómina</h4>
+          <table className="w-full text-xs">
+            <tbody>
+              {nominaDelDia.map((n) => (
+                <tr key={n.id} className="border-t">
+                  <td className="py-1">{n.usuario} <span className="text-slate-400">({n.rol || "—"})</span></td>
+                  <td className="text-right py-1">${n.pagoTotal.toFixed(2)}</td>
+                </tr>
+              ))}
+              {nominaDelDia.length === 0 && <tr><td className="text-slate-400 py-2">Sin pagos de nómina este día.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -12621,7 +12695,7 @@ export default function App() {
   useEffect(() => {
     if (!sesion || sesion.rol === "ADMIN") return;
     const permitidos = sesion.permisos || [];
-    if (seccion === "administracion" || seccion === "config" || !permitidos.includes(seccion)) {
+    if (!permitidos.includes(seccion)) {
       setSeccion(permitidos[0] || "agenda");
     }
   }, [sesion]);
