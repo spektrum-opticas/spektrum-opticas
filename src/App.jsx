@@ -674,14 +674,14 @@ function GlobalPrintStyles() {
           print-color-adjust: exact !important;
           color-adjust: exact !important;
         }
-        html, body { height: 0 !important; overflow: hidden !important; }
-        body * { visibility: hidden !important; height: 0 !important; overflow: hidden !important; }
-        .print-only, .print-only * { visibility: visible !important; height: auto !important; overflow: visible !important; }
+        html, body { height: 0 !important; overflow: visible !important; }
+        body *:not(img) { visibility: hidden !important; height: 0 !important; overflow: visible !important; }
+        body img { visibility: hidden !important; }
+        .print-only, .print-only * { visibility: visible !important; }
+        .print-only *:not(img) { height: auto !important; overflow: visible !important; }
+        .print-only img { visibility: visible !important; }
         .plantilla-oculta { position: static !important; left: 0 !important; top: 0 !important; }
         .print-only {
-          position: fixed !important;
-          left: 0 !important;
-          top: 0 !important;
           width: 100% !important;
           padding: 24px !important;
         }
@@ -7174,9 +7174,14 @@ function CorteAnual({ ventas, pagosProveedores, nominas, dashboard }) {
   const nominaDelAnio = (nominas || []).filter((n) => n.pagada && n.fechaPago && n.fechaPago.slice(0, 4) === String(anio));
   const totalNomina = nominaDelAnio.reduce((s, n) => s + n.pagoTotal, 0);
 
+  const totalCobradoRealSolo = pagosDelAnio.reduce((s, p) => s + p.monto, 0);
+
   const ventaReal = totalVendido - totalCancelaciones;
   const cobroReal = totalCobrado - totalDevueltoEnPago;
-  const debeHaberCaja = totalCobrado - totalProveedores - totalCancelaciones - totalNomina;
+  // "Debe haber en caja" solo se calcula con dinero de verdad rastreado en el sistema — los meses
+  // que se cargaron a mano (antes de usar el sistema para generar órdenes) no se revisaron
+  // transacción por transacción, así que no deben contar aquí.
+  const debeHaberCaja = totalCobradoRealSolo - totalProveedores - totalCancelaciones - totalNomina;
 
   return (
     <div>
@@ -7212,7 +7217,7 @@ function CorteAnual({ ventas, pagosProveedores, nominas, dashboard }) {
           <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendiente} color="#dc2626" subtitulo={`${notasConSaldo.length} nota(s) por cobrar`} />
           <TotalBox titulo="Pago a proveedores" monto={totalProveedores} color="#7c3aed" subtitulo={`${pagosProvDelAnio.length} pago(s)`} />
           <TotalBox titulo="Nómina" monto={totalNomina} color="#7c3aed" subtitulo={`${nominaDelAnio.length} pago(s) — ver detalle en Nóminas`} />
-          <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado − proveedores − cancelaciones − nómina" />
+          <TotalBox titulo="Debe haber en caja" monto={debeHaberCaja} color={debeHaberCaja >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Solo cobrado real (sin meses cargados a mano) − proveedores − cancelaciones − nómina" />
         </div>
 
         <div className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
