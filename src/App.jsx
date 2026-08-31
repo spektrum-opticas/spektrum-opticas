@@ -126,6 +126,25 @@ async function supaSet(tabla, datos) {
   return true;
 }
 
+// Calcula el folio correcto para una venta nueva, consultando Supabase DIRECTO (no lo que esta
+// pestaña tenga en caché) — así, si alguien más guardó una venta al mismo tiempo desde otra
+// pestaña o dispositivo, aquí se detecta y se evita que dos ventas terminen con el mismo folio.
+async function folioSeguroNuevo(ventasLocal) {
+  const folioLocal = Math.max(0, ...ventasLocal.map((v) => Number(v.folio) || 0)) + 1;
+  try {
+    const filas = await supaGetFilas("ventas");
+    const ventasFrescas = filas.map((f) => f.datos);
+    const folioFresco = Math.max(0, ...ventasFrescas.map((v) => Number(v.folio) || 0)) + 1;
+    if (folioFresco !== folioLocal) {
+      mostrarToast(`Se detectó otra venta guardada al mismo tiempo — este folio se ajustó a #${folioFresco} para evitar un choque`, "error");
+    }
+    return { folio: folioFresco, ventasFrescas };
+  } catch (e) {
+    console.error("No se pudo verificar el folio contra Supabase, se usa el local", e);
+    return { folio: folioLocal, ventasFrescas: null };
+  }
+}
+
 // --- Variante por renglones: cada registro es su propia fila (id propio + datos),
 // en vez de un solo bloque gigante. Así, guardar UN cambio solo toca ESE renglón,
 // sin importar cuántos miles de registros más existan.
@@ -878,6 +897,10 @@ function useFacturasStorage() {
 
 function useNominasStorage() {
   return useRowStorage("nominas");
+}
+
+function useVentasStorage() {
+  return useRowStorage("ventas");
 }
 
 function Icon({ name, size = 20 }) {
@@ -1761,10 +1784,16 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
   const total = Math.max(0, subtotal - montoDescuento);
   const saldo = total - Number(abono || 0);
 
-  function generarNota(estatus) {
+  async function generarNota(estatus) {
     const esPortal = !!procesandoPortalFolio;
     const original = esPortal ? ventas.find((v) => v.folio === procesandoPortalFolio) : null;
-    const folio = esPortal ? procesandoPortalFolio : (Math.max(0, ...ventas.map((v) => Number(v.folio) || 0))) + 1;
+    let folio = procesandoPortalFolio;
+    let ventasFrescas = null;
+    if (!esPortal) {
+      const resultado = await folioSeguroNuevo(ventas);
+      folio = resultado.folio;
+      ventasFrescas = resultado.ventasFrescas;
+    }
     const ahora = modoFechaPasada
       ? new Date(`${fechaVentaManual}T12:00:00`).toISOString()
       : new Date().toISOString();
@@ -1775,6 +1804,7 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
         : [];
     const nota = {
       ...(original || {}),
+      id: String(folio),
       folio,
       fecha: ahora,
       pacienteId: clienteSel?.id || null,
@@ -1795,7 +1825,7 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
       pagos: esPortal ? [...(original?.pagos || []), ...pagoInicial] : pagoInicial,
       transferenciaPendiente: false,
     };
-    setVentas(esPortal ? ventas.map((v) => (v.folio === folio ? nota : v)) : [...ventas, nota]);
+    setVentas((prev) => (esPortal ? prev.map((v) => (v.folio === folio ? nota : v)) : [...(ventasFrescas || prev), nota]));
     setProcesandoPortalFolio(null);
     if (clienteSel) {
       setPacientes(
@@ -7783,7 +7813,7 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
 
   function recuperarVentaHuerfana(compra) {
     const folioNuevo = Math.max(0, ...ventas.map((v) => Number(v.folio) || 0)) + 1;
-    const notaRecuperada = { ...compra, folio: folioNuevo };
+    const notaRecuperada = { ...compra, id: String(folioNuevo), folio: folioNuevo };
     setVentas((prev) => [...prev, notaRecuperada]);
     setPacientes((prev) =>
       prev.map((p) =>
@@ -12099,9 +12129,9 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
     abrirAcceso("cliente");
   }
 
-  function confirmarPedido(receta, infoPago) {
+  async function confirmarPedido(receta, infoPago) {
     let paciente = pacientes.find((p) => p.id === sesionCliente.pacienteId);
-    const folio = (Math.max(0, ...ventas.map((v) => Number(v.folio) || 0))) + 1;
+    const { folio, ventasFrescas } = await folioSeguroNuevo(ventas);
     const subtotal = carrito.reduce((s, c) => s + Number(c.precio || 0), 0);
     const costoEnvio = Number(infoPago?.costoEnvio || 0);
     const montoDescuento = Number(infoPago?.montoDescuento || 0);
@@ -12110,6 +12140,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
     const pagadoEnLinea = infoPago?.pagadoEnLinea;
     const ahora = new Date().toISOString();
     const nota = {
+      id: String(folio),
       folio,
       fecha: ahora,
       pacienteId: sesionCliente.pacienteId,
@@ -12138,7 +12169,7 @@ function Tienda({ pacientes, setPacientes, agenda, setAgenda, ventas, setVentas,
         ? [{ fecha: ahora, monto: total, formaPago: infoPago?.formaPago || "PayPal", tipo: "venta_completa" }]
         : [],
     };
-    setVentas([...ventas, nota]);
+    setVentas((prev) => [...(ventasFrescas || prev), nota]);
 
     let huboPendienteReceta = false;
     if (pagadoEnLinea) {
@@ -13149,7 +13180,7 @@ export default function App() {
   const [nominas, setNominas, loadedNom] = useNominasStorage();
   const [inventario, setInventario, loadedI, statusI, errorI, retryI, cargarI] = useStoredState(STORAGE_KEYS.inventario, emptyInventario());
   const [agenda, setAgenda, loadedA, statusA, errorA, retryA, cargarA] = useStoredState(STORAGE_KEYS.agenda, []);
-  const [ventas, setVentas, loadedV, statusV, errorV, retryV, cargarV] = useStoredState(STORAGE_KEYS.ventas, []);
+  const [ventas, setVentas, loadedV, statusV, errorV, retryV, cargarV] = useVentasStorage();
   const [usuarios, setUsuarios, loadedU, statusU, errorU, retryU, cargarU] = useStoredState(STORAGE_KEYS.usuarios, []);
   const [config, setConfig, loadedC, statusC, errorC, retryC, cargarC] = useStoredState(STORAGE_KEYS.config, emptyConfig());
   const [laboratorio, setLaboratorio, loadedL, statusL, errorL, retryL, cargarL] = useStoredState(STORAGE_KEYS.laboratorio, []);
