@@ -6058,6 +6058,12 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
     }
   }
 
+  function deshacerEntrega(o) {
+    if (!window.confirm("¿Corregir el estatus? Esta orden dejará de aparecer como entregada.")) return;
+    setLaboratorio(laboratorio.map((x) => (x.id === o.id ? { ...x, fechaEntrega: "" } : x)));
+    mostrarToast("Estatus corregido — ya no aparece como entregada ✓");
+  }
+
   function marcarEntregado(o, fechaElegida) {
     const fecha = fechaElegida || fechaISO(new Date());
     setLaboratorio(laboratorio.map((x) => (x.id === o.id ? { ...x, fechaEntrega: fecha } : x)));
@@ -6083,13 +6089,9 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
         return { ...v, abono: nuevoAbono, saldo: nuevoSaldo, pagos: [...(v.pagos || []), pago] };
       })
     );
-    // Si el pago deja el saldo en $0, la entrega se marca sola (el cliente ya pagó todo, se asume que se lleva su pedido)
-    if (saldoQuedo <= 0) {
-      const orden = laboratorio.find((o) => o.folioVenta === folio);
-      if (orden && !orden.fechaEntrega) {
-        marcarEntregado(orden);
-      }
-    }
+    // Nota: que el saldo quede en $0 NO significa que el cliente ya se llevó su pedido físico
+    // (puede pagar antes de recogerlo) — la entrega siempre se marca a mano, con el botón
+    // correspondiente, nunca de forma automática.
   }
 
   const activas = laboratorio.filter((o) => !o.cancelada);
@@ -6425,7 +6427,16 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
                   </td>
                   <td className="px-3 py-2">
                     {entregado ? (
-                      <span className="text-xs text-emerald-700 font-medium">{o.fechaEntrega}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-emerald-700 font-medium">{o.fechaEntrega}</span>
+                        <button
+                          onClick={() => deshacerEntrega(o)}
+                          className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-500 underline"
+                          title="Corregir — quitar el estatus de entregado"
+                        >
+                          Corregir
+                        </button>
+                      </div>
                     ) : pagado && estatus === "recibido_laboratorio" ? (
                       <div className="flex items-center gap-1">
                         <input
