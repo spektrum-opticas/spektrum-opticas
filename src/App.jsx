@@ -726,6 +726,9 @@ function GlobalPrintStyles() {
           padding: 0 !important;
           width: auto !important;
         }
+        .resumen-anual-grid {
+          grid-template-columns: repeat(3, 1fr) !important;
+        }
         @page {
           size: auto;
           margin: 12mm;
@@ -13351,7 +13354,7 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, no
 
       <div id="dashboard-anual-imprimible" className="dashboard-print-compact space-y-4">
       <EncabezadoImprimible config={config} titulo={`Dashboard anual — ${anio}`} />
-      <div className="flex gap-3 overflow-x-auto pb-1">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 resumen-anual-grid">
         <TotalBox titulo="Meta anual" monto={totalAnioMeta} color="#111827" />
         <TotalBox titulo="Vendido anual" monto={totalAnioVendido} color="#0f766e" subtitulo={`${pctAnio.toFixed(1)}% de la meta`} />
         <TotalBox titulo="Cobrado anual" monto={totalAnioCobrado} color="#059669" />
