@@ -674,11 +674,12 @@ function GlobalPrintStyles() {
           print-color-adjust: exact !important;
           color-adjust: exact !important;
         }
-        body * { visibility: hidden !important; }
-        .print-only, .print-only * { visibility: visible !important; }
+        html, body { height: 0 !important; overflow: hidden !important; }
+        body * { visibility: hidden !important; height: 0 !important; overflow: hidden !important; }
+        .print-only, .print-only * { visibility: visible !important; height: auto !important; overflow: visible !important; }
         .plantilla-oculta { position: static !important; left: 0 !important; top: 0 !important; }
         .print-only {
-          position: absolute !important;
+          position: fixed !important;
           left: 0 !important;
           top: 0 !important;
           width: 100% !important;
