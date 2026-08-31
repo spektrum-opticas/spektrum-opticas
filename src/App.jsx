@@ -923,6 +923,51 @@ function useVentasStorage() {
   return useRowStorage("ventas");
 }
 
+// Adaptador: por dentro, cada artículo de inventario vive en su propio renglón (igual que
+// ventas/pacientes), así que dos sesiones editando cosas distintas al mismo tiempo ya no se
+// pisan entre sí. Por fuera, se sigue viendo y usando exactamente igual que antes — un objeto
+// { armazones: [...], lentesGraduados: [...], ... } — para no tener que tocar el resto de la app.
+function useInventarioStorage() {
+  const [filas, setFilas, loaded, status, error, reintentar, cargar] = useRowStorage("inventario");
+
+  function filasAObjeto(listaFilas) {
+    const obj = emptyInventario();
+    for (const item of listaFilas) {
+      const cat = item.categoria;
+      if (!cat) continue;
+      if (!obj[cat]) obj[cat] = [];
+      const { categoria, ...resto } = item;
+      obj[cat].push(resto);
+    }
+    return obj;
+  }
+
+  function objetoAFilas(obj) {
+    const nuevasFilas = [];
+    for (const cat of Object.keys(obj || {})) {
+      for (const item of obj[cat] || []) {
+        nuevasFilas.push({ ...item, categoria: cat });
+      }
+    }
+    return nuevasFilas;
+  }
+
+  const inventario = filasAObjeto(filas);
+
+  const setInventario = useCallback(
+    (nextOrFn) => {
+      setFilas((prevFilas) => {
+        const prevObj = filasAObjeto(prevFilas);
+        const nextObj = typeof nextOrFn === "function" ? nextOrFn(prevObj) : nextOrFn;
+        return objetoAFilas(nextObj);
+      });
+    },
+    [setFilas]
+  );
+
+  return [inventario, setInventario, loaded, status, error, reintentar, cargar];
+}
+
 function Icon({ name, size = 20 }) {
   const map = {
     calendar: Calendar,
@@ -13513,7 +13558,7 @@ export default function App() {
   const [asistencia, setAsistencia, loadedAs] = useAsistenciaStorage();
   const [facturas, setFacturas, loadedFac] = useFacturasStorage();
   const [nominas, setNominas, loadedNom] = useNominasStorage();
-  const [inventario, setInventario, loadedI, statusI, errorI, retryI, cargarI] = useStoredState(STORAGE_KEYS.inventario, emptyInventario());
+  const [inventario, setInventario, loadedI, statusI, errorI, retryI, cargarI] = useInventarioStorage();
   const [agenda, setAgenda, loadedA, statusA, errorA, retryA, cargarA] = useStoredState(STORAGE_KEYS.agenda, []);
   const [ventas, setVentas, loadedV, statusV, errorV, retryV, cargarV] = useVentasStorage();
   const [usuarios, setUsuarios, loadedU, statusU, errorU, retryU, cargarU] = useStoredState(STORAGE_KEYS.usuarios, []);
