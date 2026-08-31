@@ -6546,7 +6546,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
 /* ============================================================
    REPORTES
    ============================================================ */
-function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes, setPacientes, laboratorio, pagosProveedores, setPagosProveedores, proveedores, usuarios, nominas, sesion }) {
+function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes, setPacientes, laboratorio, pagosProveedores, setPagosProveedores, proveedores, usuarios, nominas, dashboard, sesion }) {
   const [modo, setModo] = useState("corte");
   const canceladas = ventas.filter((v) => v.estatus === "cancelada" || v.estatus === "devolucion");
 
@@ -6579,9 +6579,9 @@ function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes,
           sesion={sesion}
         />
       ) : modo === "mes" ? (
-        <CorteMensual ventas={ventas} pagosProveedores={pagosProveedores} proveedores={proveedores} nominas={nominas} />
+        <CorteMensual ventas={ventas} pagosProveedores={pagosProveedores} proveedores={proveedores} nominas={nominas} dashboard={dashboard} />
       ) : modo === "anio" ? (
-        <CorteAnual ventas={ventas} pagosProveedores={pagosProveedores} nominas={nominas} />
+        <CorteAnual ventas={ventas} pagosProveedores={pagosProveedores} nominas={nominas} dashboard={dashboard} />
       ) : (
         <CancelacionesTab
           ventas={ventas}
@@ -7128,25 +7128,39 @@ function datosDelMes(mes, ventas, dashboard, pagosProveedores, nominas) {
 }
 
 /* ---------- Corte del año ---------- */
-function CorteAnual({ ventas, pagosProveedores, nominas }) {
+function CorteAnual({ ventas, pagosProveedores, nominas, dashboard }) {
   const [anio, setAnio] = useState(new Date().getFullYear());
   const nombresMes = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
-  const ventasDelAnio = ventas.filter((v) => v.estatus !== "presupuesto" && v.fecha && v.fecha.slice(0, 4) === String(anio));
-  const totalVendido = ventasDelAnio.reduce((s, v) => s + montoOriginalVenta(v), 0);
-  const totalTickets = ventasDelAnio.length;
-  const ticketPromedio = totalTickets > 0 ? totalVendido / totalTickets : 0;
-
   const todosPagos = ventas.flatMap((v) => (v.pagos || []));
+  const historialManual = dashboard?.historialManual || [];
+
+  const meses = Array.from({ length: 12 }, (_, i) => {
+    const mesStr = `${anio}-${String(i + 1).padStart(2, "0")}`;
+    const ventasMes = ventas.filter((v) => v.estatus !== "presupuesto" && v.fecha && v.fecha.slice(0, 7) === mesStr);
+    const hayDatosReales = ventasMes.length > 0;
+    const manual = !hayDatosReales ? historialManual.find((h) => h.mes === mesStr) : null;
+    const cancelMes = ventas.flatMap((v) => v.historialCancelacion || []).filter((c) => c.fecha && c.fecha.slice(0, 7) === mesStr).reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
+    const vendidoMes = hayDatosReales ? ventasMes.reduce((s, v) => s + montoOriginalVenta(v), 0) : Number(manual?.vendido) || 0;
+    const cobradoMes = hayDatosReales
+      ? todosPagos.filter((p) => p.fecha && p.fecha.slice(0, 7) === mesStr).reduce((s, p) => s + p.monto, 0)
+      : Number(manual?.cobrado) || 0;
+    return { nombre: nombresMes[i], vendido: vendidoMes, cancelado: cancelMes, ventaReal: vendidoMes - cancelMes, cobrado: cobradoMes, esManual: !!manual };
+  });
+
+  const totalVendido = meses.reduce((s, m) => s + m.vendido, 0);
+  const totalTickets = ventas.filter((v) => v.estatus !== "presupuesto" && v.fecha && v.fecha.slice(0, 4) === String(anio)).length;
+  const ticketPromedio = totalTickets > 0 ? totalVendido / totalTickets : 0;
+  const totalCobrado = meses.reduce((s, m) => s + m.cobrado, 0);
+  const totalCancelaciones = meses.reduce((s, m) => s + m.cancelado, 0);
+
   const pagosDelAnio = todosPagos.filter((p) => p.fecha && p.fecha.slice(0, 4) === String(anio));
   const anticipos = pagosDelAnio.filter((p) => p.tipo === "anticipo");
   const liquidaciones = pagosDelAnio.filter((p) => p.tipo === "liquidacion");
   const abonosParciales = pagosDelAnio.filter((p) => p.tipo === "abono");
-  const ventasCompletas = pagosDelAnio.filter((p) => p.tipo === "venta_completa");
   const totalAnticipos = anticipos.reduce((s, p) => s + p.monto, 0);
   const totalLiquidaciones = liquidaciones.reduce((s, p) => s + p.monto, 0);
   const totalAbonosParciales = abonosParciales.reduce((s, p) => s + p.monto, 0);
-  const totalCobrado = totalAnticipos + totalLiquidaciones + totalAbonosParciales + ventasCompletas.reduce((s, p) => s + p.monto, 0);
 
   const notasConSaldo = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && v.saldo > 0);
   const totalSaldoPendiente = notasConSaldo.reduce((s, v) => s + v.saldo, 0);
@@ -7155,7 +7169,6 @@ function CorteAnual({ ventas, pagosProveedores, nominas }) {
   const totalProveedores = pagosProvDelAnio.reduce((s, p) => s + Number(p.monto || 0), 0);
 
   const cancelacionesDelAnio = ventas.flatMap((v) => (v.historialCancelacion || []).filter((c) => c.fecha && c.fecha.slice(0, 4) === String(anio)).map((c) => ({ ...c, folio: v.folio, cliente: v.nombreCliente })));
-  const totalCancelaciones = cancelacionesDelAnio.reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
   const totalDevueltoEnPago = cancelacionesDelAnio.reduce((s, c) => s + Number(c.montoDevueltoEnEfectivoOTarjeta || 0), 0);
 
   const nominaDelAnio = (nominas || []).filter((n) => n.pagada && n.fechaPago && n.fechaPago.slice(0, 4) === String(anio));
@@ -7164,15 +7177,6 @@ function CorteAnual({ ventas, pagosProveedores, nominas }) {
   const ventaReal = totalVendido - totalCancelaciones;
   const cobroReal = totalCobrado - totalDevueltoEnPago;
   const debeHaberCaja = totalCobrado - totalProveedores - totalCancelaciones - totalNomina;
-
-  const meses = Array.from({ length: 12 }, (_, i) => {
-    const mesStr = `${anio}-${String(i + 1).padStart(2, "0")}`;
-    const ventasMes = ventas.filter((v) => v.estatus !== "presupuesto" && v.fecha && v.fecha.slice(0, 7) === mesStr);
-    const vendidoMes = ventasMes.reduce((s, v) => s + montoOriginalVenta(v), 0);
-    const cancelMes = ventas.flatMap((v) => v.historialCancelacion || []).filter((c) => c.fecha && c.fecha.slice(0, 7) === mesStr).reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
-    const cobradoMes = todosPagos.filter((p) => p.fecha && p.fecha.slice(0, 7) === mesStr).reduce((s, p) => s + p.monto, 0);
-    return { nombre: nombresMes[i], vendido: vendidoMes, cancelado: cancelMes, ventaReal: vendidoMes - cancelMes, cobrado: cobradoMes };
-  });
 
   return (
     <div>
@@ -7226,7 +7230,10 @@ function CorteAnual({ ventas, pagosProveedores, nominas }) {
             <tbody>
               {meses.map((m) => (
                 <tr key={m.nombre} className="border-t">
-                  <td className="px-3 py-2 font-medium">{m.nombre}</td>
+                  <td className="px-3 py-2 font-medium">
+                    {m.nombre}
+                    {m.esManual && <span className="text-[10px] text-amber-600 ml-1">(manual)</span>}
+                  </td>
                   <td className="px-3 py-2 text-right">${m.vendido.toFixed(2)}</td>
                   <td className="px-3 py-2 text-right">${m.cancelado.toFixed(2)}</td>
                   <td className="px-3 py-2 text-right">${m.ventaReal.toFixed(2)}</td>
@@ -7250,13 +7257,16 @@ function CorteAnual({ ventas, pagosProveedores, nominas }) {
   );
 }
 
-function CorteMensual({ ventas, pagosProveedores, nominas }) {
+function CorteMensual({ ventas, pagosProveedores, nominas, dashboard }) {
   const [mes, setMes] = useState(mesISO(new Date()));
 
   const esDelMes = (isoFecha) => isoFecha.slice(0, 7) === mes;
 
   const ventasDelMes = ventas.filter((v) => v.estatus !== "presupuesto" && esDelMes(v.fecha));
-  const totalVendido = ventasDelMes.reduce((s, v) => s + montoOriginalVenta(v), 0);
+  const hayDatosReales = ventasDelMes.length > 0;
+  const manual = !hayDatosReales ? (dashboard?.historialManual || []).find((h) => h.mes === mes) : null;
+
+  const totalVendido = hayDatosReales ? ventasDelMes.reduce((s, v) => s + montoOriginalVenta(v), 0) : Number(manual?.vendido) || 0;
   const totalTicketsMes = ventasDelMes.length;
   const ticketPromedioMes = totalTicketsMes > 0 ? totalVendido / totalTicketsMes : 0;
 
@@ -7269,7 +7279,9 @@ function CorteMensual({ ventas, pagosProveedores, nominas }) {
   const totalAnticipos = anticipos.reduce((s, p) => s + p.monto, 0);
   const totalLiquidaciones = liquidaciones.reduce((s, p) => s + p.monto, 0);
   const totalAbonosParciales = abonosParciales.reduce((s, p) => s + p.monto, 0);
-  const totalCobradoMes = totalAnticipos + totalLiquidaciones + totalAbonosParciales + ventasCompletas.reduce((s, p) => s + p.monto, 0);
+  const totalCobradoMes = hayDatosReales
+    ? totalAnticipos + totalLiquidaciones + totalAbonosParciales + ventasCompletas.reduce((s, p) => s + p.monto, 0)
+    : Number(manual?.cobrado) || 0;
 
   const notasConSaldo = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && v.saldo > 0);
   const totalSaldoPendiente = notasConSaldo.reduce((s, v) => s + v.saldo, 0);
@@ -7317,6 +7329,12 @@ function CorteMensual({ ventas, pagosProveedores, nominas }) {
           </button>
         )}
       </div>
+
+      {manual && (
+        <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4 w-fit">
+          Este mes no tiene ventas registradas en el sistema — se muestran los montos que cargaste manualmente en el Dashboard.
+        </p>
+      )}
 
       <div id="corte-mes-imprimible">
         <p className="hidden print:block font-bold mb-3">Corte del mes — {mes}</p>
@@ -13464,6 +13482,7 @@ export default function App() {
             proveedores={proveedores}
             usuarios={usuarios}
             nominas={nominas}
+            dashboard={dashboard}
             sesion={sesion}
           />
         )}
