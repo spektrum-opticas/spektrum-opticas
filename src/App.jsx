@@ -319,6 +319,22 @@ function imprimirElemento(id) {
   setTimeout(() => window.print(), 50);
 }
 
+// Encabezado con logo y datos de la óptica — se usa en TODO lo imprimible del sistema
+// (menos Configuración) para que cualquier reporte, ticket o listado quede identificado.
+function EncabezadoImprimible({ config, titulo }) {
+  return (
+    <div className="hidden print:flex items-center gap-3 mb-4" style={{ borderBottom: `2px solid #000`, paddingBottom: 10 }}>
+      {config?.logo && <img src={config.logo} style={{ height: 60 }} alt="logo" />}
+      <div>
+        <p className="font-bold text-lg">{NOMBRE_OPTICA}</p>
+        {config?.direccion && <p className="text-xs">{config.direccion}</p>}
+        {config?.telefono && <p className="text-xs">Tel: {config.telefono}</p>}
+        {titulo && <p className="text-sm font-semibold mt-1">{titulo}</p>}
+      </div>
+    </div>
+  );
+}
+
 const NOMBRE_OPTICA = "Spektrum Ópticas";
 
 const AVISO_PRIVACIDAD_DEFAULT = `AVISO DE PRIVACIDAD — ${NOMBRE_OPTICA}
@@ -1088,7 +1104,7 @@ function fechaISO(d) {
   return `${anio}-${mes}-${dia}`;
 }
 
-function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS, laboratorio, setLaboratorio }) {
+function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS, laboratorio, setLaboratorio, config }) {
   const [fecha, setFecha] = useState(fechaISO(new Date()));
   const [expediente, setExpediente] = useState(null); // paciente abierto
   const [draggingId, setDraggingId] = useState(null);
@@ -1172,6 +1188,45 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS, labor
             <ChevronRight />
           </button>
         </div>
+        <button
+          onClick={() => imprimirElemento("agenda-dia-imprimible")}
+          disabled={citasDelDia.length === 0}
+          className="px-3 py-2 rounded-lg text-white text-sm flex items-center gap-1 disabled:opacity-40"
+          style={{ background: SKY_DARK }}
+        >
+          <Printer size={16} /> Imprimir agenda del día ({citasDelDia.length})
+        </button>
+      </div>
+
+      <div id="agenda-dia-imprimible" className="hidden print:block">
+        <EncabezadoImprimible config={config} titulo={`Agenda del día — ${fecha}`} />
+        {["Consultorio 1", "Consultorio 2", "reasignar"].map((col) => {
+          const citasCol = col === "reasignar" ? reasignar : citasDelDia.filter((c) => c.consultorio === col).sort((a, b) => (a.hora || "").localeCompare(b.hora || ""));
+          if (citasCol.length === 0) return null;
+          return (
+            <div key={col} className="mb-3">
+              <p className="font-semibold text-sm mb-1">{col === "reasignar" ? "Citas para reasignar" : col}</p>
+              <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #ccc" }}>
+                    {col !== "reasignar" && <th className="text-left py-1">Hora</th>}
+                    <th className="text-left py-1">Paciente</th>
+                    <th className="text-left py-1">Estatus</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {citasCol.map((c) => (
+                    <tr key={c.id} style={{ borderBottom: "1px solid #eee" }}>
+                      {col !== "reasignar" && <td className="py-1">{c.hora}</td>}
+                      <td className="py-1">{c.nombre}</td>
+                      <td className="py-1">{ESTATUS_LABEL[c.estatus] || c.estatus}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-3 gap-3" style={{ maxHeight: "72vh", overflowY: "auto" }}>
@@ -1925,6 +1980,7 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
             laboratorio={laboratorio}
             usuarios={usuarios}
             canceladas={ventas.filter((v) => v.estatus === "cancelada" || v.estatus === "devolucion")}
+            config={config}
           />
         </div>
       )}
@@ -3408,7 +3464,7 @@ function InventarioView({ inventario, setInventario, config, setConfig }) {
       </div>
 
       <div id="inventario-imprimible" className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
-        <p className="hidden print:block font-bold px-3 pt-3">Inventario — {CATEGORIAS_INV.find((c) => c.key === cat)?.label}</p>
+        <EncabezadoImprimible config={config} titulo={`Inventario — ${CATEGORIAS_INV.find((c) => c.key === cat)?.label}`} />
         {esContacto ? (
           <table className="w-full text-sm">
             <thead style={{ background: BEIGE }}>
@@ -3697,7 +3753,7 @@ function AuditoriaInventarioView({ config, setConfig }) {
       </div>
 
       <div id="reporte-auditoria-imprimible" className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
-        <p className="hidden print:block font-bold px-3 pt-3">Auditoría de inventario — {mesVer}</p>
+        <EncabezadoImprimible config={config} titulo={`Auditoría de inventario — ${mesVer}`} />
         <table className="w-full text-xs">
           <thead style={{ background: BEIGE }}>
             <tr>
@@ -5523,7 +5579,7 @@ function HistorialAbonosModal({ venta, config, onCerrar }) {
   );
 }
 
-function FacturacionView({ facturas, setFacturas, ventas, pacientes }) {
+function FacturacionView({ facturas, setFacturas, ventas, pacientes, config }) {
   const [tab, setTab] = useState("pendientes");
   const [creandoManual, setCreandoManual] = useState(false);
   const [subiendoArchivo, setSubiendoArchivo] = useState(null); // id de la solicitud a la que se le está subiendo archivo
@@ -5777,10 +5833,10 @@ function FacturacionView({ facturas, setFacturas, ventas, pacientes }) {
               </button>
             </div>
             <div id="reporte-facturas-imprimible" className="bg-white">
-              <p className="hidden print:block font-bold mb-2">
-                Reporte de facturas —{" "}
-                {modoReporte === "mes" ? `Mes ${mesReporte}` : modoReporte === "rango" ? `Del ${rangoDesde} al ${rangoHasta}` : "Selección manual"}
-              </p>
+              <EncabezadoImprimible
+                config={config}
+                titulo={`Reporte de facturas — ${modoReporte === "mes" ? `Mes ${mesReporte}` : modoReporte === "rango" ? `Del ${rangoDesde} al ${rangoHasta}` : "Selección manual"}`}
+              />
               <table className="w-full text-sm">
                 <thead style={{ background: BEIGE }}>
                   <tr>
@@ -5898,9 +5954,45 @@ function PaqueteriaView({ config, setConfig }) {
 
   return (
     <div className="p-4">
-      <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
-        <Truck size={20} /> Servicios de Paquetería
+      <h2 className="font-semibold text-lg mb-4 flex items-center gap-2 justify-between">
+        <span className="flex items-center gap-2"><Truck size={20} /> Servicios de Paquetería</span>
+        <button
+          onClick={() => imprimirElemento("paqueteria-imprimible")}
+          disabled={(config?.costosEnvio || []).length === 0}
+          className="px-3 py-1.5 rounded-lg text-white text-sm flex items-center gap-1 disabled:opacity-40"
+          style={{ background: SKY_DARK }}
+        >
+          <Printer size={16} /> Imprimir tarifas
+        </button>
       </h2>
+
+      <div id="paqueteria-imprimible" className="hidden print:block mb-4">
+        <EncabezadoImprimible config={config} titulo="Tarifas de paquetería" />
+        <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid #ccc" }}>
+              <th className="text-left py-1">Zona</th>
+              <th className="text-left py-1">Paquetería</th>
+              <th className="text-left py-1">Servicio</th>
+              <th className="text-left py-1">Peso</th>
+              <th className="text-left py-1">Precio</th>
+              <th className="text-left py-1">Garantía</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(config?.costosEnvio || []).map((c) => (
+              <tr key={c.id} style={{ borderBottom: "1px solid #eee" }}>
+                <td className="py-1">{c.zona}</td>
+                <td className="py-1">{c.paqueteria}</td>
+                <td className="py-1">{c.servicio}</td>
+                <td className="py-1">{c.peso}</td>
+                <td className="py-1">${Number(c.precio || 0).toFixed(2)}</td>
+                <td className="py-1">{c.garantia}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <div className="bg-white border rounded-xl p-4 mb-6">
         <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
@@ -6546,7 +6638,7 @@ function EntregasCobranzaView({ laboratorio, setLaboratorio, pacientes, setPacie
 /* ============================================================
    REPORTES
    ============================================================ */
-function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes, setPacientes, laboratorio, pagosProveedores, setPagosProveedores, proveedores, usuarios, nominas, dashboard, sesion }) {
+function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes, setPacientes, laboratorio, pagosProveedores, setPagosProveedores, proveedores, usuarios, nominas, dashboard, config, sesion }) {
   const [modo, setModo] = useState("corte");
   const canceladas = ventas.filter((v) => v.estatus === "cancelada" || v.estatus === "devolucion");
 
@@ -6576,12 +6668,13 @@ function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes,
           setPagosProveedores={setPagosProveedores}
           proveedores={proveedores}
           nominas={nominas}
+          config={config}
           sesion={sesion}
         />
       ) : modo === "mes" ? (
-        <CorteMensual ventas={ventas} pagosProveedores={pagosProveedores} proveedores={proveedores} nominas={nominas} dashboard={dashboard} />
+        <CorteMensual ventas={ventas} pagosProveedores={pagosProveedores} proveedores={proveedores} nominas={nominas} dashboard={dashboard} config={config} />
       ) : modo === "anio" ? (
-        <CorteAnual ventas={ventas} pagosProveedores={pagosProveedores} nominas={nominas} dashboard={dashboard} />
+        <CorteAnual ventas={ventas} pagosProveedores={pagosProveedores} nominas={nominas} dashboard={dashboard} config={config} />
       ) : (
         <CancelacionesTab
           ventas={ventas}
@@ -6593,6 +6686,7 @@ function ReportesView({ ventas, setVentas, inventario, setInventario, pacientes,
           laboratorio={laboratorio}
           usuarios={usuarios}
           canceladas={canceladas}
+          config={config}
         />
       )}
     </div>
@@ -6611,7 +6705,7 @@ function TotalBox({ titulo, monto, color, subtitulo, esConteo }) {
   );
 }
 
-function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosProveedores, proveedores, nominas, sesion }) {
+function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosProveedores, proveedores, nominas, config, sesion }) {
   const [fecha, setFecha] = useState(fechaISO(new Date()));
   const [cobrando, setCobrando] = useState(null); // folio de nota a cobrar saldo
   const [montoCobro, setMontoCobro] = useState("");
@@ -6759,7 +6853,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
       </div>
 
       <div id="corte-imprimible">
-        <p className="hidden print:block font-bold mb-3">Corte Diario — {fecha}</p>
+        <EncabezadoImprimible config={config} titulo={`Corte Diario — ${fecha}`} />
         <div className="mb-2 print:hidden">
           <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Ventas del día</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -7128,7 +7222,7 @@ function datosDelMes(mes, ventas, dashboard, pagosProveedores, nominas) {
 }
 
 /* ---------- Corte del año ---------- */
-function CorteAnual({ ventas, pagosProveedores, nominas, dashboard }) {
+function CorteAnual({ ventas, pagosProveedores, nominas, dashboard, config }) {
   const [anio, setAnio] = useState(new Date().getFullYear());
   const nombresMes = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
@@ -7195,7 +7289,7 @@ function CorteAnual({ ventas, pagosProveedores, nominas, dashboard }) {
       </div>
 
       <div id="reporte-anual-imprimible">
-        <p className="hidden print:block font-bold mb-2">Corte anual — {anio}</p>
+        <EncabezadoImprimible config={config} titulo={`Corte anual — ${anio}`} />
 
         <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Ventas del año</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
@@ -7262,7 +7356,7 @@ function CorteAnual({ ventas, pagosProveedores, nominas, dashboard }) {
   );
 }
 
-function CorteMensual({ ventas, pagosProveedores, nominas, dashboard }) {
+function CorteMensual({ ventas, pagosProveedores, nominas, dashboard, config }) {
   const [mes, setMes] = useState(mesISO(new Date()));
 
   const esDelMes = (isoFecha) => isoFecha.slice(0, 7) === mes;
@@ -7342,7 +7436,7 @@ function CorteMensual({ ventas, pagosProveedores, nominas, dashboard }) {
       )}
 
       <div id="corte-mes-imprimible">
-        <p className="hidden print:block font-bold mb-3">Corte del mes — {mes}</p>
+        <EncabezadoImprimible config={config} titulo={`Corte del mes — ${mes}`} />
         <div className="mb-2 print:hidden">
           <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Ventas del mes</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -7594,7 +7688,7 @@ function ModalAutorizacionAdmin({ open, onClose, onAutorizado, usuarios, mensaje
   );
 }
 
-function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacientes, setPacientes, laboratorio, usuarios, canceladas }) {
+function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacientes, setPacientes, laboratorio, usuarios, canceladas, config }) {
   const [busqueda, setBusqueda] = useState("");
   const [folioSel, setFolioSel] = useState(null);
   const [marcados, setMarcados] = useState({}); // uidLinea -> true (a devolver)
@@ -8076,7 +8170,41 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
           </table>
         </div>
 
-        <h4 className="text-sm font-semibold mt-4 mb-1">Ya canceladas / con devolución</h4>
+        <div className="flex items-center justify-between mt-4 mb-1">
+          <h4 className="text-sm font-semibold">Ya canceladas / con devolución</h4>
+          <button
+            onClick={() => imprimirElemento("canceladas-imprimible")}
+            disabled={canceladas.length === 0}
+            className="text-xs px-3 py-1.5 rounded-full text-white disabled:opacity-40"
+            style={{ background: SKY_DARK }}
+          >
+            Imprimir listado
+          </button>
+        </div>
+        <div id="canceladas-imprimible" className="hidden print:block mb-4">
+          <EncabezadoImprimible config={config} titulo="Ventas canceladas / con devolución" />
+          <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid #ccc" }}>
+                <th className="text-left py-1">Folio</th>
+                <th className="text-left py-1">Cliente</th>
+                <th className="text-left py-1">Monto devuelto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {canceladas.map((v) => {
+                const montoDevuelto = (v.historialCancelacion || []).reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
+                return (
+                  <tr key={v.folio} style={{ borderBottom: "1px solid #eee" }}>
+                    <td className="py-1">{v.folio}</td>
+                    <td className="py-1">{v.nombreCliente}</td>
+                    <td className="py-1">${montoDevuelto.toFixed(2)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
         <div className="bg-white border rounded-xl overflow-hidden max-h-40 overflow-y-auto">
           <table className="w-full text-sm">
             <tbody>
@@ -8288,7 +8416,7 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
 /* ============================================================
    USUARIOS
    ============================================================ */
-function UsuariosView({ usuarios, setUsuarios }) {
+function UsuariosView({ usuarios, setUsuarios, config }) {
   const [nuevo, setNuevo] = useState({ nombre: "", password: "", rol: "VENDEDOR", permisos: [] });
 
   function alternarPermiso(id) {
@@ -8319,6 +8447,37 @@ function UsuariosView({ usuarios, setUsuarios }) {
 
   return (
     <div className="p-4">
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={() => imprimirElemento("usuarios-imprimible")}
+          disabled={usuarios.length === 0}
+          className="px-3 py-1.5 rounded-lg text-white text-sm flex items-center gap-1 disabled:opacity-40"
+          style={{ background: SKY_DARK }}
+        >
+          <Printer size={16} /> Imprimir usuarios
+        </button>
+      </div>
+      <div id="usuarios-imprimible" className="hidden print:block mb-4">
+        <EncabezadoImprimible config={config} titulo="Usuarios del sistema" />
+        <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid #ccc" }}>
+              <th className="text-left py-1">Nombre</th>
+              <th className="text-left py-1">Rol</th>
+              <th className="text-left py-1">Apartados asignados</th>
+            </tr>
+          </thead>
+          <tbody>
+            {usuarios.map((u) => (
+              <tr key={u.id} style={{ borderBottom: "1px solid #eee" }}>
+                <td className="py-1">{u.nombre}</td>
+                <td className="py-1">{u.rol}</td>
+                <td className="py-1">{(u.permisos || []).map((p) => MODULOS_ASIGNABLES.find((m) => m.id === p)?.label || p).join(", ") || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <div className="bg-white border rounded-xl p-3 mb-4">
         <div className="flex flex-wrap gap-2 items-end mb-3">
           <Field label="Nombre" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} />
@@ -8399,7 +8558,7 @@ function UsuariosView({ usuarios, setUsuarios }) {
 /* ============================================================
    ADMINISTRACIÓN (Usuarios + Proveedores)
    ============================================================ */
-function ProveedoresView({ proveedores, setProveedores }) {
+function ProveedoresView({ proveedores, setProveedores, config }) {
   const [nuevo, setNuevo] = useState({ nombre: "", contacto: "", telefono: "", notas: "" });
 
   function agregar() {
@@ -8413,6 +8572,39 @@ function ProveedoresView({ proveedores, setProveedores }) {
 
   return (
     <div className="p-4">
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={() => imprimirElemento("proveedores-imprimible")}
+          disabled={proveedores.length === 0}
+          className="px-3 py-1.5 rounded-lg text-white text-sm flex items-center gap-1 disabled:opacity-40"
+          style={{ background: SKY_DARK }}
+        >
+          <Printer size={16} /> Imprimir proveedores
+        </button>
+      </div>
+      <div id="proveedores-imprimible" className="hidden print:block mb-4">
+        <EncabezadoImprimible config={config} titulo="Proveedores" />
+        <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid #ccc" }}>
+              <th className="text-left py-1">Nombre</th>
+              <th className="text-left py-1">Contacto</th>
+              <th className="text-left py-1">Teléfono</th>
+              <th className="text-left py-1">Notas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {proveedores.map((p) => (
+              <tr key={p.id} style={{ borderBottom: "1px solid #eee" }}>
+                <td className="py-1">{p.nombre}</td>
+                <td className="py-1">{p.contacto}</td>
+                <td className="py-1">{p.telefono}</td>
+                <td className="py-1">{p.notas}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <div className="bg-white border rounded-xl p-3 mb-4 flex flex-wrap gap-2 items-end">
         <Field label="Nombre del proveedor" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} />
         <Field label="Contacto" value={nuevo.contacto} onChange={(e) => setNuevo({ ...nuevo, contacto: e.target.value })} />
@@ -8540,9 +8732,10 @@ function NominasView({ nominas, setNominas, config, setConfig, dashboard }) {
           </div>
 
           <div id="reporte-nomina-imprimible" className="bg-white border rounded-xl overflow-hidden mb-4">
-            <p className="hidden print:block font-bold px-3 pt-3">
-              Reporte de nómina {semanaVer ? `— semana del ${new Date(semanaVer + "T00:00:00").toLocaleDateString("es-MX")}` : "(todas las semanas)"}
-            </p>
+            <EncabezadoImprimible
+              config={config}
+              titulo={`Reporte de nómina ${semanaVer ? `— semana del ${new Date(semanaVer + "T00:00:00").toLocaleDateString("es-MX")}` : "(todas las semanas)"}`}
+            />
             <table className="w-full text-sm">
               <thead style={{ background: BEIGE }}>
                 <tr>
@@ -8651,13 +8844,13 @@ function AdministracionView({ usuarios, setUsuarios, proveedores, setProveedores
         </button>
       </div>
       {tab === "usuarios" ? (
-        <UsuariosView usuarios={usuarios} setUsuarios={setUsuarios} />
+        <UsuariosView usuarios={usuarios} setUsuarios={setUsuarios} config={config} />
       ) : tab === "proveedores" ? (
-        <ProveedoresView proveedores={proveedores} setProveedores={setProveedores} />
+        <ProveedoresView proveedores={proveedores} setProveedores={setProveedores} config={config} />
       ) : tab === "asistencia" ? (
         <AsistenciaView asistencia={asistencia} setAsistencia={setAsistencia} usuarios={usuarios} config={config} nominas={nominas} setNominas={setNominas} />
       ) : tab === "comisiones" ? (
-        <ComisionesView dashboard={dashboard} setDashboard={setDashboard} ventas={ventas} pagosProveedores={pagosProveedores} nominas={nominas} />
+        <ComisionesView dashboard={dashboard} setDashboard={setDashboard} ventas={ventas} pagosProveedores={pagosProveedores} nominas={nominas} config={config} />
       ) : (
         <NominasView nominas={nominas} setNominas={setNominas} config={config} setConfig={setConfig} dashboard={dashboard} />
       )}
@@ -8792,9 +8985,7 @@ function AsistenciaView({ asistencia, setAsistencia, usuarios, config, nominas, 
       )}
 
       <div id="reporte-asistencia-semanal" className="bg-white border rounded-xl overflow-hidden mb-4">
-        <p className="hidden print:block font-bold px-3 pt-3">
-          Reporte de asistencia — semana del {inicio.toLocaleDateString("es-MX")} al {fin.toLocaleDateString("es-MX")}
-        </p>
+        <EncabezadoImprimible config={config} titulo={`Reporte de asistencia — semana del ${inicio.toLocaleDateString("es-MX")} al ${fin.toLocaleDateString("es-MX")}`} />
         <table className="w-full text-sm">
           <thead style={{ background: BEIGE }}>
             <tr>
@@ -12616,7 +12807,7 @@ function GraficaDonutBrutoNeto({ titulo, bruto, neto, meta, colorBruto = "#94a3b
   );
 }
 
-function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nominas }) {
+function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nominas, config }) {
   const metasPorMes = dashboard.metasPorMes || {};
   const historialManual = dashboard.historialManual || [];
   const [mesAnalisis, setMesAnalisis] = useState(mesISO(new Date()));
@@ -12682,6 +12873,7 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nomi
           setCargaManual={setCargaManual}
           guardarCargaManual={guardarCargaManual}
           eliminarCargaManual={eliminarCargaManual}
+          config={config}
         />
       ) : (
       <>
@@ -12698,7 +12890,7 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nomi
       </div>
 
       <div id="dashboard-mensual-imprimible" className="dashboard-print-compact space-y-6">
-      <p className="hidden print:block font-bold mb-1">Dashboard mensual — {mesAnalisis}</p>
+      <EncabezadoImprimible config={config} titulo={`Dashboard mensual — ${mesAnalisis}`} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white border rounded-xl p-4">
           <h3 className="font-semibold text-slate-700 mb-3">Meta mensual de la óptica</h3>
@@ -12814,7 +13006,7 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nomi
 }
 
 /* ---------- Comisiones (Optometristas y Vendedores) ---------- */
-function ComisionesView({ dashboard, setDashboard, ventas, pagosProveedores, nominas }) {
+function ComisionesView({ dashboard, setDashboard, ventas, pagosProveedores, nominas, config }) {
   const { optometristas, vendedores } = dashboard;
   const [nuevoOptoNombre, setNuevoOptoNombre] = useState("");
   const [nuevoVendNombre, setNuevoVendNombre] = useState("");
@@ -12914,10 +13106,71 @@ function ComisionesView({ dashboard, setDashboard, ventas, pagosProveedores, nom
           Mes a analizar:{" "}
           <input type="month" value={mesAnalisis} onChange={(e) => setMesAnalisis(e.target.value)} className="border rounded-lg px-2 py-1.5 text-sm" />
         </label>
+        <button
+          onClick={() => imprimirElemento("comisiones-imprimible")}
+          className="px-3 py-1.5 rounded-lg text-white text-sm flex items-center gap-1"
+          style={{ background: SKY_DARK }}
+        >
+          <Printer size={16} /> Imprimir
+        </button>
       </div>
       <p className="text-xs text-slate-400 mb-4">
         Estas comisiones (columna "Comisión ajustada") se suman al pago de nómina de cada empleado en la semana correspondiente — se ven reflejadas en Administración → Nóminas, bajo el concepto "Comisiones".
       </p>
+
+      <div id="comisiones-imprimible" className="hidden print:block mb-4">
+        <EncabezadoImprimible config={config} titulo={`Comisiones — ${mesAnalisis}`} />
+        <p className="font-semibold text-sm mb-1">Optometristas</p>
+        <table className="w-full text-xs mb-4" style={{ borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid #ccc" }}>
+              <th className="text-left py-1">Nombre</th>
+              <th className="text-left py-1">Efectividad</th>
+              <th className="text-left py-1">Comisión base</th>
+              <th className="text-left py-1">Comisión ajustada</th>
+            </tr>
+          </thead>
+          <tbody>
+            {optometristas.map((o) => {
+              const auto = montoPorOptometrista(o.nombre);
+              const c = calcOptometrista(o, pctMeta, auto.monto);
+              return (
+                <tr key={o.id} style={{ borderBottom: "1px solid #eee" }}>
+                  <td className="py-1">{o.nombre}</td>
+                  <td className="py-1">{c.efectividad.toFixed(1)}%</td>
+                  <td className="py-1">${c.comisionBase.toFixed(2)}</td>
+                  <td className="py-1">${c.comisionAjustada.toFixed(2)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <p className="font-semibold text-sm mb-1">Vendedores</p>
+        <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid #ccc" }}>
+              <th className="text-left py-1">Nombre</th>
+              <th className="text-left py-1">Efectividad</th>
+              <th className="text-left py-1">Comisión base</th>
+              <th className="text-left py-1">Comisión ajustada</th>
+            </tr>
+          </thead>
+          <tbody>
+            {vendedores.map((v) => {
+              const auto = ventasPorVendedor(v.nombre);
+              const c = calcVendedor(v, pctMeta, auto.monto, auto.cantidad);
+              return (
+                <tr key={v.id} style={{ borderBottom: "1px solid #eee" }}>
+                  <td className="py-1">{v.nombre}</td>
+                  <td className="py-1">{c.efectividad.toFixed(1)}%</td>
+                  <td className="py-1">${c.comisionBase.toFixed(2)}</td>
+                  <td className="py-1">${c.comisionAjustada.toFixed(2)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       <div className="bg-white border rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
@@ -13058,7 +13311,7 @@ function ComisionesView({ dashboard, setDashboard, ventas, pagosProveedores, nom
   );
 }
 
-function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, nominas, cargaManual, setCargaManual, guardarCargaManual, eliminarCargaManual }) {
+function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, nominas, cargaManual, setCargaManual, guardarCargaManual, eliminarCargaManual, config }) {
   const historialManual = dashboard.historialManual || [];
   const nombresMes = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
@@ -13097,7 +13350,7 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, no
       </div>
 
       <div id="dashboard-anual-imprimible" className="dashboard-print-compact space-y-4">
-      <p className="hidden print:block font-bold mb-1">Dashboard anual — {anio}</p>
+      <EncabezadoImprimible config={config} titulo={`Dashboard anual — ${anio}`} />
       <div className="flex gap-3 overflow-x-auto pb-1">
         <TotalBox titulo="Meta anual" monto={totalAnioMeta} color="#111827" />
         <TotalBox titulo="Vendido anual" monto={totalAnioVendido} color="#0f766e" subtitulo={`${pctAnio.toFixed(1)}% de la meta`} />
@@ -13414,6 +13667,7 @@ export default function App() {
             setPacientes={setPacientes}
             laboratorio={laboratorio}
             setLaboratorio={setLaboratorio}
+            config={config}
             goToPOS={(id) => {
               setPresetPacienteId(id);
               setSeccion("pos");
@@ -13472,7 +13726,7 @@ export default function App() {
           />
         )}
         {seccion === "paqueteria" && <PaqueteriaView config={config} setConfig={setConfig} />}
-        {seccion === "facturacion" && <FacturacionView facturas={facturas} setFacturas={setFacturas} ventas={ventas} pacientes={pacientes} />}
+        {seccion === "facturacion" && <FacturacionView facturas={facturas} setFacturas={setFacturas} ventas={ventas} pacientes={pacientes} config={config} />}
         {seccion === "reportes" && (
           <ReportesView
             ventas={ventas}
@@ -13488,6 +13742,7 @@ export default function App() {
             usuarios={usuarios}
             nominas={nominas}
             dashboard={dashboard}
+            config={config}
             sesion={sesion}
           />
         )}
@@ -13497,7 +13752,7 @@ export default function App() {
         {seccion === "importar" && (
           <ImportarView pacientes={pacientes} setPacientes={setPacientes} inventario={inventario} setInventario={setInventario} config={config} setConfig={setConfig} />
         )}
-        {seccion === "dashboard" && <DashboardView dashboard={dashboard} setDashboard={setDashboard} ventas={ventas} pagosProveedores={pagosProveedores} nominas={nominas} />}
+        {seccion === "dashboard" && <DashboardView dashboard={dashboard} setDashboard={setDashboard} ventas={ventas} pagosProveedores={pagosProveedores} nominas={nominas} config={config} />}
         {seccion === "config" && (
           <ConfigView
             config={config}
