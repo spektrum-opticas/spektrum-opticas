@@ -727,7 +727,7 @@ function GlobalPrintStyles() {
           width: auto !important;
         }
         .resumen-anual-grid {
-          grid-template-columns: repeat(3, 1fr) !important;
+          grid-template-columns: repeat(4, 1fr) !important;
         }
         @page {
           size: auto;
@@ -12834,6 +12834,10 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nomi
 
   const ventasDelMes = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && v.fecha && v.fecha.slice(0, 7) === mesAnalisis);
 
+  // Saldo pendiente de las ventas HECHAS este mes (a la fecha de hoy) — no de todo el histórico.
+  const notasConSaldoMesDashboard = ventasDelMes.filter((v) => Number(v.saldo || 0) > 0);
+  const totalSaldoPendienteMesDashboard = notasConSaldoMesDashboard.reduce((s, v) => s + Number(v.saldo || 0), 0);
+
   function actualizarMetaMes(valor) {
     setDashboard({ ...dashboard, metasPorMes: { ...metasPorMes, [mesAnalisis]: valor } });
   }
@@ -12986,6 +12990,14 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nomi
               💼 Nómina pagada este mes (detalle completo en Administración → Nóminas)
             </p>
             <p className="text-lg font-bold text-violet-700">-${datosMes.nomina.toFixed(2)} MXN</p>
+          </div>
+        )}
+        {totalSaldoPendienteMesDashboard > 0 && (
+          <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center justify-between flex-wrap gap-2">
+            <p className="text-sm text-amber-700 font-medium">
+              🕓 Saldo pendiente de ventas de este mes ({notasConSaldoMesDashboard.length} nota(s))
+            </p>
+            <p className="text-lg font-bold text-amber-700">${totalSaldoPendienteMesDashboard.toFixed(2)} MXN</p>
           </div>
         )}
       </div>
@@ -13337,6 +13349,17 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, no
   const proyectadoAnual = promedioMensual * 12;
   const pctProyectadoAnual = totalAnioMeta > 0 ? (proyectadoAnual / totalAnioMeta) * 100 : 0;
 
+  // Saldo pendiente real, a la fecha de hoy, de todas las notas activas (no canceladas) —
+  // el mismo número que ya se ve en Corte Diario/Mensual/Anual.
+  const notasConSaldoAnual = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && Number(v.saldo || 0) > 0);
+  const totalSaldoPendienteAnual = notasConSaldoAnual.reduce((s, v) => s + Number(v.saldo || 0), 0);
+
+  // La diferencia entre lo vendido y lo cobrado del año debería explicarse, casi por completo,
+  // con el saldo que todavía se debe cobrar. Si sobra o falta una cantidad grande aquí, es un
+  // descuadre real que hay que investigar (no solo saldo pendiente normal).
+  const diferenciaVendidoCobrado = totalAnioVendido - totalAnioCobrado;
+  const diferenciaSinExplicar = diferenciaVendidoCobrado - totalSaldoPendienteAnual;
+
   return (
     <div className="space-y-4">
       <div className="bg-white border rounded-xl p-4 flex items-center gap-2 flex-wrap">
@@ -13354,14 +13377,25 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, no
 
       <div id="dashboard-anual-imprimible" className="dashboard-print-compact space-y-4">
       <EncabezadoImprimible config={config} titulo={`Dashboard anual — ${anio}`} />
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 resumen-anual-grid">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 resumen-anual-grid">
         <TotalBox titulo="Meta anual" monto={totalAnioMeta} color="#111827" />
         <TotalBox titulo="Vendido anual" monto={totalAnioVendido} color="#0f766e" subtitulo={`${pctAnio.toFixed(1)}% de la meta`} />
         <TotalBox titulo="Cobrado anual" monto={totalAnioCobrado} color="#059669" />
+        <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendienteAnual} color="#dc2626" subtitulo={`${notasConSaldoAnual.length} nota(s) por cobrar`} />
         <TotalBox titulo="Pago a proveedores anual" monto={totalAnioGastos} color="#7c3aed" />
         <TotalBox titulo="Debe haber en caja" monto={debeHaberCajaAnual} color={debeHaberCajaAnual >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado anual − pago a proveedores" />
         <TotalBox titulo="Promedio mensual" monto={promedioMensual} color="#7c3aed" subtitulo={`${mesesConDatos.length} mes(es) con datos`} />
+        <TotalBox
+          titulo="Diferencia sin explicar"
+          monto={diferenciaSinExplicar}
+          color={Math.abs(diferenciaSinExplicar) < 1 ? "#0d9488" : "#dc2626"}
+          subtitulo={Math.abs(diferenciaSinExplicar) < 1 ? "Cuadra ✓ — la diferencia es saldo pendiente" : "⚠️ No cuadra con el saldo pendiente — revisar"}
+        />
       </div>
+      <p className="text-xs text-slate-400">
+        (Vendido − Cobrado = ${diferenciaVendidoCobrado.toFixed(2)}) − (Saldo pendiente real = ${totalSaldoPendienteAnual.toFixed(2)}) = ${diferenciaSinExplicar.toFixed(2)} sin explicar.
+        Si ese último número es cercano a $0, toda la diferencia es dinero que aún se debe cobrar. Si es grande, hay un descuadre real que hay que investigar folio por folio.
+      </p>
 
       <div className="bg-white border rounded-xl p-4">
         <h3 className="font-semibold text-slate-700 mb-4">Resumen ejecutivo</h3>
