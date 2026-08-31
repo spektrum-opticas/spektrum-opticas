@@ -9529,6 +9529,33 @@ function ContadorPromocion({ fechaFin }) {
   );
 }
 
+// Versión para la tienda en línea — cuenta regresiva en vivo de lo que le queda a la
+// promoción vigente, para generar urgencia en el cliente. Si ya venció, no muestra nada
+// (la promo ya se bajó sola de todas formas).
+function ContadorPromocionTienda({ fechaFin }) {
+  const [ahora, setAhora] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setAhora(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (!fechaFin) return null;
+  const objetivo = new Date(fechaFin + "T23:59:59").getTime();
+  const restante = objetivo - ahora;
+  if (restante <= 0) return null;
+
+  const dias = Math.floor(restante / (1000 * 60 * 60 * 24));
+  const horas = Math.floor((restante / (1000 * 60 * 60)) % 24);
+  const mins = Math.floor((restante / (1000 * 60)) % 60);
+  const segs = Math.floor((restante / 1000) % 60);
+
+  return (
+    <p className="text-xs font-medium text-red-600 mb-3">
+      ⏱️ Termina en: {dias}d {String(horas).padStart(2, "0")}:{String(mins).padStart(2, "0")}:{String(segs).padStart(2, "0")}
+    </p>
+  );
+}
+
 function ConfigView({ config, setConfig, respaldoCompleto, restaurarRespaldo }) {
   const [local, setLocal] = useState(config);
   const fileRef = useRef(null);
@@ -10531,6 +10558,7 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
             </>
           )}
           <p className="font-serif font-semibold mb-4 text-3xl leading-tight whitespace-pre-line">{config?.eslogan || "Mi mirada. Mi estilo"}</p>
+          {promoVigente && <ContadorPromocionTienda fechaFin={promo.fechaFin} />}
           <div className="flex flex-col gap-2 max-w-[220px] mx-auto">
             <button onClick={onAgendar} className="px-5 py-2.5 rounded-full bg-white border border-black text-sm font-medium">Agendar examen</button>
             <button onClick={() => onIrCategoria("armazones")} className="px-5 py-2.5 rounded-full bg-black text-white text-sm font-medium">¡Yo quiero!</button>
@@ -10572,6 +10600,7 @@ function TiendaInicio({ config, inventario, onIrCategoria, onAgendar, onVerProdu
           <p className="font-serif font-semibold text-left whitespace-pre-line" style={{ fontSize: "clamp(30px, 4vw, 50px)", lineHeight: 1.15 }}>
             {config?.eslogan || "Mi mirada. Mi estilo"}
           </p>
+          {promoVigente && <ContadorPromocionTienda fechaFin={promo.fechaFin} />}
         </div>
         <div className="absolute -translate-x-1/2 left-[80%] bottom-10 max-w-xs md:max-w-sm px-4">
           <div className="flex flex-col gap-4 max-w-[264px]">
