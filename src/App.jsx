@@ -4858,6 +4858,14 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
   const [fechaImprimir, setFechaImprimir] = useState(fechaISO(new Date()));
   const [confirmandoEliminarDefinitivoId, setConfirmandoEliminarDefinitivoId] = useState(null);
   const ordenesEliminadas = laboratorio.filter((o) => o.eliminada);
+
+  const noEntregadasOrdenadas = laboratorio
+    .filter((o) => !o.eliminada && !o.fechaEntrega)
+    .sort((a, b) => (b.fechaVenta || "").localeCompare(a.fechaVenta || ""));
+  const entregadasOrdenadas = laboratorio
+    .filter((o) => !o.eliminada && o.fechaEntrega)
+    .sort((a, b) => (b.fechaVenta || "").localeCompare(a.fechaVenta || ""));
+  const ordenesLabOrdenadas = [...noEntregadasOrdenadas, ...entregadasOrdenadas];
   const [nueva, setNueva] = useState({
     pacienteId: "",
     od: null,
@@ -5101,9 +5109,10 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
         </div>
       )}
 
-      <div className="bg-white border rounded-xl overflow-hidden overflow-x-auto">
+      <div className="bg-white border rounded-xl overflow-hidden">
+        <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: "70vh" }}>
         <table className="w-full text-sm">
-          <thead style={{ background: BEIGE }}>
+          <thead style={{ background: BEIGE, position: "sticky", top: 0, zIndex: 10 }}>
             <tr>
               <th className="text-left px-3 py-2">Folio</th>
               <th className="text-left px-3 py-2">Paciente</th>
@@ -5118,7 +5127,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
             </tr>
           </thead>
           <tbody>
-            {laboratorio.filter((o) => !o.eliminada).map((o) => {
+            {ordenesLabOrdenadas.map((o) => {
               const bloqueada = !!o.fechaRecepcion;
               return (
               <tr key={o.id} className={`border-t align-top ${o.cancelada ? "opacity-50" : ""}`}>
@@ -5176,13 +5185,14 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
               </tr>
               );
             })}
-            {laboratorio.length === 0 && (
+            {ordenesLabOrdenadas.length === 0 && (
               <tr>
                 <td colSpan={9} className="text-center text-slate-400 py-6">Sin órdenes de laboratorio todavía.</td>
               </tr>
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Plantillas imprimibles de orden de laboratorio (ocultas en pantalla) */}
