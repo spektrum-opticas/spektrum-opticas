@@ -377,6 +377,22 @@ function mensajeCitaConfirmada(nombre, fecha, hora, consultorio, urlSitio) {
   };
 }
 
+function mensajeCitaReprogramada(nombre, fecha, horaAnterior, horaNueva, consultorio) {
+  return {
+    email: {
+      asunto: `Tu cita en ${NOMBRE_OPTICA} cambió de horario`,
+      cuerpoHtml:
+        `<p>Hola, ${nombre}:</p>` +
+        `<p>Tu cita del ${fecha} cambió de horario:</p>` +
+        `<p>⏰ Antes: ${horaAnterior || "—"}<br>⏰ Ahora: <b>${horaNueva}</b><br>📍 ${consultorio}</p>` +
+        `<p>Si tienes alguna duda, contáctanos.</p>` +
+        `<p>El equipo de ${NOMBRE_OPTICA}</p>`,
+    },
+    whatsapp:
+      `¡Hola, ${nombre}! 👋 Tu cita del ${fecha} en ${NOMBRE_OPTICA} cambió de horario: ahora es a las ${horaNueva} (antes ${horaAnterior || "—"}), en ${consultorio}. ¡Te esperamos! 🤓`,
+  };
+}
+
 async function generarPDFNota(nota, config) {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF();
@@ -587,8 +603,13 @@ async function enviarCorreoAutomatico(email, asunto, cuerpoHtml) {
       },
       body: JSON.stringify({ email, asunto, cuerpoHtml }),
     });
+    if (!resp.ok) {
+      const detalle = await resp.text().catch(() => "");
+      console.error(`No se pudo enviar el correo a ${email}. Respuesta del servidor:`, detalle);
+    }
     return resp.ok;
-  } catch {
+  } catch (e) {
+    console.error(`No se pudo enviar el correo a ${email} — la función de Supabase no respondió:`, e);
     return false;
   }
 }
@@ -1184,10 +1205,19 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS, labor
   }
 
   function moverCita(id, consultorio, hora) {
+    const citaAntes = agenda.find((c) => c.id === id);
+    const horaCambio = !!(citaAntes && hora && citaAntes.hora !== hora);
     const next = agenda.map((c) =>
       c.id === id ? { ...c, consultorio, hora: hora || c.hora, fecha: consultorio === "reasignar" ? c.fecha : fecha } : c
     );
     setAgenda(next);
+    if (horaCambio) {
+      const paciente = pacientes.find((p) => p.id === citaAntes.pacienteId);
+      if (paciente?.mail) {
+        const msj = mensajeCitaReprogramada(paciente.nombre || citaAntes.nombre, fecha, citaAntes.hora, hora, consultorio);
+        enviarCorreoAutomatico(paciente.mail, msj.email.asunto, msj.email.cuerpoHtml);
+      }
+    }
   }
 
   function cambiarEstatus(id, estatus) {
