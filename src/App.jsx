@@ -464,6 +464,12 @@ function mensajeAgradecimiento(nombre) {
         `Nuestro equipo ya está trabajando en tu orden con los más altos estándares de calidad. En un próximo mensaje te avisaremos en cuanto tus lentes estén listos para entrega.\n\n` +
         `Si tienes alguna duda con tu pedido, responde a este correo o escríbenos por WhatsApp.\n\n` +
         `Atentamente,\nEl equipo de ${NOMBRE_OPTICA}`,
+      cuerpoHtml:
+        `<p>Hola, ${nombre}:</p>` +
+        `<p>Queremos agradecerte sinceramente por elegirnos para el cuidado de tus ojos y por tu reciente compra de lentes. Nos entusiasma mucho ayudarte a ver el mundo con total claridad.</p>` +
+        `<p>Nuestro equipo ya está trabajando en tu orden con los más altos estándares de calidad. En un próximo mensaje te avisaremos en cuanto tus lentes estén listos para entrega.</p>` +
+        `<p>Si tienes alguna duda con tu pedido, responde a este correo o escríbenos por WhatsApp.</p>` +
+        `<p>Atentamente,<br>El equipo de ${NOMBRE_OPTICA}</p>`,
     },
     whatsapp:
       `¡Hola, ${nombre}! 👋 Gracias por tu compra en ${NOMBRE_OPTICA}. Nos hace muy felices cuidar de tu salud visual y saber que pronto estrenarás lentes. 🤓 ` +
@@ -481,6 +487,13 @@ function mensajeListos(nombre, direccion, horario) {
         `Puedes pasar por ellos a nuestra sucursal en el siguiente horario:\n📍 Dirección: ${direccion || "—"}\n⏰ Horario: ${horario || "nuestro horario de atención"}\n\n` +
         `Nota: Recuerda que al entregártelos realizaremos un ajuste personalizado para que te queden perfectos y cómodos.\n\n` +
         `¡Te esperamos pronto!\nEl equipo de ${NOMBRE_OPTICA}`,
+      cuerpoHtml:
+        `<p>Hola, ${nombre}:</p>` +
+        `<p>Te informamos que tus nuevos lentes han pasado todas nuestras pruebas de calidad y ¡ya están listos para ti!</p>` +
+        `<p>Puedes pasar por ellos a nuestra sucursal en el siguiente horario:</p>` +
+        `<p>📍 Dirección: ${direccion || "—"}<br>⏰ Horario: ${horario || "nuestro horario de atención"}</p>` +
+        `<p>Nota: Recuerda que al entregártelos realizaremos un ajuste personalizado para que te queden perfectos y cómodos.</p>` +
+        `<p>¡Te esperamos pronto!<br>El equipo de ${NOMBRE_OPTICA}</p>`,
     },
     whatsapp:
       `¡Hola, ${nombre}! 🎉 ¡Buenas noticias! Tus lentes ya están listos en ${NOMBRE_OPTICA}. ` +
@@ -498,6 +511,10 @@ function mensajeBienvenida(nombre) {
         `¡Tu cuenta en ${NOMBRE_OPTICA} quedó creada con éxito! Con ella puedes agendar tu examen de la vista, ` +
         `comprar armazones, lentes graduados, de contacto y solares, y llevar el seguimiento de tus pedidos.\n\n` +
         `Nos da mucho gusto tenerte con nosotros.\nEl equipo de ${NOMBRE_OPTICA}`,
+      cuerpoHtml:
+        `<p>Hola, ${nombre}:</p>` +
+        `<p>¡Tu cuenta en ${NOMBRE_OPTICA} quedó creada con éxito! Con ella puedes agendar tu examen de la vista, comprar armazones, lentes graduados, de contacto y solares, y llevar el seguimiento de tus pedidos.</p>` +
+        `<p>Nos da mucho gusto tenerte con nosotros.<br>El equipo de ${NOMBRE_OPTICA}</p>`,
     },
     whatsapp:
       `¡Hola, ${nombre}! 👋 Tu cuenta en ${NOMBRE_OPTICA} quedó creada con éxito. ` +
@@ -1467,10 +1484,22 @@ function NuevaCitaForm({ pacientes, setPacientes, onCrear }) {
   const [busqueda, setBusqueda] = useState("");
   const [pacienteId, setPacienteId] = useState(null);
   const [nombre, setNombre] = useState("");
+  const [avisoWhatsAppActivacion, setAvisoWhatsAppActivacion] = useState(null);
 
   const resultados = busqueda
     ? pacientes.filter((p) => p.nombre.toLowerCase().includes(busqueda.toLowerCase()))
     : [];
+
+  const pacienteSeleccionado = pacienteId ? pacientes.find((p) => p.id === pacienteId) : null;
+
+  function activarCuenta() {
+    if (!pacienteSeleccionado) return;
+    setPacientes(pacientes.map((p) => (p.id === pacienteSeleccionado.id ? { ...p, cuentaActiva: true } : p)));
+    const msj = mensajeBienvenida(pacienteSeleccionado.nombre);
+    if (pacienteSeleccionado.mail) enviarCorreoAutomatico(pacienteSeleccionado.mail, msj.email.asunto, msj.email.cuerpoHtml);
+    if (pacienteSeleccionado.telefono) setAvisoWhatsAppActivacion({ telefono: pacienteSeleccionado.telefono, mensaje: msj.whatsapp });
+    mostrarToast("Cuenta activada ✓");
+  }
 
   return (
     <div>
@@ -1502,6 +1531,34 @@ function NuevaCitaForm({ pacientes, setPacientes, onCrear }) {
           ))}
         </div>
       )}
+
+      {pacienteSeleccionado && !pacienteSeleccionado.cuentaActiva && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+          <p className="text-xs text-amber-700 mb-2">
+            Este paciente todavía no tiene una cuenta activa en el sistema — está enlazado a su expediente ya guardado. Actívala y avísale.
+          </p>
+          <button onClick={activarCuenta} className="text-xs px-3 py-1.5 rounded-lg text-white" style={{ background: SKY_DARK }}>
+            Activar cuenta
+          </button>
+        </div>
+      )}
+
+      {avisoWhatsAppActivacion && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mb-3">
+          <p className="text-xs text-emerald-700 mb-2">Cuenta activada — ya se le mandó el correo. ¿Avisarle también por WhatsApp?</p>
+          <button
+            onClick={() => {
+              abrirWhatsApp(avisoWhatsAppActivacion.telefono, avisoWhatsAppActivacion.mensaje);
+              setAvisoWhatsAppActivacion(null);
+            }}
+            className="text-xs px-3 py-1.5 rounded-lg text-white"
+            style={{ background: "#25D366" }}
+          >
+            Abrir WhatsApp
+          </button>
+        </div>
+      )}
+
       <button
         onClick={() => {
           let pid = pacienteId;
@@ -1974,7 +2031,7 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
       const nombreParaMensaje = clienteSel?.nombre || nota.nombreCliente;
       const msj = mensajeAgradecimiento(nombreParaMensaje);
       generarPDFNota(nota, config);
-      if (clienteSel?.mail) abrirEmail(clienteSel.mail, msj.email.asunto, msj.email.cuerpo + "\n\n(Adjunta el PDF de tu nota que se acaba de descargar.)");
+      if (clienteSel?.mail) enviarCorreoAutomatico(clienteSel.mail, msj.email.asunto, msj.email.cuerpoHtml);
     }
     setPreview(nota);
     setCarrito([]);
@@ -4460,6 +4517,7 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laborat
     material: "", descripcion: "", armazon: "",
   });
   const [agendandoCita, setAgendandoCita] = useState(false);
+  const [avisoWhatsAppActivacionExp, setAvisoWhatsAppActivacionExp] = useState(null);
   const [subiendoReceta, setSubiendoReceta] = useState(false);
   const [editandoVisitaId, setEditandoVisitaId] = useState(null);
   const [recetaEdit, setRecetaEdit] = useState(null);
@@ -4835,6 +4893,9 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laborat
                 const actualizado = { ...datos, cuentaActiva: true };
                 setDatos(actualizado);
                 setPacientes(pacientes.map((p) => (p.id === paciente.id ? { ...p, ...actualizado } : p)));
+                const msj = mensajeBienvenida(actualizado.nombre);
+                if (actualizado.mail) enviarCorreoAutomatico(actualizado.mail, msj.email.asunto, msj.email.cuerpoHtml);
+                if (actualizado.telefono) setAvisoWhatsAppActivacionExp({ telefono: actualizado.telefono, mensaje: msj.whatsapp });
                 mostrarToast("Cuenta activada ✓");
               }}
               className="px-4 py-2 rounded-lg text-white text-sm font-medium"
@@ -4842,6 +4903,21 @@ function ExpedientePacienteCompleto({ paciente, pacientes, setPacientes, laborat
             >
               Crear cuenta
             </button>
+            {avisoWhatsAppActivacionExp && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mt-3 text-left">
+                <p className="text-xs text-emerald-700 mb-2">Cuenta activada — ya se le mandó el correo. ¿Avisarle también por WhatsApp?</p>
+                <button
+                  onClick={() => {
+                    abrirWhatsApp(avisoWhatsAppActivacionExp.telefono, avisoWhatsAppActivacionExp.mensaje);
+                    setAvisoWhatsAppActivacionExp(null);
+                  }}
+                  className="text-xs px-3 py-1.5 rounded-lg text-white"
+                  style={{ background: "#25D366" }}
+                >
+                  Abrir WhatsApp
+                </button>
+              </div>
+            )}
           </div>
         ) : (
         <>
@@ -4964,6 +5040,7 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
   const [verExpediente, setVerExpediente] = useState(null);
   const [fechaImprimir, setFechaImprimir] = useState(fechaISO(new Date()));
   const [confirmandoEliminarDefinitivoId, setConfirmandoEliminarDefinitivoId] = useState(null);
+  const [avisoWhatsAppManual, setAvisoWhatsAppManual] = useState(null);
   const ordenesEliminadas = laboratorio.filter((o) => o.eliminada);
 
   const noEntregadasOrdenadas = laboratorio
@@ -5066,8 +5143,8 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
     const paciente = pacientes.find((p) => p.id === o.pacienteId);
     const nombre = o.nombreCliente || paciente?.nombre || "cliente";
     const msj = mensajeListos(nombre, config?.direccion, config?.horario);
-    if (paciente?.telefono) abrirWhatsApp(paciente.telefono, msj.whatsapp);
-    if (paciente?.mail) abrirEmail(paciente.mail, msj.email.asunto, msj.email.cuerpo);
+    if (paciente?.mail) enviarCorreoAutomatico(paciente.mail, msj.email.asunto, msj.email.cuerpoHtml);
+    if (paciente?.telefono) setAvisoWhatsAppManual({ telefono: paciente.telefono, mensaje: msj.whatsapp, nombre });
     if (!paciente?.telefono && !paciente?.mail) {
       alert("Se marcó como recibido, pero este paciente no tiene teléfono ni correo guardado para avisarle.");
     }
@@ -5414,6 +5491,26 @@ function LaboratorioView({ laboratorio, setLaboratorio, pacientes, setPacientes,
             />
           );
         })()}
+      </Modal>
+
+      <Modal open={!!avisoWhatsAppManual} onClose={() => setAvisoWhatsAppManual(null)} title="Avisar por WhatsApp">
+        {avisoWhatsAppManual && (
+          <div className="text-center py-2">
+            <p className="text-sm text-slate-600 mb-4">
+              {avisoWhatsAppManual.nombre} ya tiene su correo de "listo para recoger" enviado. Si quieres avisarle también por WhatsApp, dale clic abajo.
+            </p>
+            <button
+              onClick={() => {
+                abrirWhatsApp(avisoWhatsAppManual.telefono, avisoWhatsAppManual.mensaje);
+                setAvisoWhatsAppManual(null);
+              }}
+              className="px-6 py-2 rounded-lg text-white text-sm font-medium"
+              style={{ background: "#25D366" }}
+            >
+              Abrir WhatsApp
+            </button>
+          </div>
+        )}
       </Modal>
     </div>
   );
@@ -10182,6 +10279,7 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
     };
     setPacientes([...pacientes, paciente]);
     const msj = mensajeBienvenida(paciente.nombre);
+    if (mail) enviarCorreoAutomatico(mail, msj.email.asunto, msj.email.cuerpoHtml);
     if (telefono) abrirWhatsApp(telefono, msj.whatsapp);
     onLoginCliente({ nombre: paciente.nombre, telefono: paciente.telefono, mail: paciente.mail, pacienteId: paciente.id });
     cerrar();
@@ -10233,7 +10331,7 @@ function AccesoDrawer({ open, onClose, pasoInicial, usuarios, setUsuarios, onLog
     }
     if (esNuevo) {
       const msj = mensajeBienvenida(paciente.nombre);
-      abrirEmail(paciente.mail, msj.email.asunto, msj.email.cuerpo);
+      if (paciente.mail) enviarCorreoAutomatico(paciente.mail, msj.email.asunto, msj.email.cuerpoHtml);
     }
     onLoginCliente({ nombre: paciente.nombre, telefono: paciente.telefono, mail: paciente.mail, pacienteId: paciente.id });
     cerrar();
