@@ -2265,6 +2265,7 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
             <option value="efectivo">Efectivo</option>
             <option value="tarjeta_credito">Tarjeta de crédito</option>
             <option value="tarjeta_debito">Tarjeta de débito</option>
+            <option value="clip">Clip (terminal/app)</option>
             <option value="transferencia">Transferencia</option>
           </select>
           <label className="text-xs text-slate-500">Abono ($ MXN)</label>
@@ -2552,6 +2553,7 @@ function POSView({ pacientes, setPacientes, inventario, setInventario, ventas, s
                 <select value={formaPagoCobroFolio} onChange={(e) => setFormaPagoCobroFolio(e.target.value)} className="mt-1 w-full border rounded-lg px-2 py-2 text-sm">
                   <option value="efectivo">Efectivo</option>
                   <option value="tarjeta">Tarjeta</option>
+                  <option value="clip">Clip (terminal/app)</option>
                   <option value="transferencia">Transferencia</option>
                 </select>
               </label>
@@ -5483,6 +5485,7 @@ function ModalCobro({ venta, config, pacientes, modoAbono, onCerrar, onRegistrar
                   <option>Efectivo</option>
                   <option>Tarjeta de débito</option>
                   <option>Tarjeta de crédito</option>
+                  <option>Clip (terminal/app)</option>
                   <option>Transferencia</option>
                   <option>Otro</option>
                 </select>
@@ -7204,6 +7207,7 @@ function CorteDiario({ ventas, setVentas, pacientes, pagosProveedores, setPagosP
               <option value="efectivo">Efectivo</option>
               <option value="tarjeta_credito">Tarjeta de crédito</option>
               <option value="tarjeta_debito">Tarjeta de débito</option>
+              <option value="clip">Clip (terminal/app)</option>
               <option value="transferencia">Transferencia</option>
             </select>
           </label>
@@ -8353,6 +8357,7 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
                     <option>Efectivo</option>
                     <option>Tarjeta de débito</option>
                     <option>Tarjeta de crédito</option>
+                    <option>Clip (terminal/app)</option>
                     <option>Transferencia</option>
                   </select>
                 </label>
@@ -12217,6 +12222,7 @@ function TiendaCheckout({ open, onClose, carrito, sesionCliente, config, onAbrir
               <select value={formaPagoEntrega} onChange={(e) => setFormaPagoEntrega(e.target.value)} className="w-full border rounded-lg px-2 py-2 text-sm">
                 <option value="efectivo">Efectivo al recoger</option>
                 <option value="tarjeta">Tarjeta al recoger</option>
+                <option value="clip">Clip (terminal) al recoger</option>
               </select>
             )}
 
