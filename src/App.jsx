@@ -13644,7 +13644,8 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, no
             valorCentro={`${(totalAnioVendido > 0 ? (Math.min(totalAnioCobrado, totalAnioVendido) / totalAnioVendido) * 100 : 0).toFixed(0)}%`}
             segmentos={[
               { valor: Math.min(totalAnioCobrado, totalAnioVendido), color: "#059669", label: "Cobrado", textoValor: `$${Math.min(totalAnioCobrado, totalAnioVendido).toFixed(2)}` },
-              { valor: Math.max(0, totalAnioVendido - totalAnioCobrado), color: "#fca5a5", label: "Por cobrar", textoValor: `$${Math.max(0, totalAnioVendido - totalAnioCobrado).toFixed(2)}` },
+              { valor: totalSaldoPendienteAnual, color: "#fca5a5", label: "Por cobrar (saldo real)", textoValor: `$${totalSaldoPendienteAnual.toFixed(2)}` },
+              { valor: totalAjustesManualesAnio, color: "#fbbf24", label: "Ajustado / condonado", textoValor: `$${totalAjustesManualesAnio.toFixed(2)}` },
             ]}
           />
           <GraficaDonut
