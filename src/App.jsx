@@ -13572,6 +13572,12 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, no
   const proyectadoAnual = promedioMensual * 12;
   const pctProyectadoAnual = totalAnioMeta > 0 ? (proyectadoAnual / totalAnioMeta) * 100 : 0;
 
+  // Lo mismo, pero del lado de la cobranza — puede quedar distinto si la cobranza va rezagada
+  // respecto de la venta (por ejemplo, ventas a crédito que se cobran después).
+  const promedioMensualCobrado = mesesConDatos.length > 0 ? totalAnioCobrado / mesesConDatos.length : 0;
+  const proyectadoAnualCobrado = promedioMensualCobrado * 12;
+  const pctProyectadoCobradoAnual = totalAnioMeta > 0 ? (proyectadoAnualCobrado / totalAnioMeta) * 100 : 0;
+
   // Saldo pendiente real, a la fecha de hoy, de todas las notas activas (no canceladas) —
   // el mismo número que ya se ve en Corte Diario/Mensual/Anual.
   const notasConSaldoAnual = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && Number(v.saldo || 0) > 0);
@@ -13615,7 +13621,8 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, no
         <TotalBox titulo="Saldo pendiente" monto={totalSaldoPendienteAnual} color="#dc2626" subtitulo={`${notasConSaldoAnual.length} nota(s) por cobrar`} />
         <TotalBox titulo="Pago a proveedores anual" monto={totalAnioGastos} color="#7c3aed" />
         <TotalBox titulo="Debe haber en caja" monto={debeHaberCajaAnual} color={debeHaberCajaAnual >= 0 ? "#0d9488" : "#dc2626"} subtitulo="Cobrado anual − pago a proveedores" />
-        <TotalBox titulo="Promedio mensual" monto={promedioMensual} color="#7c3aed" subtitulo={`${mesesConDatos.length} mes(es) con datos`} />
+        <TotalBox titulo="Promedio mensual (ventas)" monto={promedioMensual} color="#7c3aed" subtitulo={`${mesesConDatos.length} mes(es) con datos`} />
+        <TotalBox titulo="Promedio mensual (cobranza)" monto={promedioMensualCobrado} color="#0891b2" subtitulo={`${mesesConDatos.length} mes(es) con datos`} />
         <TotalBox
           titulo="Diferencia sin explicar"
           monto={diferenciaSinExplicar}
@@ -13630,7 +13637,7 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, no
 
       <div className="bg-white border rounded-xl p-4">
         <h3 className="font-semibold text-slate-700 mb-4">Resumen ejecutivo</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 justify-items-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 justify-items-center">
           <GraficaDonut
             tituloCentro="de la meta anual"
             valorCentro={`${Math.min(999, pctAnio).toFixed(0)}%`}
@@ -13649,16 +13656,24 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, no
             ]}
           />
           <GraficaDonut
-            tituloCentro="proyectado de la meta"
+            tituloCentro="proyectado ventas de la meta"
             valorCentro={`${Math.min(999, pctProyectadoAnual).toFixed(0)}%`}
             segmentos={[
-              { valor: Math.min(proyectadoAnual, totalAnioMeta), color: "#f59e0b", label: "Proyectado", textoValor: `$${proyectadoAnual.toFixed(2)}` },
+              { valor: Math.min(proyectadoAnual, totalAnioMeta), color: "#f59e0b", label: "Proyectado (ventas)", textoValor: `$${proyectadoAnual.toFixed(2)}` },
               { valor: Math.max(0, totalAnioMeta - proyectadoAnual), color: "#e5e7eb", label: "Falta para la meta", textoValor: `$${Math.max(0, totalAnioMeta - proyectadoAnual).toFixed(2)}` },
+            ]}
+          />
+          <GraficaDonut
+            tituloCentro="proyectado cobranza de la meta"
+            valorCentro={`${Math.min(999, pctProyectadoCobradoAnual).toFixed(0)}%`}
+            segmentos={[
+              { valor: Math.min(proyectadoAnualCobrado, totalAnioMeta), color: "#0891b2", label: "Proyectado (cobranza)", textoValor: `$${proyectadoAnualCobrado.toFixed(2)}` },
+              { valor: Math.max(0, totalAnioMeta - proyectadoAnualCobrado), color: "#e5e7eb", label: "Falta para la meta", textoValor: `$${Math.max(0, totalAnioMeta - proyectadoAnualCobrado).toFixed(2)}` },
             ]}
           />
         </div>
         <p className="text-xs text-slate-400 mt-3">
-          El proyectado anual se calcula extendiendo el promedio mensual real (${promedioMensual.toFixed(2)}) a los 12 meses del año.
+          El proyectado de ventas extiende el promedio mensual vendido (${promedioMensual.toFixed(2)}) a los 12 meses; el proyectado de cobranza hace lo mismo con el promedio mensual cobrado (${promedioMensualCobrado.toFixed(2)}). Si la cobranza va rezagada respecto de la venta (por ventas a crédito, apartados, etc.), este segundo número puede quedar por debajo del primero — eso es normal y esperado, no un error.
         </p>
       </div>
 
