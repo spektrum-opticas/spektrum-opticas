@@ -8143,6 +8143,18 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
     mostrarToast(`Venta recuperada — ahora tiene el folio #${folioNuevo} ✓`);
   }
 
+  function eliminarVentaHuerfana(compra) {
+    if (!window.confirm(`¿Eliminar definitivamente la venta de "${compra.pacienteNombre || "este cliente"}" por $${Number(compra.total || 0).toFixed(2)}? Esta acción no se puede deshacer.`)) return;
+    setPacientes((prev) =>
+      prev.map((p) =>
+        p.id === compra.pacienteId
+          ? { ...p, compras: (p.compras || []).filter((c) => c.folio !== compra.folio) }
+          : p
+      )
+    );
+    mostrarToast("Venta eliminada definitivamente ✓");
+  }
+
   const ajustesManuales = ventas.flatMap((v) =>
     (v.historialCancelacion || [])
       .map((c, i) => ({ ...c, folio: v.folio, cliente: v.nombreCliente, indice: i }))
@@ -8239,6 +8251,9 @@ function CancelacionesTab({ ventas, setVentas, inventario, setInventario, pacien
                 </p>
                 <button onClick={() => recuperarVentaHuerfana(c)} className="text-xs px-3 py-1.5 rounded-lg text-white bg-red-600">
                   Recuperar con folio nuevo
+                </button>
+                <button onClick={() => eliminarVentaHuerfana(c)} className="text-xs px-3 py-1.5 rounded-lg text-white bg-slate-700 hover:bg-slate-800">
+                  Eliminar definitivamente
                 </button>
               </div>
             ))}
