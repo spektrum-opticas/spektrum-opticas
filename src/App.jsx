@@ -13039,7 +13039,7 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nomi
   const [mesAnalisis, setMesAnalisis] = useState(mesISO(new Date()));
   const [vistaDashboard, setVistaDashboard] = useState("mensual"); // mensual | anual
   const [anioAnalisis, setAnioAnalisis] = useState(new Date().getFullYear());
-  const [cargaManual, setCargaManual] = useState({ mes: mesISO(new Date()), vendido: "", cobrado: "", meta: "" });
+  const [cargaManual, setCargaManual] = useState({ mes: mesISO(new Date()), vendido: "", cobrado: "", meta: "", tickets: [] });
 
   const datosMes = datosDelMes(mesAnalisis, ventas, dashboard, pagosProveedores, nominas);
   const cancelacionesMesDashboard = ventas.flatMap((v) => (v.historialCancelacion || []).filter((c) => c.fecha.slice(0, 7) === mesAnalisis));
@@ -13067,13 +13067,42 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nomi
 
   function guardarCargaManual() {
     if (!cargaManual.mes) return;
+    const tickets = cargaManual.tickets || [];
+    // Si hay tickets capturados, el vendido/cobrado del mes se calcula sumándolos —
+    // así ya no hace falta escribir un solo total a mano y arriesgarse a que no cuadre.
+    const datosAGuardar = tickets.length > 0
+      ? {
+          ...cargaManual,
+          vendido: tickets.reduce((s, t) => s + Number(t.monto || 0), 0),
+          cobrado: tickets.reduce((s, t) => s + Number(t.cobrado !== "" && t.cobrado != null ? t.cobrado : t.monto || 0), 0),
+        }
+      : cargaManual;
     const existe = historialManual.some((h) => h.mes === cargaManual.mes);
     const nuevoHistorial = existe
-      ? historialManual.map((h) => (h.mes === cargaManual.mes ? { ...h, ...cargaManual, id: h.id } : h))
-      : [...historialManual, { ...cargaManual, id: uid() }];
+      ? historialManual.map((h) => (h.mes === cargaManual.mes ? { ...h, ...datosAGuardar, id: h.id } : h))
+      : [...historialManual, { ...datosAGuardar, id: uid() }];
     const nuevasMetas = cargaManual.meta ? { ...metasPorMes, [cargaManual.mes]: cargaManual.meta } : metasPorMes;
     setDashboard({ ...dashboard, historialManual: nuevoHistorial, metasPorMes: nuevasMetas });
-    setCargaManual({ mes: cargaManual.mes, vendido: "", cobrado: "", meta: "" });
+    setCargaManual({ mes: cargaManual.mes, vendido: "", cobrado: "", meta: "", tickets: [] });
+  }
+
+  function seleccionarMesCarga(mes) {
+    const existente = historialManual.find((h) => h.mes === mes);
+    setCargaManual(
+      existente
+        ? { mes, vendido: existente.vendido, cobrado: existente.cobrado, meta: existente.meta || "", tickets: existente.tickets || [] }
+        : { mes, vendido: "", cobrado: "", meta: "", tickets: [] }
+    );
+  }
+
+  function agregarTicketManual() {
+    setCargaManual({ ...cargaManual, tickets: [...(cargaManual.tickets || []), { id: uid(), nota: "", monto: "", cobrado: "" }] });
+  }
+  function actualizarTicketManual(id, campo, valor) {
+    setCargaManual({ ...cargaManual, tickets: (cargaManual.tickets || []).map((t) => (t.id === id ? { ...t, [campo]: valor } : t)) });
+  }
+  function eliminarTicketManual(id) {
+    setCargaManual({ ...cargaManual, tickets: (cargaManual.tickets || []).filter((t) => t.id !== id) });
   }
 
   function eliminarCargaManual(mes) {
@@ -13103,6 +13132,10 @@ function DashboardView({ dashboard, setDashboard, ventas, pagosProveedores, nomi
           setCargaManual={setCargaManual}
           guardarCargaManual={guardarCargaManual}
           eliminarCargaManual={eliminarCargaManual}
+          seleccionarMesCarga={seleccionarMesCarga}
+          agregarTicketManual={agregarTicketManual}
+          actualizarTicketManual={actualizarTicketManual}
+          eliminarTicketManual={eliminarTicketManual}
           config={config}
         />
       ) : (
@@ -13549,7 +13582,7 @@ function ComisionesView({ dashboard, setDashboard, ventas, pagosProveedores, nom
   );
 }
 
-function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, nominas, cargaManual, setCargaManual, guardarCargaManual, eliminarCargaManual, config }) {
+function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, nominas, cargaManual, setCargaManual, guardarCargaManual, eliminarCargaManual, seleccionarMesCarga, agregarTicketManual, actualizarTicketManual, eliminarTicketManual, config }) {
   const historialManual = dashboard.historialManual || [];
   const nombresMes = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
@@ -13729,18 +13762,30 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, no
           Solo se usa para meses donde no hay ventas reales capturadas en el POS. Si el mes ya tiene ventas reales, esos
           datos tienen prioridad y esta carga se ignora en los cálculos.
         </p>
-        <div className="flex flex-wrap gap-2 items-end">
+        <div className="flex flex-wrap gap-2 items-end mb-4">
           <div>
             <label className="text-xs text-slate-500">Mes</label>
-            <input type="month" value={cargaManual.mes} onChange={(e) => setCargaManual({ ...cargaManual, mes: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm" />
+            <input type="month" value={cargaManual.mes} onChange={(e) => seleccionarMesCarga(e.target.value)} className="block border rounded-lg px-2 py-1.5 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-slate-500">Vendido ($ MXN)</label>
-            <input type="number" value={cargaManual.vendido} onChange={(e) => setCargaManual({ ...cargaManual, vendido: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm w-32" />
+            <label className="text-xs text-slate-500">Vendido ($ MXN){(cargaManual.tickets || []).length > 0 && " — suma de tickets"}</label>
+            <input
+              type="number"
+              value={(cargaManual.tickets || []).length > 0 ? (cargaManual.tickets || []).reduce((s, t) => s + Number(t.monto || 0), 0) : cargaManual.vendido}
+              onChange={(e) => setCargaManual({ ...cargaManual, vendido: e.target.value })}
+              disabled={(cargaManual.tickets || []).length > 0}
+              className="block border rounded-lg px-2 py-1.5 text-sm w-32 disabled:bg-slate-100 disabled:text-slate-500"
+            />
           </div>
           <div>
-            <label className="text-xs text-slate-500">Cobrado ($ MXN)</label>
-            <input type="number" value={cargaManual.cobrado} onChange={(e) => setCargaManual({ ...cargaManual, cobrado: e.target.value })} className="block border rounded-lg px-2 py-1.5 text-sm w-32" />
+            <label className="text-xs text-slate-500">Cobrado ($ MXN){(cargaManual.tickets || []).length > 0 && " — suma de tickets"}</label>
+            <input
+              type="number"
+              value={(cargaManual.tickets || []).length > 0 ? (cargaManual.tickets || []).reduce((s, t) => s + Number(t.cobrado !== "" && t.cobrado != null ? t.cobrado : t.monto || 0), 0) : cargaManual.cobrado}
+              onChange={(e) => setCargaManual({ ...cargaManual, cobrado: e.target.value })}
+              disabled={(cargaManual.tickets || []).length > 0}
+              className="block border rounded-lg px-2 py-1.5 text-sm w-32 disabled:bg-slate-100 disabled:text-slate-500"
+            />
           </div>
           <div>
             <label className="text-xs text-slate-500">Meta de ese mes ($ MXN)</label>
@@ -13749,6 +13794,45 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, no
           <button onClick={guardarCargaManual} className="px-3 py-1.5 rounded-lg text-white text-sm" style={{ background: SKY_DARK }}>
             Guardar mes
           </button>
+        </div>
+
+        <div className="border-t pt-3">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-medium text-slate-600">Tickets de {cargaManual.mes} (opcional — para que el sistema sume por ti)</h4>
+            <button onClick={agregarTicketManual} className="text-xs px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700">
+              + Agregar ticket
+            </button>
+          </div>
+          {(cargaManual.tickets || []).length === 0 ? (
+            <p className="text-xs text-slate-400">
+              Sin tickets capturados para este mes — puedes seguir usando los campos "Vendido" y "Cobrado" de arriba como un solo total, o agregar tickets uno por uno aquí para que el sistema los sume automáticamente.
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {(cargaManual.tickets || []).map((t) => (
+                <div key={t.id} className="flex flex-wrap items-center gap-2 bg-slate-50 border rounded-lg p-2">
+                  <input
+                    placeholder="Nota / cliente (opcional)"
+                    value={t.nota}
+                    onChange={(e) => actualizarTicketManual(t.id, "nota", e.target.value)}
+                    className="flex-1 min-w-[140px] border rounded-lg px-2 py-1 text-xs"
+                  />
+                  <label className="text-xs text-slate-500 flex items-center gap-1">
+                    Vendido
+                    <input type="number" value={t.monto} onChange={(e) => actualizarTicketManual(t.id, "monto", e.target.value)} className="border rounded-lg px-2 py-1 text-xs w-24" />
+                  </label>
+                  <label className="text-xs text-slate-500 flex items-center gap-1">
+                    Cobrado
+                    <input type="number" placeholder="= vendido" value={t.cobrado} onChange={(e) => actualizarTicketManual(t.id, "cobrado", e.target.value)} className="border rounded-lg px-2 py-1 text-xs w-24" />
+                  </label>
+                  <button onClick={() => eliminarTicketManual(t.id)} className="text-slate-400 hover:text-red-600"><X size={14} /></button>
+                </div>
+              ))}
+              <p className="text-xs text-slate-500 pt-1">
+                {(cargaManual.tickets || []).length} ticket(s) · Total vendido: ${(cargaManual.tickets || []).reduce((s, t) => s + Number(t.monto || 0), 0).toFixed(2)} · Total cobrado: ${(cargaManual.tickets || []).reduce((s, t) => s + Number(t.cobrado !== "" && t.cobrado != null ? t.cobrado : t.monto || 0), 0).toFixed(2)}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
