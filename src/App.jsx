@@ -1427,23 +1427,23 @@ function AgendaView({ agenda, setAgenda, pacientes, setPacientes, goToPOS, labor
 
       <Modal open={!!expediente} onClose={() => setExpediente(null)} title="Expediente del paciente" wide>
         {paciente ? (
-          <ExpedientePaciente
-            paciente={paciente}
-            pacientes={pacientes}
-            setPacientes={setPacientes}
-            laboratorio={laboratorio}
-            setLaboratorio={setLaboratorio}
-            onVenta={() => {
-              setExpediente(null);
-              goToPOS(paciente.id);
-            }}
-            onGuardarSalir={() => setExpediente(null)}
-            onEliminar={() => {
-              setPacientes(pacientes.filter((p) => p.id !== paciente.id));
-              setAgenda(agenda.filter((c) => c.pacienteId !== paciente.id));
-              setExpediente(null);
-            }}
-          />
+           <ExpedientePacienteCompleto
+                paciente={paciente}
+                pacientes={pacientes}
+                setPacientes={setPacientes}
+                laboratorio={laboratorio}
+                setLaboratorio={setLaboratorio}
+                agenda={agenda}
+                setAgenda={setAgenda}
+                onIrAgenda={() => setExpediente(null)}
+                onEliminar={() => {
+                  setPacientes(pacientes.filter((p) => p.id !== paciente.id));
+                  setAgenda(agenda.filter((c) => c.pacienteId !== paciente.id));
+                  setExpediente(null);
+                }}
+                onCerrar={() => setExpediente(null)}
+                config={config}
+              />
         ) : (
           <p className="text-sm text-slate-400">
             No se encontró el expediente de este paciente (puede que haya sido eliminado). Cierra esta ventana e
