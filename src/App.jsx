@@ -13577,11 +13577,19 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, no
   const notasConSaldoAnual = ventas.filter((v) => (v.estatus === "venta" || v.estatus === "devolucion") && Number(v.saldo || 0) > 0);
   const totalSaldoPendienteAnual = notasConSaldoAnual.reduce((s, v) => s + Number(v.saldo || 0), 0);
 
+  // Ajustes manuales de saldo (folio por folio, desde "Cancelaciones y/o devoluciones") también
+  // explican una parte legítima de la diferencia: son dinero que se decidió condonar/corregir,
+  // no dinero que en verdad se cobró. Se cuentan por la fecha en que se aplicó el ajuste.
+  const totalAjustesManualesAnio = ventas
+    .flatMap((v) => v.historialCancelacion || [])
+    .filter((c) => c.ajusteManual && c.fecha && c.fecha.slice(0, 4) === String(anio))
+    .reduce((s, c) => s + Number(c.montoReembolsado || 0), 0);
+
   // La diferencia entre lo vendido y lo cobrado del año debería explicarse, casi por completo,
-  // con el saldo que todavía se debe cobrar. Si sobra o falta una cantidad grande aquí, es un
-  // descuadre real que hay que investigar (no solo saldo pendiente normal).
+  // con el saldo que todavía se debe cobrar y los ajustes manuales ya aplicados. Si sobra o falta
+  // una cantidad grande aquí, es un descuadre real que hay que investigar.
   const diferenciaVendidoCobrado = totalAnioVendido - totalAnioCobrado;
-  const diferenciaSinExplicar = diferenciaVendidoCobrado - totalSaldoPendienteAnual;
+  const diferenciaSinExplicar = diferenciaVendidoCobrado - totalSaldoPendienteAnual - totalAjustesManualesAnio;
 
   return (
     <div className="space-y-4">
@@ -13612,11 +13620,11 @@ function DashboardAnual({ anio, setAnio, ventas, dashboard, pagosProveedores, no
           titulo="Diferencia sin explicar"
           monto={diferenciaSinExplicar}
           color={Math.abs(diferenciaSinExplicar) < 1 ? "#0d9488" : "#dc2626"}
-          subtitulo={Math.abs(diferenciaSinExplicar) < 1 ? "Cuadra ✓ — la diferencia es saldo pendiente" : "⚠️ No cuadra con el saldo pendiente — revisar"}
+          subtitulo={Math.abs(diferenciaSinExplicar) < 1 ? "Cuadra ✓ — saldo pendiente y ajustes manuales" : "⚠️ No cuadra con saldo pendiente ni ajustes — revisar"}
         />
       </div>
       <p className="text-xs text-slate-400">
-        (Vendido − Cobrado = ${diferenciaVendidoCobrado.toFixed(2)}) − (Saldo pendiente real = ${totalSaldoPendienteAnual.toFixed(2)}) = ${diferenciaSinExplicar.toFixed(2)} sin explicar.
+        (Vendido − Cobrado = ${diferenciaVendidoCobrado.toFixed(2)}) − (Saldo pendiente real = ${totalSaldoPendienteAnual.toFixed(2)}) − (Ajustes manuales = ${totalAjustesManualesAnio.toFixed(2)}) = ${diferenciaSinExplicar.toFixed(2)} sin explicar.
         Si ese último número es cercano a $0, toda la diferencia es dinero que aún se debe cobrar. Si es grande, hay un descuadre real que hay que investigar folio por folio.
       </p>
 
